@@ -1,9 +1,10 @@
 # Sound Manager TypeScript
 
-A robust TypeScript-based sound management system for web applications that provides an easy-to-use interface for handling audio playback.
+A minimalist yet powerful sound management solution that puts you in control of audio playback. Perfect for web apps, games, and interactive experiences.
 
 ## Features
-
+- Ultra-lightweight (11KB) with zero dependencies
+- Simple API for audio loading and playback control
 - Audio context management with automatic initialization
 - Sound preloading and caching
 - Individual sound control (play, pause, resume, stop)
@@ -11,6 +12,7 @@ A robust TypeScript-based sound management system for web applications that prov
 - Mute/unmute functionality
 - Multiple simultaneous sound playback
 - TypeScript support with full type definitions
+- Perfect for games and interactive web applications
 
 ## Installation
 
