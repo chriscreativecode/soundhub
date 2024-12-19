@@ -1,11 +1,12 @@
 import { SoundManager } from "../sound-manager/sound-manager";
-import "./sound-manager-demo.css";
-import demoTemplate from "./sound-manager-demo.html?raw";
+import "./demo.css";
+import demoTemplate from "./demo.html?raw";
 
 // Import your sound files
 import sound1 from "../sounds/birds.mp3";
 import sound2 from "../sounds/piano.mp3";
 import sound3 from "../sounds/ringtonex.mp3";
+
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
