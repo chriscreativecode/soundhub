@@ -1,5 +1,6 @@
 // main.ts
-import { SoundManagerDemo } from './sound-manager-demo/sound-manager-demo';
+import { SoundManagerDemo } from './demo';
+
 
 const appElement = document.getElementById('app');
 const container = document.createElement('div');

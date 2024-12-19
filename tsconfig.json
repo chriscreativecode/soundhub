@@ -7,6 +7,7 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
+    "types": ["node"],
     "isolatedModules": true,
     "declaration": true,
     "declarationDir": "./dist",
