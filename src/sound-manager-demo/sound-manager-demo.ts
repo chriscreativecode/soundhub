@@ -2,7 +2,6 @@ import { SoundManager } from "../sound-manager/sound-manager";
 import "./sound-manager-demo.css";
 import demoTemplate from "./sound-manager-demo.html?raw";
 
-
 // Import your sound files
 import sound1 from "../sounds/birds.mp3";
 import sound2 from "../sounds/piano.mp3";
@@ -15,15 +14,15 @@ export class SoundManagerDemo {
 
   constructor(container: HTMLElement) {
     if (!container) {
-        throw new Error('Container element is required for SoundManagerDemo');
+      throw new Error("Container element is required for SoundManagerDemo");
     }
 
     if (!(container instanceof HTMLElement)) {
-        throw new Error('Container must be an HTMLElement');
+      throw new Error("Container must be an HTMLElement");
     }
 
     if (!container.parentElement) {
-        throw new Error('Container must be attached to the DOM');
+      throw new Error("Container must be attached to the DOM");
     }
     this.containerElement = container;
     this.soundManager = new SoundManager();
@@ -114,7 +113,7 @@ export class SoundManagerDemo {
       await this.soundManager.preloadSounds([
         { id: "birds", url: sound1 },
         { id: "piano", url: sound2 },
-        { id: "ringtone", url: sound3 }
+        { id: "ringtone", url: sound3 },
       ]);
 
       this.updateSoundSelector();
@@ -158,7 +157,7 @@ export class SoundManagerDemo {
 
   private stopCurrentSound(): void {
     if (this.currentSoundId) {
-      this.soundManager.stopAllSounds(); // Since there's no individual stop
+      this.soundManager.stopSound(this.currentSoundId);
     }
   }
 
@@ -201,7 +200,9 @@ export class SoundManagerDemo {
       "unmuteBtn",
     ];
     buttons.forEach((id) => {
-      const button = document.getElementById(id);
+      const button: HTMLButtonElement = document.getElementById(
+        id
+      ) as HTMLButtonElement;
       if (button) button.disabled = !hasSound;
     });
   }
@@ -247,4 +248,3 @@ export class SoundManagerDemo {
     setInterval(() => this.updateStatusPanel(), 100);
   }
 }
-
