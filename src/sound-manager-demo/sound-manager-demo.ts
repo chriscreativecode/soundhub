@@ -1,7 +1,7 @@
 import { SoundManager } from "../sound-manager/sound-manager";
 import "./sound-manager-demo.css";
 import demoTemplate from "./sound-manager-demo.html?raw";
- console.log("Imported template:", demoTemplate);
+
 
 // Import your sound files
 import sound1 from "../sounds/birds.mp3";
@@ -14,8 +14,6 @@ export class SoundManagerDemo {
   private containerElement: HTMLElement;
 
   constructor(container: HTMLElement) {
-    console.log('SoundManagerDemo constructor called with:', container);
-        
     if (!container) {
         throw new Error('Container element is required for SoundManagerDemo');
     }
