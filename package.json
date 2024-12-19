@@ -1,6 +1,6 @@
 {
   "name": "sound-manager-ts",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "type": "module",
   "main": "./dist/sound-manager-ts.umd.js",
   "module": "./dist/sound-manager-ts.es.js",
