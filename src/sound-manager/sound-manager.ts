@@ -23,7 +23,7 @@ export class SoundManager {
     }
 
     private setupContextResumeHandlers(): void {
-        const resumeHandler = async (event: Event) => {
+        const resumeHandler = async () => {
             await this.resumeAudioContext();
             if (this.isInitialized) {
                 ['click', 'keydown', 'touchstart'].forEach(eventType => {
@@ -176,6 +176,21 @@ export class SoundManager {
             source.start(0, sound.pausedAt);
         } catch (error) {
             console.error(`Error resuming sound ${id}:`, error);
+        }
+    }
+
+    public stopSound(id: string): void {
+        try {
+            const sound = this.sounds.get(id);
+            if (!sound) return;
+    
+            sound.sources.forEach(source => source.stop());
+            sound.sources = [];
+            sound.isPlaying = false;
+            sound.isPaused = false;
+            sound.pausedAt = 0;
+        } catch (error) {
+            console.error(`Error stopping sound ${id}:`, error);
         }
     }
 
