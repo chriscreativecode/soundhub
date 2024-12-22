@@ -87,7 +87,11 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## Version History
 
-### 1.2.0 (Current)
+
+### 1.3.0 (Current)
+- Fixed typscript types .d.ts error 
+
+### 1.2.0 
 **Patch Update - npm run build**
 - npm run build was failing. I needed to add "typescript": "^5.7.2", to the package.json
 
