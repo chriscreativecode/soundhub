@@ -1,6 +1,6 @@
 {
   "name": "sound-manager-ts",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "keywords": [
     "audio",
     "sound",
@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
     "vite": "^6.0.4"
   }
 }
