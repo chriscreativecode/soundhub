@@ -84,3 +84,23 @@ Compatible with modern browsers supporting the Web Audio API. Includes fallbacks
 
 ## Licence
 This project is developed by Chris Schardijn. It is free to use in your project.
+
+## Version History
+
+### 1.1.0 (Current)
+**Major Update - Audio Control Improvements**
+- Fixed critical pause and resume functionality
+- Enhanced demo UI with better controls and status display
+- Resolved AudioContext initialization issues
+  - Fixed: "AudioContext was not allowed to start" error
+  - Added user gesture handling for proper audio context initialization
+- Improved error handling and state management
+- Added comprehensive debug logging
+
+### 1.0.4
+- Initial public release
+- Basic audio playback functionality
+
+## Upcoming Features
+- Performance optimizations
+- Convert the Sound Manager to a singleton.
