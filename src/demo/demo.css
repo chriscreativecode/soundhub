@@ -5,28 +5,14 @@
     padding: 20px;
 }
 
-.section {
+.controls-section {
     background: #f5f5f5;
     padding: 15px;
     margin-bottom: 20px;
     border-radius: 5px;
-}
-
-.section h3 {
-    margin-top: 0;
-    color: #333;
-}
-
-.control-panel {
     display: flex;
     flex-direction: column;
     gap: 20px;
-}
-
-.button-group {
-    display: flex;
-    gap: 10px;
-    margin: 10px 0;
 }
 
 button {
@@ -48,7 +34,28 @@ button:disabled {
     cursor: not-allowed;
 }
 
-.volume-control {
+select {
+    padding: 8px;
+    flex: 1;
+    border-radius: 5px;
+}
+
+.sound-controls, .global-controls, .load-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.load-controls {
+    display: flex;
+    flex-direction: row;
+}
+
+.volume-controls {
+    margin: 15px 0;
+}
+
+.volume-controls label {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -57,24 +64,38 @@ button:disabled {
 
 input[type="range"] {
     flex: 1;
+    min-width: 200px;
 }
 
-select {
-    padding: 8px;
-    width: 100%;
-    margin-bottom: 10px;
+#soundVolumeValue, #masterVolumeValue {
+    min-width: 50px;
 }
 
 .status-panel {
     background: #fff;
-    padding: 10px;
+    padding: 15px;
     border: 1px solid #ddd;
     border-radius: 4px;
     min-height: 100px;
 }
 
-.sound-controls, .global-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.status-panel div {
+    margin-bottom: 8px;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.status-panel div:last-child {
+    border-bottom: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .sound-controls, .global-controls {
+        flex-direction: column;
+    }
+
+    input[type="range"] {
+        min-width: 150px;
+    }
 }

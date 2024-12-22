@@ -6,7 +6,7 @@ import demoTemplate from "./demo.html?raw";
 import sound1 from "../sounds/birds.mp3";
 import sound2 from "../sounds/piano.mp3";
 import sound3 from "../sounds/ringtonex.mp3";
-
+import { SoundState } from "../sound-manager/sound-state.interface";
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
@@ -138,30 +138,63 @@ export class SoundManagerDemo {
     });
   }
 
-  private playCurrentSound(): void {
-    if (this.currentSoundId) {
-      this.soundManager.playSound(this.currentSoundId);
-    }
-  }
-
   private pauseCurrentSound(): void {
+    console.log("pauze sound", this.currentSoundId);
     if (this.currentSoundId) {
-      this.soundManager.pauseSound(this.currentSoundId);
+      try {
+        this.soundManager.pauseSound(this.currentSoundId);
+        console.debug(`Paused sound: ${this.currentSoundId}`);
+
+        // Check state immediately after pause
+        const stateAfterPause = this.soundManager.getSoundState(
+          this.currentSoundId
+        );
+        console.debug("State immediately after pause:", stateAfterPause);
+
+        // Force immediate update
+        this.updateControlStates();
+      } catch (error) {
+        console.error(`Error pausing sound: ${this.currentSoundId}`, error);
+      }
     }
   }
 
   private resumeCurrentSound(): void {
     if (this.currentSoundId) {
-      this.soundManager.resumeSound(this.currentSoundId);
+      try {
+        this.soundManager.resumeSound(this.currentSoundId);
+        console.debug(`Resumed sound: ${this.currentSoundId}`);
+        // Force immediate update
+        requestAnimationFrame(() => this.updateControlStates());
+      } catch (error) {
+        console.error(`Error resuming sound: ${this.currentSoundId}`, error);
+      }
+    }
+  }
+
+  private async playCurrentSound(): Promise<void> {
+    if (this.currentSoundId) {
+      try {
+        await this.soundManager.playSound(this.currentSoundId);
+        console.debug(`Playing sound: ${this.currentSoundId}`);
+        this.updateControlStates();
+      } catch (error) {
+        console.error(`Error playing sound: ${this.currentSoundId}`, error);
+      }
     }
   }
 
   private stopCurrentSound(): void {
     if (this.currentSoundId) {
-      this.soundManager.stopSound(this.currentSoundId);
+      try {
+        this.soundManager.stopSound(this.currentSoundId);
+        console.debug(`Stopped sound: ${this.currentSoundId}`);
+        this.updateControlStates();
+      } catch (error) {
+        console.error(`Error stopping sound: ${this.currentSoundId}`, error);
+      }
     }
   }
-
   private muteCurrentSound(): void {
     if (this.currentSoundId) {
       this.soundManager.muteSoundById(this.currentSoundId);
@@ -191,20 +224,64 @@ export class SoundManagerDemo {
   }
 
   private updateControlStates(): void {
-    const hasSound = !!this.currentSoundId;
-    const buttons = [
+    if (!this.currentSoundId) {
+      this.disableAllControls();
+      return;
+    }
+
+    const state = this.soundManager.getSoundState(this.currentSoundId);
+    if (!state) return;
+
+    console.debug("Current sound state:", {
+      id: this.currentSoundId,
+      rawState: state,
+      timestamp: new Date().toISOString(),
+    });
+
+    const playBtn = document.getElementById("playBtn") as HTMLButtonElement;
+    const pauseBtn = document.getElementById("pauseBtn") as HTMLButtonElement;
+    const resumeBtn = document.getElementById("resumeBtn") as HTMLButtonElement;
+    const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement;
+    const muteBtn = document.getElementById("muteBtn") as HTMLButtonElement;
+    const unmuteBtn = document.getElementById("unmuteBtn") as HTMLButtonElement;
+
+    const isPlaying = state.state === SoundState.Playing;
+    const isPaused = state.state === SoundState.Paused;
+    const isStopped = state.state === SoundState.Stopped;
+
+    if (playBtn) playBtn.disabled = isPlaying;
+    if (pauseBtn) pauseBtn.disabled = !isPlaying;
+    if (resumeBtn) resumeBtn.disabled = !isPaused;
+    if (stopBtn) stopBtn.disabled = isStopped;
+    if (muteBtn) muteBtn.disabled = false;
+    if (unmuteBtn) unmuteBtn.disabled = false;
+
+    console.debug("Sound state update:", {
+      id: this.currentSoundId,
+      state: state.state,
+      isPlaying,
+      isPaused,
+      isStopped,
+      buttons: {
+        play: playBtn?.disabled,
+        pause: pauseBtn?.disabled,
+        resume: resumeBtn?.disabled,
+        stop: stopBtn?.disabled,
+      },
+    });
+  }
+
+  private disableAllControls(): void {
+    [
       "playBtn",
       "pauseBtn",
       "resumeBtn",
       "stopBtn",
       "muteBtn",
       "unmuteBtn",
-    ];
-    buttons.forEach((id) => {
-      const button: HTMLButtonElement = document.getElementById(
-        id
-      ) as HTMLButtonElement;
-      if (button) button.disabled = !hasSound;
+    ].forEach((id) => {
+      const button = document.getElementById(id) as HTMLButtonElement;
+      if (button) button.disabled = true;
     });
   }
 
@@ -221,19 +298,17 @@ export class SoundManagerDemo {
     const statusHtml = soundIds
       .map((id) => {
         const state = this.soundManager.getSoundState(id);
+        if (!state) return "";
+
         return `
                 <div>
                     <strong>${id}</strong>: 
                     ${
-                      state?.isPlaying
-                        ? "Playing"
-                        : state?.isPaused
-                        ? "Paused"
-                        : "Stopped"
-                    }
-                    (Volume: ${Math.round((state?.volume || 0) * 100)}%)
+                      state.state
+                    } <!-- Use the SoundState enum value directly -->
+                    (Volume: ${Math.round(state.volume * 100)}%)
                     ${
-                      state?.duration
+                      state.duration
                         ? `Duration: ${state.duration.toFixed(2)}s`
                         : ""
                     }
@@ -246,6 +321,14 @@ export class SoundManagerDemo {
   }
 
   private startStatusUpdates(): void {
-    setInterval(() => this.updateStatusPanel(), 100);
+    setInterval(() => {
+      if (this.currentSoundId) {
+        const state = this.soundManager.getSoundState(this.currentSoundId);
+        if (state?.state === SoundState.Playing) {
+          this.updateStatusPanel();
+          this.updateControlStates();
+        }
+      }
+    }, 500);
   }
 }
