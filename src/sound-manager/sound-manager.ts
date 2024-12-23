@@ -330,28 +330,9 @@ export class SoundManager {
     return sound?.buffer != null;
   }
 
-  private async fadeGain(
-    gainNode: GainNode,
-    startValue: number,
-    endValue: number,
-    duration: number
-  ): Promise<void> {
-    const startTime = this.context.currentTime;
-    gainNode.gain.cancelScheduledValues(startTime);
-    gainNode.gain.setValueAtTime(startValue, startTime);
-    gainNode.gain.linearRampToValueAtTime(
-      endValue,
-      startTime + duration / 1000
-    );
-
-    return new Promise((resolve) => {
-      setTimeout(resolve, duration);
-    });
-  }
-
+ 
   /*@TODO need to implement this logic */
-
-  public setLoop(id: string, shouldLoop: boolean): void {
+ public setLoop(id: string, shouldLoop: boolean): void {
     try {
       const sound = this.validateSound(id);
       sound.sources.forEach((source) => (source.loop = shouldLoop));
