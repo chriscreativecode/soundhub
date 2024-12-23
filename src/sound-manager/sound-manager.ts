@@ -1,30 +1,224 @@
+import { PlaySoundOptions } from "./play-sound-options.interface";
+import { DEFAULT_CONFIG, SoundManagerConfig } from "./sound-manager-config";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { SoundState } from "./sound-state.interface";
 import { Sound } from "./sound.interface";
 
 export class SoundManager {
+  private readonly config: SoundManagerConfig;
   private readonly context: AudioContext;
   private sounds: Map<string, Sound> = new Map();
   private masterGainNode: GainNode;
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
 
-  constructor() {
+  constructor(config: SoundManagerConfig = {}) {
+    // Validate config values
+    if (config.defaultVolume !== undefined) {
+      config.defaultVolume = this.setValidatedVolume(config.defaultVolume);
+    }
+    if (config.fadeInDuration !== undefined && config.fadeInDuration < 0) {
+      config.fadeInDuration = 0;
+    }
+    if (config.fadeOutDuration !== undefined && config.fadeOutDuration < 0) {
+      config.fadeOutDuration = 0;
+    }
+    if (config.spatialAudio && !this.isSpatialAudioSupported()) {
+      this.debugLog(
+        "Spatial audio requested but not supported, disabling feature"
+      );
+      config.spatialAudio = false;
+    }
+
+    this.config = { ...DEFAULT_CONFIG, ...config };
+
     try {
       const AudioContext =
         window.AudioContext || (window as any).webkitAudioContext;
       this.context = new AudioContext({ latencyHint: "interactive" });
       this.masterGainNode = this.context.createGain();
       this.masterGainNode.connect(this.context.destination);
-
-      if (this.context.state !== "suspended") {
-        this.context.suspend();
-      }
-
-      this.setupContextResumeHandlers();
+      this.masterGainNode.gain.value = this.config.defaultVolume!;
+      this.previousGlobalVolume = this.config.defaultVolume!;
+      this.initialize();
     } catch (error) {
       this.handleError("constructor, initialize", error);
     }
+  }
+
+  private initialize(): void {
+    this.setupContextResumeHandlers();
+    if (this.config.autoMuteOnHidden) {
+      this.setupVisibilityHandling();
+    }
+
+    if (this.config.spatialAudio) {
+      this.initializeSpatialAudio();
+    }
+
+    this.debugLog("Initialized with config:", this.config);
+  }
+
+  private setupVisibilityHandling(): void {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.debugLog("Page hidden, auto-muting sounds");
+        this.muteAllSounds();
+      } else if (this.config.autoResumeOnFocus) {
+        this.debugLog("Page visible, auto-resuming sounds");
+        this.unmuteAllSounds();
+      }
+    });
+  }
+
+  private debugLog(...args: any[]): void {
+    if (this.config.debug) {
+      console.debug("[SoundManager]", ...args);
+    }
+  }
+
+  private isSpatialAudioSupported(): boolean {
+    try {
+      // Check for basic Web Audio API support
+      if (!("AudioContext" in window || "webkitAudioContext" in window)) {
+        return false;
+      }
+
+      // Check for PannerNode support
+      if (!("PannerNode" in window)) {
+        return false;
+      }
+
+      // Check for specific spatial audio properties
+      const tempContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+      const hasRequiredProperties =
+        "positionX" in tempContext.listener &&
+        "positionY" in tempContext.listener &&
+        "positionZ" in tempContext.listener;
+
+      // Cleanup
+      tempContext.close();
+
+      return hasRequiredProperties;
+    } catch (error) {
+      this.debugLog("Spatial audio support check failed:", error);
+      return false;
+    }
+  }
+
+  public isSpatialAudioEnabled(): boolean {
+    return this.config.spatialAudio === true && this.isSpatialAudioSupported();
+  }
+
+  private initializeSpatialAudio(): void {
+    if (!this.isSpatialAudioSupported()) {
+      this.debugLog("Spatial audio not supported, disabling feature");
+      this.config.spatialAudio = false;
+      return;
+    }
+
+    try {
+      // Create a listener for spatial audio
+      const listener = this.context.listener;
+
+      // Set default listener position (at the center)
+      listener.positionX.setValueAtTime(0, this.context.currentTime);
+      listener.positionY.setValueAtTime(0, this.context.currentTime);
+      listener.positionZ.setValueAtTime(0, this.context.currentTime);
+
+      // Set orientation (optional)
+      listener.forwardX.setValueAtTime(0, this.context.currentTime);
+      listener.forwardY.setValueAtTime(0, this.context.currentTime);
+      listener.forwardZ.setValueAtTime(-1, this.context.currentTime);
+      listener.upX.setValueAtTime(0, this.context.currentTime);
+      listener.upY.setValueAtTime(1, this.context.currentTime);
+      listener.upZ.setValueAtTime(0, this.context.currentTime);
+
+      this.debugLog("Spatial audio initialized");
+    } catch (error) {
+      this.handleError("initializing spatial audio", error);
+    }
+  }
+
+  public removeSpatialEffect(id: string): void {
+    try {
+      const sound = this.validateSound(id);
+      if (sound.pannerNode) {
+        sound.gainNode.disconnect(sound.pannerNode);
+        sound.pannerNode.disconnect();
+        sound.pannerNode = undefined;
+        sound.gainNode.connect(this.masterGainNode);
+      }
+    } catch (error) {
+      this.handleError("removing spatial effect", error, id);
+    }
+  }
+
+  public hasSound(id: string): boolean {
+    return this.sounds.has(id) && this.sounds.get(id)?.buffer != null;
+  }
+
+  public getConfig(): Readonly<SoundManagerConfig> {
+    return { ...this.config };
+  }
+
+  /**
+   * Sets the 3D position of a sound in space
+   * @param soundId The ID of the sound to position
+   * @param x X coordinate in 3D space
+   * @param y Y coordinate in 3D space
+   * @param z Z coordinate in 3D space
+   */
+  public setSoundPosition(
+    soundId: string,
+    x: number,
+    y: number,
+    z: number
+  ): void {
+    if (!this.config.spatialAudio) {
+      this.debugLog("Spatial audio is not enabled");
+      return;
+    }
+
+    const sound = this.getSound(soundId);
+    if (!sound) return;
+
+    try {
+      // Create a panner node if it doesn't exist
+      if (!sound.pannerNode) {
+        sound.pannerNode = this.context.createPanner();
+        sound.pannerNode.panningModel = "HRTF";
+        sound.pannerNode.distanceModel = "inverse";
+        sound.pannerNode.refDistance = 1;
+        sound.pannerNode.maxDistance = 10000;
+        sound.pannerNode.rolloffFactor = 1;
+
+        // Connect the panner node to the audio graph
+        sound.gainNode.disconnect();
+        sound.gainNode.connect(sound.pannerNode);
+        sound.pannerNode.connect(this.masterGainNode);
+      }
+
+      // Update position
+      sound.pannerNode.positionX.setValueAtTime(x, this.context.currentTime);
+      sound.pannerNode.positionY.setValueAtTime(y, this.context.currentTime);
+      sound.pannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
+
+      this.debugLog(
+        `Set position for sound ${soundId}: x=${x}, y=${y}, z=${z}`
+      );
+    } catch (error) {
+      this.handleError("setting sound position", error);
+    }
+  }
+
+  /**
+   * Reset the 3D sound position
+   * @param id The ID of the sound to position
+   */
+  public resetSoundPosition(id: string): void {
+    this.setSoundPosition(id, 0, 0, 0);
   }
 
   private setupContextResumeHandlers(): void {
@@ -32,46 +226,39 @@ export class SoundManager {
       if (this.context.state === "suspended") {
         try {
           await this.context.resume();
-          ["click", "touchstart", "keydown"].forEach((event) => {
-            document.removeEventListener(event, resumeContext);
+          this.debugLog("AudioContext resumed after user interaction");
+
+          // Remove the event listeners once we've successfully resumed
+          ["click", "touchstart", "keydown"].forEach((eventType) => {
+            document.removeEventListener(eventType, resumeContext);
           });
         } catch (error) {
-          this.handleError("resuming context", error);
+          this.debugLog("Failed to resume AudioContext:", error);
         }
       }
     };
 
-    ["click", "touchstart", "keydown"].forEach((event) => {
-      document.addEventListener(event, resumeContext, { once: true });
+    ["click", "touchstart", "keydown"].forEach((eventType) => {
+      document.addEventListener(eventType, resumeContext, { once: true });
     });
+
+    this.debugLog(
+      "Context resume handlers set up, waiting for user interaction"
+    );
   }
 
   private async ensureContext(): Promise<void> {
     if (this.context.state === "suspended") {
-      await this.resumeAudioContext();
-    }
-  }
-
-  /**
-   * Resumes the audio context
-   * @throws Error if context fails to resume
-   */
-  public async resumeAudioContext(): Promise<void> {
-    if (this.context.state === "suspended") {
+      this.debugLog("AudioContext is suspended, attempting to resume...");
       try {
         await this.context.resume();
+        this.debugLog("AudioContext resumed successfully");
       } catch (error) {
-        this.handleError("resuming audio context", error);
+        this.debugLog(
+          "Failed to resume AudioContext, waiting for user interaction"
+        );
       }
     }
-  }
-
-  /**
-   * Checks if the audio context is ready
-   * @returns boolean indicating if audio is ready to play
-   */
-  public isAudioReady(): boolean {
-    return this.context.state === "running";
   }
 
   /**
@@ -90,15 +277,24 @@ export class SoundManager {
         }
 
         try {
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            credentials:
+              this.config.crossOrigin === "use-credentials"
+                ? "include"
+                : "same-origin",
+            mode: this.config.crossOrigin ? "cors" : "no-cors",
+          });
+
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
+
           const arrayBuffer = await response.arrayBuffer();
           const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 
           const gainNode = this.context.createGain();
           gainNode.connect(this.masterGainNode);
+          gainNode.gain.value = this.config.defaultVolume!;
 
           this.sounds.set(id, {
             id,
@@ -110,10 +306,10 @@ export class SoundManager {
             pausedAt: 0,
             isPlaying: false,
             isPaused: false,
-            volume: 1,
+            volume: this.config.defaultVolume!,
           });
 
-          console.debug(`Sound ${id} loaded successfully`);
+          this.debugLog(`Sound ${id} loaded successfully`);
         } catch (error) {
           this.handleError("loading sound", error, id);
         }
@@ -125,12 +321,54 @@ export class SoundManager {
     }
   }
 
-  public async playSound(id: string, volume?: number): Promise<void> {
+  public updateSoundUrl(id: string, newUrl: string): Promise<void> {
+    return this.preloadSounds([{ id, url: newUrl }]);
+  }
+
+  public isSoundLoaded(id: string): boolean {
+    const sound = this.sounds.get(id);
+    return sound?.buffer != null;
+  }
+
+  private async fadeGain(
+    gainNode: GainNode,
+    startValue: number,
+    endValue: number,
+    duration: number
+  ): Promise<void> {
+    const startTime = this.context.currentTime;
+    gainNode.gain.cancelScheduledValues(startTime);
+    gainNode.gain.setValueAtTime(startValue, startTime);
+    gainNode.gain.linearRampToValueAtTime(
+      endValue,
+      startTime + duration / 1000
+    );
+
+    return new Promise((resolve) => {
+      setTimeout(resolve, duration);
+    });
+  }
+
+  /*@TODO need to implement this logic */
+
+  public setLoop(id: string, shouldLoop: boolean): void {
+    try {
+      const sound = this.validateSound(id);
+      sound.sources.forEach((source) => (source.loop = shouldLoop));
+    } catch (error) {
+      this.handleError("setting loop", error, id);
+    }
+  }
+
+  public async playSound(
+    id: string,
+    options: PlaySoundOptions = {}
+  ): Promise<void> {
     try {
       await this.ensureContext();
       const sound = this.validateSound(id);
 
-      // Stop any existing playback of this sound
+      // Stop any existing playback
       if (sound.isPlaying) {
         sound.sources.forEach((source) => source.stop());
         sound.sources = [];
@@ -140,8 +378,34 @@ export class SoundManager {
       source.buffer = sound.buffer;
       source.connect(sound.gainNode);
 
-      if (volume !== undefined) {
-        this.setVolumeById(id, this.setValidatedVolume(volume));
+      // Handle spatial audio connections
+      if (this.config.spatialAudio && sound.pannerNode) {
+        sound.gainNode.disconnect();
+        sound.gainNode.connect(sound.pannerNode);
+        sound.pannerNode.connect(this.masterGainNode);
+      } else {
+        sound.gainNode.connect(this.masterGainNode);
+      }
+
+      // Set the target volume
+      const targetVolume =
+        options.volume !== undefined
+          ? this.setValidatedVolume(options.volume)
+          : sound.volume;
+      sound.volume = targetVolume;
+
+      // If fading in, start at 0 volume
+      if (options.fadeIn) {
+        sound.gainNode.gain.setValueAtTime(0, this.context.currentTime);
+        sound.gainNode.gain.linearRampToValueAtTime(
+          targetVolume,
+          this.context.currentTime + options.fadeIn / 1000
+        );
+      } else {
+        sound.gainNode.gain.setValueAtTime(
+          targetVolume,
+          this.context.currentTime
+        );
       }
 
       sound.sources.push(source);
@@ -153,11 +417,8 @@ export class SoundManager {
 
       return new Promise<void>((resolve) => {
         source.onended = () => {
-          // Only update state to stopped if the sound isn't paused
           if (!sound.isPaused) {
             this.cleanupSource(sound, source);
-            sound.isPlaying = false;
-            sound.isPaused = false;
           }
           resolve();
         };
@@ -192,7 +453,7 @@ export class SoundManager {
       sound.isPlaying = false;
       sound.isPaused = true;
 
-      console.debug("Pause state:", {
+      this.debugLog("Pause state:", {
         id,
         isPlaying: sound.isPlaying,
         isPaused: sound.isPaused,
@@ -202,6 +463,73 @@ export class SoundManager {
       this.handleError("pausing sound", error, id);
     }
   }
+
+  public async fadeMasterIn(
+    duration: number = this.config.fadeInDuration!
+  ): Promise<void> {
+    try {
+      // Get current volume as target (or use previous volume if currently muted)
+      const targetVolume =
+        this.masterGainNode.gain.value || this.previousGlobalVolume;
+
+      // Start from 0
+      this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
+
+      // Ramp to target volume
+      this.masterGainNode.gain.linearRampToValueAtTime(
+        targetVolume,
+        this.context.currentTime + duration / 1000
+      );
+
+      // Wait for fade to complete
+      await new Promise((resolve) => setTimeout(resolve, duration));
+
+      // Ensure we end at the correct volume
+      this.masterGainNode.gain.setValueAtTime(
+        targetVolume,
+        this.context.currentTime
+      );
+      this.isMuted = false;
+
+      this.debugLog(`Master fade in complete. Target volume: ${targetVolume}`);
+    } catch (error) {
+      this.handleError("fading in master volume", error);
+    }
+  }
+
+  public async fadeMasterOut(
+    duration: number = this.config.fadeOutDuration!
+  ): Promise<void> {
+    try {
+      const startVolume = this.masterGainNode.gain.value;
+      this.previousGlobalVolume = startVolume; // Store current volume for later
+
+      // Start fade from current volume
+      this.masterGainNode.gain.setValueAtTime(
+        startVolume,
+        this.context.currentTime
+      );
+
+      // Ramp to zero
+      this.masterGainNode.gain.linearRampToValueAtTime(
+        0,
+        this.context.currentTime + duration / 1000
+      );
+
+      // Wait for fade to complete
+      await new Promise((resolve) => setTimeout(resolve, duration));
+
+      // Ensure we end at zero
+      this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
+      this.isMuted = true;
+
+      this.debugLog("Master fade out complete");
+    } catch (error) {
+      this.handleError("fading out master volume", error);
+    }
+  }
+
+  // You can remove the old fadeIn and fadeOut methods if they're no longer needed
 
   /**
    * Updates the state of a sound
@@ -301,14 +629,37 @@ export class SoundManager {
    * Stops playback of a sound
    * @param id The ID of the sound to stop
    */
-  public stopSound(id: string): void {
+  // In sound-manager.ts, update the stopSound method
+
+  public stopSound(soundId: string): void {
+    const sound = this.getSound(soundId);
+    if (!sound) return;
+
     try {
-      const sound = this.validateSound(id);
-      sound.sources.forEach((source) => source.stop());
+      sound.sources.forEach((source) => {
+        source.stop();
+        source.disconnect();
+      });
       sound.sources = [];
-      this.updateSoundState(sound, SoundState.Stopped);
+
+      // Disconnect and clean up panner node if it exists
+      if (sound.pannerNode) {
+        sound.pannerNode.disconnect();
+        sound.pannerNode = undefined;
+      }
+
+      // Reset the gain node connection to master
+      sound.gainNode.disconnect();
+      sound.gainNode.connect(this.masterGainNode);
+
+      sound.isPlaying = false;
+      sound.isPaused = false;
+      sound.startTime = 0;
+      sound.pausedAt = 0;
+
+      this.debugLog(`Stopped sound: ${soundId}`);
     } catch (error) {
-      this.handleError("stopping sound", error, id);
+      this.handleError("stopping sound", error);
     }
   }
 
@@ -357,8 +708,12 @@ export class SoundManager {
   public setVolumeById(id: string, volume: number): void {
     try {
       const sound = this.validateSound(id);
-      sound.volume = this.setValidatedVolume(volume);
-      sound.gainNode.gain.value = sound.volume;
+      const validatedVolume = this.setValidatedVolume(volume);
+      sound.volume = validatedVolume;
+      sound.gainNode.gain.setValueAtTime(
+        validatedVolume,
+        this.context.currentTime
+      );
     } catch (error) {
       this.handleError("setting volume", error, id);
     }
@@ -477,6 +832,11 @@ export class SoundManager {
    * Performs cleanup and disposes of the sound manager
    */
   private cleanup(): void {
+    this.sounds.forEach((sound) => {
+      if (sound.pannerNode) {
+        sound.pannerNode.disconnect();
+      }
+    });
     this.stopAllSounds();
     this.sounds.clear();
     this.masterGainNode.disconnect();
@@ -492,6 +852,15 @@ export class SoundManager {
     } catch (error) {
       this.handleError("disposing sound manager", error);
     }
+  }
+
+  /**
+   * Gets the current sound
+   * @param id The ID of the sound
+   * @returns Object containing sound or null if not found
+   */
+  public getSound(id: string): Sound | undefined {
+    return this.sounds.get(id);
   }
 
   /**
@@ -519,17 +888,27 @@ export class SoundManager {
       state = SoundState.Stopped;
     }
 
-    console.debug("Get sound state:", {
+    // Calculate current position
+    let currentTime = 0;
+    if (sound.isPlaying) {
+      currentTime = this.context.currentTime - sound.startTime;
+    } else if (sound.isPaused) {
+      currentTime = sound.pausedAt;
+    }
+
+    this.debugLog("Get sound state:", {
       id,
       isPaused: sound.isPaused,
       isPlaying: sound.isPlaying,
       reportedState: state,
+      currentTime,
     });
 
     return {
       state,
       volume: sound.volume,
       duration: sound.buffer?.duration ?? null,
+      currentTime,
     };
   }
 
@@ -541,10 +920,15 @@ export class SoundManager {
    */
   private handleError(operation: string, error: unknown, id?: string): never {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const message = `Error ${operation}${
-      id ? ` (Sound ID: ${id})` : ""
-    }: ${errorMessage}`;
-    console.error(message);
+    const context = id ? ` (Sound ID: ${id})` : "";
+    const message = `[SoundManager] Error ${operation}${context}: ${errorMessage}`;
+
+    if (this.config.debug) {
+      console.error(message, error);
+    } else {
+      console.error(message);
+    }
+
     throw new Error(message);
   }
 }
