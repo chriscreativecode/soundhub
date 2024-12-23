@@ -1,11 +1,3 @@
-// main.ts
 import { SoundManagerDemo } from './demo';
-
-
-const appElement = document.getElementById('app');
-const container = document.createElement('div');
-container.id = 'sound-manager-demo-container';
-appElement?.appendChild(container);
-
-// Correct instantiation with container element
-new SoundManagerDemo(container); 
+const appElement = document.getElementById('app')!;
+new SoundManagerDemo(appElement); 
