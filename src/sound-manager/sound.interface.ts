@@ -1,12 +1,14 @@
 export interface Sound {
-    id: string;
     buffer: AudioBuffer | null;
-    url: string;
-    sources: AudioBufferSourceNode[];
     gainNode: GainNode;
-    startTime: number;
-    pausedAt: number;
-    isPlaying: boolean;
+    id: string;
     isPaused: boolean;
+    isPlaying: boolean;
+    loop?: boolean;
+    pannerNode?: PannerNode;
+    pausedAt: number;
+    sources: AudioBufferSourceNode[];
+    startTime: number;
+    url: string;
     volume: number;
 }
