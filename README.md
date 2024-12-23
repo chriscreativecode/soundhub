@@ -3,7 +3,7 @@
 A minimalist yet powerful sound management solution that puts you in control of audio playback. Perfect for web apps, games, and interactive experiences. Handle multiple audio streams, control playback, and manage sound effects with just a few lines of code.
 
 ## Features
-- Ultra-lightweight (11KB) with zero dependencies (This is without the demo files)
+- Lightweight (19.40 kB │ gzip: 4.78 kB) with zero dependencies (This is without the demo files)
 - Simple API for audio loading and playback control
 - Audio context management with automatic initialization
 - Sound preloading and caching

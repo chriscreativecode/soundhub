@@ -361,11 +361,10 @@ export class SoundManagerDemo {
             <strong>${id}</strong>: 
             ${state.state}
             (Volume: ${Math.round(state.volume * 100)}%)
-            ${state.duration ? `Duration: ${duration}` : ""}
             ${
               state.state === SoundState.Playing ||
               state.state === SoundState.Paused
-                ? `Position: ${currentTime} / ${duration}`
+                ? `---> position: ${currentTime} / ${duration}`
                 : ""
             }
         </div>
