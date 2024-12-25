@@ -97,7 +97,8 @@ html {
   padding: 0;
 }
 
-input, select {
+input,
+select {
   border-radius: 5px;
   border: 1px solid rgb(90, 90, 90);
 }
@@ -192,9 +193,31 @@ button {
   white-space: nowrap;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
   transform: translateY(-1px);
+}
+
+button:disabled {
+  background-color: var(--color-disabled);
+  color: #666;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.7;
+  box-shadow: none;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Input refinements */
@@ -212,6 +235,50 @@ input[type="number"] {
 select {
   padding: 6px 12px;
   min-width: 150px;
+}
+
+.loop-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.loop-controls input[type="number"] {
+  width: 60px;
+  padding: 4px 8px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+}
+
+.loop-controls label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  white-space: nowrap;
+}
+
+.pan-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.pan-controls label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  white-space: nowrap;
+}
+
+.pan-controls input[type="range"] {
+  flex: 1;
+  min-width: var(--range-min-width);
+}
+
+.pan-controls span {
+  min-width: var(--value-display-width);
+  text-align: right;
 }
 
 /* Responsive adjustments */
@@ -255,6 +322,19 @@ select {
   }
 
   .position-controls span {
+    align-self: flex-end;
+  }
+  .pan-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .pan-controls label {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .pan-controls span {
     align-self: flex-end;
   }
 }

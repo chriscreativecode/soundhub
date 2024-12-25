@@ -6,6 +6,7 @@ import demoTemplate from "./demo.html?raw";
 import sound1 from "../sounds/birds.mp3";
 import sound2 from "../sounds/piano.mp3";
 import sound3 from "../sounds/ringtonex.mp3";
+import bounce from "../sounds/pong-bounce.mp3";
 import { SoundState } from "../sound-manager/sound-state.interface";
 
 export class SoundManagerDemo {
@@ -35,6 +36,7 @@ export class SoundManagerDemo {
       this.render();
       this.initializeEventListeners();
       this.initializeEffectControls();
+      this.initializePanControl();
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
     }
@@ -82,6 +84,16 @@ export class SoundManagerDemo {
       .getElementById("unmuteBtn")
       ?.addEventListener("click", () => this.unmuteCurrentSound());
 
+      const loopCountInput = document.getElementById("loopCount") as HTMLInputElement;
+      loopCountInput.addEventListener("change", () => {
+        if (this.currentSoundId) {
+          if (this.soundManager.isPlaying(this.currentSoundId)) {
+            this.soundManager.stopSound(this.currentSoundId);
+            this.playCurrentSound(); // This will include all current settings (pan, volume, etc.)
+          }
+        }
+      });
+
     // Volume Controls
     document.getElementById("soundVolume")?.addEventListener("input", (e) => {
       const volume = parseFloat((e.target as HTMLInputElement).value);
@@ -116,6 +128,7 @@ export class SoundManagerDemo {
         { id: "birds", url: sound1 },
         { id: "piano", url: sound2 },
         { id: "ringtone", url: sound3 },
+        { id: "bounce", url: bounce},
       ]);
 
       this.updateSoundSelector();
@@ -173,14 +186,31 @@ export class SoundManagerDemo {
   }
 
   private async playCurrentSound(): Promise<void> {
-    if (this.currentSoundId) {
-      try {
-        await this.soundManager.playSound(this.currentSoundId);
-        console.debug(`Playing sound: ${this.currentSoundId}`);
-        this.updateControlStates();
-      } catch (error) {
-        console.error(`Error playing sound: ${this.currentSoundId}`, error);
-      }
+    if (!this.currentSoundId) return;
+
+    const loopInput = document.getElementById("loopCount") as HTMLInputElement;
+    const panInput = document.getElementById("panControl") as HTMLInputElement;
+    const loopCount = parseInt(loopInput.value, 10);
+    const panValue = parseFloat(panInput.value);
+
+    console.debug("Playing sound with settings:", {
+      soundId: this.currentSoundId,
+      loopCount,
+      shouldLoop: loopCount > 0,
+      panValue,
+    });
+
+    try {
+      await this.soundManager.playSound(this.currentSoundId, {
+        loop: loopCount > 0,
+        loopCount: loopCount,
+        pan: panValue,
+      });
+
+      this.soundManager.setPan(this.currentSoundId, panValue);
+      this.updateControlStates();
+    } catch (error) {
+      console.error("Error playing sound:", error);
     }
   }
 
@@ -198,6 +228,37 @@ export class SoundManagerDemo {
   private muteCurrentSound(): void {
     if (this.currentSoundId) {
       this.soundManager.muteSoundById(this.currentSoundId);
+    }
+  }
+
+  private initializePanControl(): void {
+    const panSlider = document.getElementById("panControl") as HTMLInputElement;
+
+    panSlider?.addEventListener("input", (e) => {
+      if (!this.currentSoundId) return;
+
+      const panValue = parseFloat((e.target as HTMLInputElement).value);
+      this.updatePanDisplay(panValue);
+
+      // Only update pan if sound exists and is playing
+      const state = this.soundManager.getSoundState(this.currentSoundId);
+      if (state && state.state === SoundState.Playing) {
+        console.log("Updating pan:", panValue); // Debug log
+        this.soundManager.setPan(this.currentSoundId, panValue);
+      }
+    });
+  }
+
+  private updatePanDisplay(value: number): void {
+    const panValueDisplay = document.getElementById("panValue");
+    if (!panValueDisplay) return;
+
+    if (value === 0) {
+      panValueDisplay.textContent = "Center";
+    } else if (value < 0) {
+      panValueDisplay.textContent = `${Math.abs(value * 100)}% Left`;
+    } else {
+      panValueDisplay.textContent = `${value * 100}% Right`;
     }
   }
 
@@ -246,6 +307,10 @@ export class SoundManagerDemo {
     const muteBtn = document.getElementById("muteBtn") as HTMLButtonElement;
     const unmuteBtn = document.getElementById("unmuteBtn") as HTMLButtonElement;
     const fadeInBtn = document.getElementById("fadeInBtn") as HTMLButtonElement;
+    const loopInput = document.getElementById("loopCount") as HTMLInputElement;
+    const panControl = document.getElementById(
+      "panControl"
+    ) as HTMLInputElement;
     const spatialControls = document.querySelectorAll(
       ".spatial-controls input"
     );
@@ -271,10 +336,12 @@ export class SoundManagerDemo {
     if (stopBtn) stopBtn.disabled = isStopped;
     if (muteBtn) muteBtn.disabled = false;
     if (unmuteBtn) unmuteBtn.disabled = false;
+    if (loopInput) loopInput.disabled = isPlaying;
+
     if (fadeInBtn) {
-      fadeInBtn.disabled =
-        !this.currentSoundId || state?.state === SoundState.Playing;
+      fadeInBtn.disabled = !this.currentSoundId;
     }
+
     if (resetPositionBtn) {
       resetPositionBtn.disabled =
         !this.currentSoundId || !this.soundManager.isSpatialAudioEnabled();
@@ -288,6 +355,10 @@ export class SoundManagerDemo {
     if (masterFadeOutBtn) {
       // Only disable if no sound is selected
       masterFadeOutBtn.disabled = !this.currentSoundId;
+    }
+
+    if (panControl) {
+      panControl.disabled = !this.currentSoundId;
     }
 
     // Update spatial controls
@@ -325,6 +396,8 @@ export class SoundManagerDemo {
       "fadeInBtn",
       "masterFadeInBtn",
       "masterFadeOutBtn",
+      "loopCount",
+      "panControl",
     ].forEach((id) => {
       const button = document.getElementById(id) as HTMLButtonElement;
       if (button) button.disabled = true;
