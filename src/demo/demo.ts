@@ -28,7 +28,7 @@ export class SoundManagerDemo {
     }
 
     this.containerElement = container;
-    this.soundManager = new SoundManager({ spatialAudio: true, debug: true });
+    this.soundManager = new SoundManager({ spatialAudio: true, debug: false });
     this.initialize();
   }
 

@@ -1,4 +1,6 @@
 import { PlaySoundOptions } from "./play-sound-options.interface";
+import { SoundEvent } from "./sound-event.interface";
+import { SoundEventsEnum } from "./sound-events.enum";
 import { DEFAULT_CONFIG, SoundManagerConfig } from "./sound-manager-config";
 import { SoundManagerInterface } from "./sound-manager.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
@@ -12,9 +14,17 @@ export class SoundManager implements SoundManagerInterface {
   private masterGainNode: GainNode;
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
+  private eventListeners: Map<
+    SoundEventsEnum,
+    Set<(event: SoundEvent) => void>
+  > = new Map();
 
   constructor(config: SoundManagerConfig = {}) {
     // Validate config values
+    Object.values(SoundEventsEnum).forEach((type) => {
+      this.eventListeners.set(type as SoundEventsEnum, new Set());
+    });
+
     if (config.defaultVolume !== undefined) {
       config.defaultVolume = this.setValidatedVolume(config.defaultVolume);
     }
@@ -58,6 +68,24 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     this.debugLog("Initialized with config:", this.config);
+  }
+
+  public addEventListener(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void
+  ): void {
+    this.eventListeners.get(type)?.add(callback);
+  }
+
+  public removeEventListener(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void
+  ): void {
+    this.eventListeners.get(type)?.delete(callback);
+  }
+
+  private dispatchEvent(event: SoundEvent): void {
+    this.eventListeners.get(event.type)?.forEach((callback) => callback(event));
   }
 
   private setupVisibilityHandling(): void {
@@ -476,29 +504,47 @@ export class SoundManager implements SoundManagerInterface {
         );
       }
 
-      // Start playback
+      // Setup sound state
       sound.sources = [source];
-      this.updateSoundState(sound, SoundState.Playing);
-      sound.startTime = this.context.currentTime;
+      const startTime = options.startTime || 0;
+
+      // Start playback
+      source.start(0, startTime);
+      sound.isPlaying = true;
+      sound.startTime = this.context.currentTime - startTime;
       sound.pausedAt = 0;
 
-      // Start playback from specified time if provided
-      const startTime = options.startTime || 0;
-      source.start(0, startTime);
-      sound.startTime = this.context.currentTime - startTime;
+      // Update state
+      sound.state = SoundState.Playing;
+      this.updateSoundState(sound, SoundState.Playing);
 
-      return new Promise<void>((resolve) => {
-        if (!options.loop) {
-          source.onended = () => {
-            if (!sound.isPaused) {
-              this.cleanupSource(sound, source);
-            }
-            resolve();
-          };
-        }
+      // Dispatch started event
+      this.dispatchEvent({
+        type: SoundEventsEnum.STARTED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+      });
+
+      // Return a promise that resolves when sound completes
+      return new Promise((resolve) => {
+        source.onended = () => {
+          sound.isPlaying = false;
+          this.dispatchEvent({
+            type: SoundEventsEnum.ENDED,
+            soundId: id,
+            timestamp: this.context.currentTime,
+          });
+          resolve();
+        };
       });
     } catch (error) {
-      this.handleError("playing sound", error, id);
+      this.dispatchEvent({
+        type: SoundEventsEnum.ERROR,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        error: error as Error,
+      });
+      throw error;
     }
   }
 
@@ -611,6 +657,9 @@ export class SoundManager implements SoundManagerInterface {
       const sound = this.validateSound(id);
       if (!sound.isPlaying || sound.isPaused) return;
 
+      // Update state
+      sound.state = SoundState.Paused;
+
       // Calculate how much of the sound has played
       sound.pausedAt = this.context.currentTime - sound.startTime;
 
@@ -624,6 +673,12 @@ export class SoundManager implements SoundManagerInterface {
       // Update state to paused
       sound.isPlaying = false;
       sound.isPaused = true;
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.PAUSED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+      });
 
       this.debugLog("Pause state:", {
         id,
@@ -823,6 +878,13 @@ export class SoundManager implements SoundManagerInterface {
       sound.gainNode.disconnect();
       sound.gainNode.connect(this.masterGainNode);
 
+      // Update state
+      sound.state = SoundState.Stopped;
+      this.dispatchEvent({
+        type: SoundEventsEnum.STOPPED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+      });
       this.updateSoundState(sound, SoundState.Stopped);
     } catch (error) {
       this.handleError("stopping sound", error, id);

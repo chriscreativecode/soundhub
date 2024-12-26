@@ -1,13 +1,16 @@
 import soundControlComponentHtml from "./sound-control.component.html?raw";
 import "./sound-control.component.css";
 import { SoundManager } from "../sound-manager/sound-manager";
+import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
+import { SoundEvent } from "../sound-manager/sound-event.interface";
+import { PlaySoundOptions } from "../sound-manager/play-sound-options.interface";
 
 export class SoundControl {
   private element: HTMLElement;
-  private isDragging: boolean = false;
   private progressSlider: HTMLInputElement;
   private progressInterval!: number;
   private userSeeking: boolean = false;
+  private currentOptions: PlaySoundOptions = {};
 
   constructor(
     private id: string,
@@ -17,6 +20,7 @@ export class SoundControl {
     this.element = this.createControl();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
     this.initializeEventListeners();
+    this.initializeSoundEventListeners();
     this.container.appendChild(this.element);
   }
 
@@ -64,12 +68,13 @@ export class SoundControl {
       const state = this.soundManager.getSoundState(this.id);
       if (state?.duration) {
         const newTime = (progress / 100) * state.duration;
-        const timeDisplay = this.element.querySelector(".time-display");
-        if (timeDisplay) {
-          timeDisplay.textContent = `${this.formatTime(
-            newTime
-          )} / ${this.formatTime(state.duration)}`;
-        }
+        this.updateTimeDisplay(newTime);
+        // const timeDisplay = this.element.querySelector(".time-display");
+        // if (timeDisplay) {
+        //   timeDisplay.textContent = `${this.formatTime(
+        //     newTime
+        //   )} / ${this.formatTime(state.duration)}`;
+        // }
       }
     });
 
@@ -135,10 +140,74 @@ export class SoundControl {
     });
   }
 
+  private initializeSoundEventListeners(): void {
+    // Listen to all sound events
+    Object.values(SoundEventsEnum).forEach((eventType) => {
+      this.soundManager.addEventListener(
+        eventType,
+        this.handleSoundEvent.bind(this)
+      );
+    });
+  }
+
+  private handleSoundEvent(event: SoundEvent): void {
+    // Only handle events for this sound
+    if (event.soundId !== this.id) return;
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`Received ${event.type} event for sound ${event.soundId}`);
+    }
+
+    switch (event.type) {
+      case SoundEventsEnum.STARTED:
+        this.updateButtonStates();
+        break;
+      case SoundEventsEnum.STOPPED:
+        this.updateProgressVisual(0);
+        this.updateTimeDisplay(0);
+        this.updateButtonStates();
+        break;
+      case SoundEventsEnum.PAUSED:
+        console.log("Handling pause event"); // Debug
+        this.updateButtonStates();
+        break;
+      case SoundEventsEnum.RESUMED:
+        this.updateButtonStates();
+        break;
+      case SoundEventsEnum.ENDED:
+        this.updateProgressVisual(0);
+        this.updateTimeDisplay(0);
+        this.updateButtonStates();
+        break;
+      case SoundEventsEnum.ERROR:
+        console.error("Sound error:", event.error);
+        this.updateButtonStates();
+        break;
+    }
+  }
+
+  private updateTimeDisplay(currentTime: number): void {
+    const timeDisplay = this.element.querySelector(".time-display");
+    const state = this.soundManager.getSoundState(this.id);
+    if (timeDisplay && state?.duration) {
+      timeDisplay.textContent = `${this.formatTime(
+        currentTime
+      )} / ${this.formatTime(state.duration)}`;
+    }
+  }
+
   private formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  }
+
+  private getCurrentOptions(newOptions: any = {}): any {
+    // Merge current options with new options
+    return {
+      ...this.currentOptions,
+      ...newOptions,
+    };
   }
 
   private updateProgress(): void {
@@ -148,17 +217,11 @@ export class SoundControl {
     if (!state) return;
 
     const progress = (state.currentTime / (state.duration || 1)) * 100;
-    
+
     // Only update if not being dragged by user
     if (!this.userSeeking) {
       this.updateProgressVisual(progress);
-      
-      const timeDisplay = this.element.querySelector(".time-display");
-      if (timeDisplay) {
-        timeDisplay.textContent = `${this.formatTime(
-          state.currentTime
-        )} / ${this.formatTime(state.duration || 0)}`;
-      }
+      this.updateTimeDisplay(state.currentTime);
     }
   }
 
@@ -167,22 +230,31 @@ export class SoundControl {
     this.progressSlider.style.setProperty("--progress", `${progress}%`);
   }
 
-  // Control methods
   private async play(): Promise<void> {
     try {
       const progress = parseFloat(this.progressSlider.value);
+      const infiniteLoopCheckbox = this.element.querySelector(
+        ".infinite-loop-checkbox"
+      ) as HTMLInputElement;
+      const loopCountInput = this.element.querySelector(
+        ".loop-count-input"
+      ) as HTMLInputElement;
+
       const state = this.soundManager.getSoundState(this.id);
-      
-      if (state?.duration && progress > 0) {
-        // If there's a progress value, start from that position
-        const startTime = (progress / 100) * state.duration;
-        await this.soundManager.playSound(this.id, { startTime });
-      } else {
-        // Otherwise start from beginning
-        await this.soundManager.playSound(this.id);
-      }
-      
-      this.updateButtonStates();
+      const options = this.getCurrentOptions({
+        loop:
+          infiniteLoopCheckbox.checked || parseInt(loopCountInput.value) > 0,
+        loopCount: infiniteLoopCheckbox.checked
+          ? undefined
+          : parseInt(loopCountInput.value),
+        startTime:
+          state?.duration && progress > 0
+            ? (progress / 100) * state.duration
+            : undefined,
+      });
+
+      this.currentOptions = options;
+      await this.soundManager.playSound(this.id, options);
     } catch (error) {
       console.error("Error playing sound:", error);
     }
@@ -190,12 +262,10 @@ export class SoundControl {
 
   private pause(): void {
     this.soundManager.pauseSound(this.id);
-    this.updateButtonStates();
   }
 
   private stop(): void {
     this.soundManager.stopSound(this.id);
-    this.updateButtonStates();
   }
 
   private toggleMute(): void {
@@ -207,13 +277,11 @@ export class SoundControl {
         this.soundManager.unmuteSoundById(this.id);
       }
     }
-    this.updateButtonStates();
   }
 
   private async fadeIn(): Promise<void> {
     try {
       await this.soundManager.playSound(this.id, { fadeIn: 2000 });
-      this.updateButtonStates();
     } catch (error) {
       console.error("Error fading in sound:", error);
     }
@@ -222,7 +290,6 @@ export class SoundControl {
   private async fadeOut(): Promise<void> {
     try {
       await this.soundManager.fadeOut(this.id, 2000);
-      this.updateButtonStates();
     } catch (error) {
       console.error("Error fading out sound:", error);
     }
@@ -230,11 +297,14 @@ export class SoundControl {
 
   private updateLoopSettings(infinite: boolean, count: number = 0): void {
     if (this.soundManager.isPlaying(this.id)) {
-      this.soundManager.stopSound(this.id);
-      this.soundManager.playSound(this.id, {
+      const options = this.getCurrentOptions({
         loop: infinite || count > 0,
         loopCount: infinite ? undefined : count,
       });
+
+      this.currentOptions = options;
+      this.soundManager.stopSound(this.id);
+      this.soundManager.playSound(this.id, options);
     }
   }
 
@@ -246,12 +316,27 @@ export class SoundControl {
     const isPaused = state.state === "paused";
     const isMuted = state.volume === 0;
 
+    // Only log in development
+    if (process.env.NODE_ENV === "development") {
+      console.log("Button states:", {
+        state: state.state,
+        isPlaying,
+        isPaused,
+        isMuted,
+      });
+    }
+
+    // Play button should be enabled when sound is paused or stopped
     this.element
       .querySelector(".play-btn")!
       .toggleAttribute("disabled", isPlaying);
+
+    // Pause button should only be enabled when sound is playing
     this.element
       .querySelector(".pause-btn")!
       .toggleAttribute("disabled", !isPlaying);
+
+    // Stop button should be enabled when sound is either playing or paused
     this.element
       .querySelector(".stop-btn")!
       .toggleAttribute("disabled", !isPlaying && !isPaused);
@@ -268,6 +353,24 @@ export class SoundControl {
   }
 
   public destroy(): void {
+    // Remove event listeners
+    Object.values(SoundEventsEnum).forEach((eventType) => {
+      this.soundManager.removeEventListener(eventType, this.handleSoundEvent);
+    });
+
+    // Clear interval
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+    }
+
+    // Remove DOM event listeners
+    this.element
+      .querySelector(".play-btn")
+      ?.removeEventListener("click", this.play);
+    this.element
+      .querySelector(".pause-btn")
+      ?.removeEventListener("click", this.pause);
+
     if (this.progressInterval) {
       clearInterval(this.progressInterval);
     }
