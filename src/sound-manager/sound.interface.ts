@@ -1,3 +1,5 @@
+import { SoundState } from "./sound-state.interface";
+
 export interface Sound {
     id: string;
     buffer: AudioBuffer;
@@ -10,6 +12,7 @@ export interface Sound {
     isPlaying: boolean;
     isPaused: boolean;
     volume: number;
+    state: SoundState;
     currentLoopCount: number;  // Make this required, not optional
     loopCount?: number;
   }
