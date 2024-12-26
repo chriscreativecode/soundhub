@@ -1,0 +1,124 @@
+.sound-control {
+  margin-bottom: 1rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.icon-button:disabled {
+  background: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+.progress-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.progress-slider {
+  flex: 1;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #ddd;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s;
+}
+
+.progress-slider::-webkit-slider-thumb:hover,
+.progress-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Create the filled part of the slider */
+.progress-slider {
+  background: linear-gradient(
+    to right,
+    var(--color-primary) 0%,
+    var(--color-primary) var(--progress, 0%),
+    #ddd var(--progress, 0%),
+    #ddd 100%
+  );
+}
+
+.loop-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loop-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.loop-count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.loop-count-input {
+  width: 60px;
+  padding: 4px;
+}
+
+.mute-icon,
+.unmute-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.icon-button {
+  position: relative;
+}
