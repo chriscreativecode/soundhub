@@ -11,6 +11,7 @@ export class SoundControl {
   private progressInterval!: number;
   private userSeeking: boolean = false;
   private currentOptions: PlaySoundOptions = {};
+  private panSlider: HTMLInputElement;
 
   constructor(
     private id: string,
@@ -19,6 +20,7 @@ export class SoundControl {
   ) {
     this.element = this.createControl();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
+    this.panSlider = this.element.querySelector(".pan-slider")!;
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.container.appendChild(this.element);
@@ -55,6 +57,8 @@ export class SoundControl {
       .querySelector(".fade-out-btn")
       ?.addEventListener("click", () => this.fadeOut());
 
+    this.initializePanControl();
+
     // Progress slider events
     this.progressSlider.addEventListener("mousedown", () => {
       this.userSeeking = true;
@@ -64,17 +68,10 @@ export class SoundControl {
       const progress = parseFloat((e.target as HTMLInputElement).value);
       this.updateProgressVisual(progress);
 
-      // Update time display immediately for better UX
       const state = this.soundManager.getSoundState(this.id);
       if (state?.duration) {
         const newTime = (progress / 100) * state.duration;
         this.updateTimeDisplay(newTime);
-        // const timeDisplay = this.element.querySelector(".time-display");
-        // if (timeDisplay) {
-        //   timeDisplay.textContent = `${this.formatTime(
-        //     newTime
-        //   )} / ${this.formatTime(state.duration)}`;
-        // }
       }
     });
 
@@ -202,6 +199,28 @@ export class SoundControl {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 
+  private handlePanInput = (e: Event): void => {
+    const value = parseFloat((e.target as HTMLInputElement).value);
+    this.updatePanDisplay(value);
+    if (this.soundManager.isPlaying(this.id)) {
+      this.soundManager.setPan(this.id, value);
+    }
+  };
+
+  private initializePanControl(): void {
+    this.panSlider.addEventListener("input", this.handlePanInput);
+
+    // Initialize pan display
+    this.updatePanDisplay(0);
+  }
+
+  private updatePanDisplay(value: number): void {
+    const panValue = this.element.querySelector(
+      ".pan-value"
+    ) as HTMLSpanElement;
+    panValue.textContent = value.toFixed(1);
+  }
+
   private getCurrentOptions(newOptions: any = {}): any {
     // Merge current options with new options
     return {
@@ -233,6 +252,7 @@ export class SoundControl {
   private async play(): Promise<void> {
     try {
       const progress = parseFloat(this.progressSlider.value);
+      const panValue = parseFloat(this.panSlider.value);
       const infiniteLoopCheckbox = this.element.querySelector(
         ".infinite-loop-checkbox"
       ) as HTMLInputElement;
@@ -240,19 +260,27 @@ export class SoundControl {
         ".loop-count-input"
       ) as HTMLInputElement;
 
+      const loopCount = parseInt(loopCountInput.value);
       const state = this.soundManager.getSoundState(this.id);
+
+      // Simplified loop logic
       const options = this.getCurrentOptions({
-        loop:
-          infiniteLoopCheckbox.checked || parseInt(loopCountInput.value) > 0,
+        // Set loop to true if either infinite is checked OR we have a valid loop count
+        loop: infiniteLoopCheckbox.checked || loopCount > 0,
+        // Set loopCount only if infinite is not checked and we have a valid count
         loopCount: infiniteLoopCheckbox.checked
           ? undefined
-          : parseInt(loopCountInput.value),
+          : loopCount > 0
+          ? loopCount
+          : undefined,
         startTime:
           state?.duration && progress > 0
             ? (progress / 100) * state.duration
             : undefined,
+        pan: panValue,
       });
 
+      console.log("Play options:", options); // Debug log
       this.currentOptions = options;
       await this.soundManager.playSound(this.id, options);
     } catch (error) {
@@ -296,13 +324,13 @@ export class SoundControl {
   }
 
   private updateLoopSettings(infinite: boolean, count: number = 0): void {
-    if (this.soundManager.isPlaying(this.id)) {
-      const options = this.getCurrentOptions({
-        loop: infinite || count > 0,
-        loopCount: infinite ? undefined : count,
-      });
+    const options = this.getCurrentOptions({
+      loop: infinite || count > 0,
+      loopCount: infinite ? undefined : count > 0 ? count : undefined,
+    });
 
-      this.currentOptions = options;
+    this.currentOptions = options;
+    if (this.soundManager.isPlaying(this.id)) {
       this.soundManager.stopSound(this.id);
       this.soundManager.playSound(this.id, options);
     }
@@ -374,6 +402,11 @@ export class SoundControl {
     if (this.progressInterval) {
       clearInterval(this.progressInterval);
     }
+
+    if (this.panSlider) {
+      this.panSlider.removeEventListener("input", this.handlePanInput);
+    }
+
     this.element.remove();
   }
 }
