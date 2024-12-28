@@ -1,13 +1,12 @@
-import { SoundManager } from "../sound-manager/sound-manager";
-import { SoundControl } from "./sound-control.component";
-import "./demo.css";
-import demoTemplate from "./demo.html?raw";
+import './demo.css';
 
-// Import your sound files
-import sound1 from "../sounds/birds.mp3";
-import sound2 from "../sounds/piano.mp3";
-import sound3 from "../sounds/ringtonex.mp3";
-import bounce from "../sounds/pong-bounce.mp3";
+import { SoundManager } from '../sound-manager/sound-manager';
+import sound1 from '../sounds/birds.mp3';
+import sound2 from '../sounds/piano.mp3';
+import bounce from '../sounds/pong-bounce.mp3';
+import sound3 from '../sounds/ringtonex.mp3';
+import demoTemplate from './demo.html?raw';
+import { SoundControl } from './sound-control.component';
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
@@ -36,7 +35,6 @@ export class SoundManagerDemo {
   private initialize(): void {
     try {
       this.render();
-      // Wait for next frame to ensure DOM is updated
       requestAnimationFrame(() => {
         this.initializeEventListeners();
         this.initializeGlobalControls();
@@ -55,7 +53,9 @@ export class SoundManagerDemo {
   }
 
   private initializeEventListeners(): void {
-    const preloadBtn = document.querySelector('.preload-btn') as HTMLButtonElement;
+    const preloadBtn = document.querySelector(
+      ".preload-btn"
+    ) as HTMLButtonElement;
     const masterVolumeInput = document.getElementById("masterVolume");
 
     if (preloadBtn) {
@@ -87,7 +87,9 @@ export class SoundManagerDemo {
   }
 
   private async loadDemoSounds(): Promise<void> {
-    const preloadBtn = document.querySelector('.preload-btn') as HTMLButtonElement;
+    const preloadBtn = document.querySelector(
+      ".preload-btn"
+    ) as HTMLButtonElement;
     if (!preloadBtn || this.loadingState) return;
 
     try {
@@ -106,31 +108,30 @@ export class SoundManagerDemo {
     } catch (error) {
       console.error("Error loading sounds:", error);
     } finally {
-      // Reset loading state
       this.loadingState = false;
       this.updateLoadingState(false);
     }
   }
 
   private updateLoadingState(loading: boolean): void {
-    const preloadBtn = document.querySelector('.preload-btn') as HTMLButtonElement;
+    const preloadBtn = document.querySelector(
+      ".preload-btn"
+    ) as HTMLButtonElement;
     if (!preloadBtn) return;
 
     preloadBtn.disabled = loading;
     if (loading) {
-      preloadBtn.classList.add('loading');
+      preloadBtn.classList.add("loading");
     } else {
-      preloadBtn.classList.remove('loading');
+      preloadBtn.classList.remove("loading");
     }
   }
 
   private createSoundControls(): void {
-    // Clear existing controls
     this.soundControls.clear();
     const container = document.getElementById("soundControlsContainer")!;
     container.innerHTML = "";
 
-    // Create new controls for each sound
     this.soundManager.getSoundIds().forEach((id) => {
       const control = new SoundControl(id, this.soundManager, container);
       this.soundControls.set(id, control);
@@ -139,7 +140,8 @@ export class SoundManagerDemo {
 
   private setGlobalVolume(volume: number): void {
     this.soundManager.setGlobalVolume(volume);
-    document.getElementById("masterVolumeValue")!.textContent = 
-      `${Math.round(volume * 100)}%`;
+    document.getElementById("masterVolumeValue")!.textContent = `${Math.round(
+      volume * 100
+    )}%`;
   }
 }
