@@ -4,14 +4,15 @@ import { SoundManager } from "../sound-manager/sound-manager";
 import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
 import { PlaySoundOptions } from "../sound-manager/play-sound-options.interface";
+import { SoundState } from "../sound-manager/sound-state.interface";
 
 export class SoundControl {
   private element: HTMLElement;
   private progressSlider: HTMLInputElement;
   private progressInterval!: number;
-  private userSeeking: boolean = false;
   private currentOptions: PlaySoundOptions = {};
   private panSlider: HTMLInputElement;
+  private volumeSlider: HTMLInputElement;
 
   constructor(
     private id: string,
@@ -21,6 +22,7 @@ export class SoundControl {
     this.element = this.createControl();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
     this.panSlider = this.element.querySelector(".pan-slider")!;
+    this.volumeSlider = this.element.querySelector(".volume-slider")!;
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.container.appendChild(this.element);
@@ -38,132 +40,111 @@ export class SoundControl {
 
   private initializeEventListeners(): void {
     // Button controls
+    const playBtn = this.element.querySelector(".play-btn");
+    const pauseBtn = this.element.querySelector(".pause-btn");
+    const stopBtn = this.element.querySelector(".stop-btn");
+    const muteBtn = this.element.querySelector(".mute-btn");
+    const fadeInBtn = this.element.querySelector(".fade-in-btn");
+    const fadeOutBtn = this.element.querySelector(".fade-out-btn");
 
-    this.element.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains("play-btn")) this.play();
-      if (target.classList.contains("pause-btn")) this.pause();
-      if (target.classList.contains("stop-btn")) this.stop();
-      if (target.classList.contains("mute-btn")) this.toggleMute();
-      if (target.classList.contains("fade-in-btn")) this.fadeIn();
-      if (target.classList.contains("fade-out-btn")) this.fadeOut();
-    });
+    playBtn?.addEventListener("click", () => this.play());
+    pauseBtn?.addEventListener("click", () => this.pause());
+    stopBtn?.addEventListener("click", () => this.stop());
+    muteBtn?.addEventListener("click", () => this.toggleMute());
+    fadeInBtn?.addEventListener("click", () => this.fadeIn());
+    fadeOutBtn?.addEventListener("click", () => this.fadeOut());
 
+    this.initializeVolumeControl();
     this.initializePanControl();
     // Progress slider events
-    this.progressSlider.addEventListener("mousedown", () => {
-      this.userSeeking = true;
-    });
+    // this.progressSlider.addEventListener("mousedown", () => {
+    //   this.userSeeking = true;
+    // });
 
-    // Add this in initializeEventListeners
-    document.addEventListener("mouseup", () => {
-      if (this.userSeeking) {
-        this.userSeeking = false;
-      }
-    });
+    // // Add this in initializeEventListeners
+    // document.addEventListener("mouseup", () => {
+    //   if (this.userSeeking) {
+    //     this.userSeeking = false;
+    //   }
+    // });
 
-    this.progressSlider.addEventListener("input", (e) => {
-      const progress = parseFloat((e.target as HTMLInputElement).value);
-      const state = this.soundManager.getSoundState(this.id);
+    // this.progressSlider.addEventListener("input", (e) => {
+    //   const progress = parseFloat((e.target as HTMLInputElement).value);
+    //   const state = this.soundManager.getSoundState(this.id);
 
-      // Update visual immediately during dragging
-      this.updateProgressVisual(progress);
+    //   // Update visual immediately during dragging
+    //   this.updateProgressVisual(progress);
 
-      if (state?.duration) {
-        const newTime = (progress / 100) * state.duration;
-        this.updateTimeDisplay(newTime);
-      }
-    });
+    //   if (state?.duration) {
+    //     const newTime = (progress / 100) * state.duration;
+    //     this.updateTimeDisplay(newTime);
+    //   }
+    // });
 
-    this.progressSlider.addEventListener("change", async (e) => {
-      const progress = parseFloat((e.target as HTMLInputElement).value);
-      const state = this.soundManager.getSoundState(this.id);
+    // this.progressSlider.addEventListener("change", (e) => {
+    //   const progress = parseFloat((e.target as HTMLInputElement).value);
+    //   const state = this.soundManager.getSoundState(this.id);
 
-      if (state?.duration) {
-        const newTime = (progress / 100) * state.duration;
-        const wasPlaying = this.soundManager.isPlaying(this.id);
+    //   if (state?.duration) {
+    //     const newTime = (progress / 100) * state.duration;
+    //     const wasPlaying = this.soundManager.isPlaying(this.id);
 
-        if (wasPlaying) {
-          this.soundManager.pauseSound(this.id);
-        }
+    //     if (wasPlaying) {
+    //       this.soundManager.pauseSound(this.id);
+    //     }
 
-        // Update visual state before seeking
-        this.updateProgressVisual(progress);
-        this.updateTimeDisplay(newTime);
+    //     // Update visual state before seeking
+    //     this.updateProgressVisual(progress);
+    //     this.updateTimeDisplay(newTime);
 
-        // Seek to new position
-        this.soundManager.seekTo(this.id, newTime);
+    //     // Seek to new position
+    //     this.soundManager.seekTo(this.id, newTime);
 
-        if (wasPlaying) {
-          await this.soundManager.playSound(this.id, {
-            ...this.currentOptions,
-            startTime: newTime,
-          });
-        }
-      }
+    //     if (wasPlaying) {
+    //       this.soundManager.playSound(this.id, {
+    //         ...this.currentOptions,
+    //         startTime: newTime,
+    //       });
+    //     }
+    //   }
 
-      this.userSeeking = false;
-    });
+    //   this.userSeeking = false;
+    // });
 
-    this.soundManager.addEventListener(SoundEventsEnum.SEEKED, (event) => {
-      if (event.soundId === this.id && event.currentTime !== undefined) {
-        const state = this.soundManager.getSoundState(this.id);
-        if (state?.duration) {
-          const progress = (event.currentTime / state.duration) * 100;
-          this.updateProgressVisual(progress);
-          this.updateTimeDisplay(event.currentTime);
-        }
-      }
-    });
+    // this.soundManager.addEventListener(SoundEventsEnum.SEEKED, (event) => {
+    //   if (event.soundId === this.id && event.currentTime !== undefined) {
+    //     const state = this.soundManager.getSoundState(this.id);
+    //     if (state?.duration) {
+    //       const progress = (event.currentTime / state.duration) * 100;
+    //       this.updateProgressVisual(progress);
+    //       this.updateTimeDisplay(event.currentTime);
+    //     }
+    //   }
+    // });
 
-    // Handle touch events for mobile
-    this.progressSlider.addEventListener(
-      "touchstart",
-      () => {
-        this.userSeeking = true;
-      },
-      { passive: true } // Mark as passive
-    );
+    // // Handle touch events for mobile
+    // this.progressSlider.addEventListener(
+    //   "touchstart",
+    //   () => {
+    //     this.userSeeking = true;
+    //   },
+    //   { passive: true } // Mark as passive
+    // );
 
-    this.progressSlider.addEventListener(
-      "touchend",
-      () => {
-        this.userSeeking = false;
-      },
-      { passive: true } // Mark as passive
-    );
+    // this.progressSlider.addEventListener(
+    //   "touchend",
+    //   () => {
+    //     this.userSeeking = false;
+    //   },
+    //   { passive: true } // Mark as passive
+    // );
 
     // Update progress regularly when playing
-    this.progressInterval = window.setInterval(() => {
-      if (!this.userSeeking) {
-        this.updateProgress();
-      }
-    }, 50);
-    // Loop controls
-    const infiniteLoopCheckbox = this.element.querySelector(
-      ".infinite-loop-checkbox"
-    ) as HTMLInputElement;
-    const loopCountInput = this.element.querySelector(
-      ".loop-count-input"
-    ) as HTMLInputElement;
-
-    infiniteLoopCheckbox?.addEventListener("change", (e) => {
-      const checked = (e.target as HTMLInputElement).checked;
-      loopCountInput.disabled = checked;
-      if (checked) {
-        loopCountInput.value = "0";
-        this.updateLoopSettings(true);
-      } else {
-        this.updateLoopSettings(false, parseInt(loopCountInput.value));
-      }
-    });
-
-    loopCountInput?.addEventListener("change", (e) => {
-      const value = parseInt((e.target as HTMLInputElement).value);
-      if (!infiniteLoopCheckbox.checked && value > 0) {
-        this.updateLoopSettings(false, value);
-      }
-    });
+    // this.progressInterval = window.setInterval(() => {
+    //   if (!this.userSeeking) {
+    //     this.updateProgress();
+    //   }
+    // }, 50);
   }
 
   private initializeSoundEventListeners(): void {
@@ -174,6 +155,30 @@ export class SoundControl {
         this.handleSoundEvent.bind(this)
       );
     });
+  }
+
+  private handleVolumeInput = (e: Event): void => {
+    const value = parseFloat((e.target as HTMLInputElement).value);
+    this.updateVolumeDisplay(value);
+    this.soundManager.setVolumeById(this.id, value);
+  };
+
+  private initializeVolumeControl(): void {
+    this.volumeSlider.addEventListener("input", this.handleVolumeInput);
+
+    // Initialize volume display
+    const state = this.soundManager.getSoundState(this.id);
+    if (state) {
+      this.updateVolumeDisplay(state.volume);
+      this.volumeSlider.value = state.volume.toString();
+    }
+  }
+
+  private updateVolumeDisplay(value: number): void {
+    const volumeValue = this.element.querySelector(
+      ".volume-value"
+    ) as HTMLSpanElement;
+    volumeValue.textContent = `${Math.round(value * 100)}%`;
   }
 
   private handleSoundEvent(event: SoundEvent): void {
@@ -205,9 +210,21 @@ export class SoundControl {
         this.updateTimeDisplay(0);
         this.updateButtonStates();
         break;
+      case SoundEventsEnum.VOLUME_CHANGED:
+        if (typeof event.volume === "number") {
+          this.updateVolumeDisplay(event.volume);
+          this.volumeSlider.value = event.volume.toString();
+        }
+        break;
       case SoundEventsEnum.ERROR:
         console.error("Sound error:", event.error);
         this.updateButtonStates();
+        break;
+      case SoundEventsEnum.MUTED:
+        this.updateMuteButtonIcon(true);
+        break;
+      case SoundEventsEnum.UNMUTED:
+        this.updateMuteButtonIcon(false);
         break;
     }
   }
@@ -258,64 +275,37 @@ export class SoundControl {
     };
   }
 
-  private updateProgress(): void {
-    const state = this.soundManager.getSoundState(this.id);
-    if (!state || state.duration === null) return;
-
-    // Calculate progress based on currentTime and duration
-    const progress =
-      state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0;
-
-    // Only update if not being dragged by user
-    if (!this.userSeeking) {
-      requestAnimationFrame(() => {
-        const clampedProgress = Math.min(100, Math.max(0, progress));
-        this.updateProgressVisual(clampedProgress);
-        this.updateTimeDisplay(state.currentTime);
-      });
-    }
-  }
-
   private updateProgressVisual(progress: number): void {
     this.progressSlider.value = progress.toString();
     this.progressSlider.style.setProperty("--progress", `${progress}%`);
     console.log("update progress visual", progress);
   }
 
-  private async play(): Promise<void> {
+  private play(): void {
     try {
-      const progress = parseFloat(this.progressSlider.value);
-      const panValue = parseFloat(this.panSlider.value);
-      const infiniteLoopCheckbox = this.element.querySelector(
-        ".infinite-loop-checkbox"
-      ) as HTMLInputElement;
-      const loopCountInput = this.element.querySelector(
-        ".loop-count-input"
-      ) as HTMLInputElement;
-
-      const loopCount = parseInt(loopCountInput.value);
       const state = this.soundManager.getSoundState(this.id);
+      const isPaused = state.state === SoundState.Paused;
 
-      // Simplified loop logic
-      const options = this.getCurrentOptions({
-        // Set loop to true if either infinite is checked OR we have a valid loop count
-        loop: infiniteLoopCheckbox.checked || loopCount > 0,
-        // Set loopCount only if infinite is not checked and we have a valid count
-        loopCount: infiniteLoopCheckbox.checked
-          ? undefined
-          : loopCount > 0
-          ? loopCount
-          : undefined,
-        startTime:
-          state?.duration && progress > 0
-            ? (progress / 100) * state.duration
-            : undefined,
-        pan: panValue,
-      });
+      if (isPaused) {
+        // If the sound is paused, resume it
+        console.log('was paused, resume sound');
+        this.soundManager.resumeSound(this.id);
+      } else {
+        // If the sound is stopped or hasn't been played yet, start from beginning
+        const progress = parseFloat(this.progressSlider.value);
+        const panValue = parseFloat(this.panSlider.value);
 
-      console.log("Play options:", options); // Debug log
-      this.currentOptions = options;
-      await this.soundManager.playSound(this.id, options);
+        const options = this.getCurrentOptions({
+          startTime:
+            state?.duration && progress > 0
+              ? (progress / 100) * state.duration
+              : undefined,
+          pan: panValue,
+        });
+
+        this.currentOptions = options;
+        this.soundManager.playSound(this.id, options);
+      }
     } catch (error) {
       console.error("Error playing sound:", error);
     }
@@ -326,55 +316,68 @@ export class SoundControl {
   }
 
   private stop(): void {
+    console.log("stop sound??", this.id);
     this.soundManager.stopSound(this.id);
   }
 
   private toggleMute(): void {
     const state = this.soundManager.getSoundState(this.id);
-    if (state) {
-      if (state.volume > 0) {
-        this.soundManager.muteSoundById(this.id);
-      } else {
-        this.soundManager.unmuteSoundById(this.id);
-      }
+    if (!state) return;
+
+    if (state.volume === 0) {
+      this.soundManager.unmuteSoundById(this.id);
+    } else {
+      this.soundManager.muteSoundById(this.id);
     }
   }
 
-  private async fadeIn(): Promise<void> {
-    try {
-      await this.soundManager.playSound(this.id, { fadeIn: 2000 });
-    } catch (error) {
-      console.error("Error fading in sound:", error);
+  private updateMuteButtonIcon(isMuted: boolean): void {
+    const muteIcon = this.element.querySelector(".mute-icon") as HTMLElement;
+    const unmuteIcon = this.element.querySelector(
+      ".unmute-icon"
+    ) as HTMLElement;
+
+    if (muteIcon && unmuteIcon) {
+      // Show/hide appropriate icons
+      muteIcon.style.display = isMuted ? "none" : "block";
+      unmuteIcon.style.display = isMuted ? "block" : "none";
     }
   }
 
-  private async fadeOut(): Promise<void> {
+ // In SoundControl class
+private fadeIn(): void {
+  try {
+    const state = this.soundManager.getSoundState(this.id);
+    if (state.state === SoundState.Playing) {
+      // If already playing, just fade in from current position
+      this.soundManager.fadeIn(this.id, 2000);
+    } else {
+      // If not playing, start from beginning with fade
+      this.soundManager.playSound(this.id, { 
+        fadeIn: 2000,
+        volume: this.soundManager.getVolumeById(this.id)
+      });
+    }
+  } catch (error) {
+    console.error("Error fading in sound:", error);
+  }
+}
+
+  private fadeOut(): void {
     try {
-      await this.soundManager.fadeOut(this.id, 2000);
+     this.soundManager.fadeOut(this.id, 2000);
     } catch (error) {
       console.error("Error fading out sound:", error);
     }
   }
 
-  private updateLoopSettings(infinite: boolean, count: number = 0): void {
-    const options = this.getCurrentOptions({
-      loop: infinite || count > 0,
-      loopCount: infinite ? undefined : count > 0 ? count : undefined,
-    });
-
-    this.currentOptions = options;
-    if (this.soundManager.isPlaying(this.id)) {
-      this.soundManager.stopSound(this.id);
-      this.soundManager.playSound(this.id, options);
-    }
-  }
-
   private updateButtonStates(): void {
     const state = this.soundManager.getSoundState(this.id);
+    console.log('update button state?', state);
     if (!state) return;
 
-    const isPlaying = state.state === "playing";
-    const isPaused = state.state === "paused";
+    const isPlaying = state.state === SoundState.Playing;
+    const isPaused = state.state === SoundState.Paused;
     const isMuted = state.volume === 0;
 
     // Only log in development
@@ -401,16 +404,6 @@ export class SoundControl {
     this.element
       .querySelector(".stop-btn")!
       .toggleAttribute("disabled", !isPlaying && !isPaused);
-
-    // Update mute button icons
-    const muteIcon = this.element.querySelector(".mute-icon") as HTMLElement;
-    const unmuteIcon = this.element.querySelector(
-      ".unmute-icon"
-    ) as HTMLElement;
-    if (muteIcon && unmuteIcon) {
-      muteIcon.style.display = isMuted ? "none" : "block";
-      unmuteIcon.style.display = isMuted ? "block" : "none";
-    }
   }
 
   public destroy(): void {
@@ -431,6 +424,10 @@ export class SoundControl {
     this.element
       .querySelector(".pause-btn")
       ?.removeEventListener("click", this.pause);
+
+    if (this.volumeSlider) {
+      this.volumeSlider.removeEventListener("input", this.handleVolumeInput);
+    }
 
     if (this.progressInterval) {
       clearInterval(this.progressInterval);

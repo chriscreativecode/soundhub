@@ -5,7 +5,7 @@ import { Sound } from "./sound.interface";
 
 export interface SoundManagerInterface {
   // Playback control
-  playSound(id: string, options?: PlaySoundOptions): Promise<void>;
+  playSound(id: string, options?: PlaySoundOptions): void;
   pauseSound(id: string): void;
   resumeSound(id: string): void;
   stopSound(id: string): void;
@@ -41,7 +41,7 @@ export interface SoundManagerInterface {
   resumeAllSounds(): void;
 
   // Fading
-  fadeOut(id: string, duration?: number): Promise<void>;
+  fadeOut(id: string, duration?: number): void;
   fadeMasterIn(duration?: number): Promise<void>;
   fadeMasterOut(duration?: number): Promise<void>;
 

@@ -112,16 +112,26 @@
         </svg>
       </button>
     </div>
-    <div class="loop-controls">
-      <label class="loop-checkbox">
-        <input type="checkbox" class="infinite-loop-checkbox" />
-        Loop
-      </label>
-      <label class="loop-count">
-        Times:
-        <input type="number" class="loop-count-input" min="0" value="0" />
-      </label>
+
+    <div class="control-group">
+      <h4>Volume Control</h4>
+      <div class="control-content">
+        <label>
+          Volume:
+          <input
+            type="range"
+            class="volume-slider"
+            min="0"
+            max="1"
+            value="1"
+            step="0.01"
+            title="Volume control"
+          />
+          <span class="volume-value">100%</span>
+        </label>
+      </div>
     </div>
+    
     <div class="control-group">
       <h4>Pan Control</h4>
       <div class="control-content">

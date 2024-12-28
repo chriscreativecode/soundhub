@@ -1,7 +1,7 @@
 import { SoundManager } from "../sound-manager/sound-manager";
 import { SoundControl } from "./sound-control.component";
 import "./demo.css";
-// import demoTemplate from "./demo.html?raw";
+import demoTemplate from "./demo.html?raw";
 
 // Import your sound files
 import sound1 from "../sounds/birds.mp3";
@@ -13,6 +13,7 @@ export class SoundManagerDemo {
   private soundManager: SoundManager;
   private soundControls: Map<string, SoundControl> = new Map();
   private containerElement: HTMLElement;
+  private loadingState: boolean = false;
 
   constructor(container: HTMLElement) {
     if (!container) {
@@ -50,50 +51,15 @@ export class SoundManagerDemo {
       throw new Error("Element not found");
     }
 
-    this.containerElement.innerHTML = `
-      <div class="sound-manager-demo">
-        <div class="controls-section">
-          <div class="control-group">
-            <h4>Load sounds</h4>
-            <div class="control-content">
-              <button id="loadSoundsBtn">Load Demo Sounds</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="soundControlsContainer" class="controls-section">
-        </div>
-
-        <div class="controls-section">
-          <div class="control-group">
-            <h4>Global controls</h4>
-            <div class="control-content">
-              <div class="button-group">
-                <button id="pauseAllBtn">Pause All</button>
-                <button id="resumeAllBtn">Resume All</button>
-                <button id="stopAllBtn">Stop All</button>
-                <button id="toggleMuteBtn">Toggle Mute</button>
-              </div>
-              <div class="volume-controls">
-                <label>
-                  Master Volume:
-                  <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="1">
-                  <span id="masterVolumeValue">100%</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+    this.containerElement.innerHTML = demoTemplate;
   }
 
   private initializeEventListeners(): void {
-    const loadSoundsBtn = document.getElementById("loadSoundsBtn");
+    const preloadBtn = document.querySelector('.preload-btn') as HTMLButtonElement;
     const masterVolumeInput = document.getElementById("masterVolume");
 
-    if (loadSoundsBtn) {
-      loadSoundsBtn.addEventListener("click", () => this.loadDemoSounds());
+    if (preloadBtn) {
+      preloadBtn.addEventListener("click", () => this.loadDemoSounds());
     }
 
     if (masterVolumeInput) {
@@ -121,7 +87,14 @@ export class SoundManagerDemo {
   }
 
   private async loadDemoSounds(): Promise<void> {
+    const preloadBtn = document.querySelector('.preload-btn') as HTMLButtonElement;
+    if (!preloadBtn || this.loadingState) return;
+
     try {
+      // Set loading state
+      this.loadingState = true;
+      this.updateLoadingState(true);
+
       await this.soundManager.preloadSounds([
         { id: "birds", url: sound1 },
         { id: "piano", url: sound2 },
@@ -132,6 +105,22 @@ export class SoundManagerDemo {
       this.createSoundControls();
     } catch (error) {
       console.error("Error loading sounds:", error);
+    } finally {
+      // Reset loading state
+      this.loadingState = false;
+      this.updateLoadingState(false);
+    }
+  }
+
+  private updateLoadingState(loading: boolean): void {
+    const preloadBtn = document.querySelector('.preload-btn') as HTMLButtonElement;
+    if (!preloadBtn) return;
+
+    preloadBtn.disabled = loading;
+    if (loading) {
+      preloadBtn.classList.add('loading');
+    } else {
+      preloadBtn.classList.remove('loading');
     }
   }
 
