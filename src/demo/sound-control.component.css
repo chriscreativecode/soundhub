@@ -32,13 +32,6 @@
   cursor: not-allowed;
 }
 
-.progress-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 0;
-}
 
 .progress-slider {
   flex: 1;
@@ -121,4 +114,63 @@
 
 .icon-button {
   position: relative;
+}
+
+.control-group {
+  margin-bottom: 1rem;
+}
+
+.control-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pan-slider {
+  width: 150px;
+  margin: 0 0.5rem;
+}
+
+.pan-value {
+  min-width: 2em;
+  text-align: center;
+}
+
+/* Styling for the range input */
+.pan-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: #ddd;
+  outline: none;
+}
+
+.pan-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
+  transition: background-color .15s ease-in-out;
+}
+
+.pan-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
+  transition: background-color .15s ease-in-out;
+}
+
+.pan-slider::-webkit-slider-thumb:hover {
+  background: #45a049;
+}
+
+.pan-slider::-moz-range-thumb:hover {
+  background: #45a049;
 }
