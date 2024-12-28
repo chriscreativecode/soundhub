@@ -6,6 +6,7 @@ export interface Sound {
   sources: AudioBufferSourceNode[];
   gainNode: GainNode;
   stereoPanner?: StereoPannerNode;
+  pannerNode?: PannerNode;
   startTime: number;
   pausedAt: number;
   isPlaying: boolean;

@@ -4,5 +4,6 @@ export enum SoundEventsEnum {
     ENDED = 'ended',
     PAUSED = 'paused',
     RESUMED = 'resumed',
-    ERROR = 'error'
+    SEEKED = 'seeked',
+    ERROR = 'error',
   }
