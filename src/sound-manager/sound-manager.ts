@@ -9,9 +9,9 @@ import { Sound } from "./sound.interface";
 
 export class SoundManager implements SoundManagerInterface {
   private readonly config: SoundManagerConfig;
-  private readonly context: AudioContext;
+  private readonly context!: AudioContext;
   private sounds: Map<string, Sound> = new Map();
-  private masterGainNode: GainNode;
+  private masterGainNode!: GainNode;
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
   private eventListeners: Map<
@@ -325,12 +325,8 @@ export class SoundManager implements SoundManagerInterface {
             gainNode,
             startTime: 0,
             pausedAt: 0,
-            isPlaying: false,
             state: SoundState.Stopped,
-            isPaused: false,
             volume: this.config.defaultVolume!,
-            currentLoopCount: 0,
-            loopCount: undefined,
           });
 
           this.debugLog(`Sound ${id} loaded successfully`);
@@ -381,109 +377,134 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public async playSound(
-    id: string,
-    options: PlaySoundOptions = {}
-  ): Promise<void> {
-    // Ensure context is resumed before playing
-    await this.ensureContext();
+  public playSound(id: string, options: PlaySoundOptions = {}): void {
+    try {
+      const sound = this.validateSound(id);
 
-    const sound = this.validateSound(id);
+      // Stop any currently playing sources
+      this.stopSound(id);
 
-    return new Promise((resolve, reject) => {
-      try {
-        console.log("play sound??");
+      const source = this.context.createBufferSource();
+      source.buffer = sound.buffer;
 
-        if (!sound) {
-          reject(new Error(`Sound with id ${id} not found`));
-          return;
-        }
+      // Connect source to the audio chain
+      if (options.pan !== undefined) {
+        this.setupStereoPan(sound, options.pan);
+      }
+      this.connectAudioNodes(sound, source);
 
-        // Stop any currently playing sources
-        this.stopSound(id);
+      if (options.fadeIn) {
+        this.fadeIn(id, options.fadeIn);
+      } else {
+        // Set immediate volume if no fade
+        sound.gainNode.gain.setValueAtTime(
+          sound.volume,
+          this.context.currentTime
+        );
+      }
 
-        const source = this.context.createBufferSource();
-        source.buffer = sound.buffer;
-        // Connect source to the first node in the chain
-        if (options.pan !== undefined) {
-          this.setupStereoPan(sound, options.pan);
-          source.connect(sound.gainNode);
-        } else {
-          source.connect(sound.gainNode);
-        }
-
-        // Handle sound completion
-        source.onended = () => {
-          const currentSound = this.sounds.get(id);
-          if (!currentSound) return;
-
-          console.log("Sound iteration ended:", {
-            currentLoopCount: currentSound.currentLoopCount,
-            loopCount: options.loopCount,
-          });
-
-          // Check if we need to continue looping
-          if (
-            options.loop &&
-            options.loopCount &&
-            currentSound.currentLoopCount < options.loopCount
-          ) {
-            currentSound.currentLoopCount++;
-            console.log(
-              `Starting loop ${currentSound.currentLoopCount} of ${options.loopCount}`
-            );
-
-            // Create new source for next loop iteration
-            const newSource = this.context.createBufferSource();
-            newSource.buffer = currentSound.buffer;
-
-            // Connect to the same audio chain
-            if (currentSound.stereoPanner) {
-              newSource.connect(currentSound.gainNode);
-              currentSound.stereoPanner.connect(this.masterGainNode);
-            } else {
-              newSource.connect(currentSound.gainNode);
-            }
-
-            // Set up onended handler for the new source
-            newSource.onended = source.onended;
-
-            // Start the new source
-            newSource.start(0);
-            currentSound.sources = [newSource];
-            currentSound.startTime = this.context.currentTime;
-          } else {
-            // Sound has completed all loops or wasn't looping
-            currentSound.isPlaying = false;
-            currentSound.state = SoundState.Stopped;
-            console.log("Sound completed all loops or finished playing");
-            this.dispatchEvent({
-              type: SoundEventsEnum.ENDED,
-              soundId: id,
-              timestamp: this.context.currentTime,
-            });
-            resolve();
-          }
-        };
-
-        // Start playback
-        sound.sources = [source];
-        sound.startTime = this.context.currentTime;
-        sound.isPlaying = true;
-        sound.state = SoundState.Playing;
-        sound.currentLoopCount = 0;
-
-        source.start(0, options.startTime || 0);
-
+      // Simple onended handler
+      source.onended = () => {
+        this.cleanupSource(sound, source);
         this.dispatchEvent({
-          type: SoundEventsEnum.STARTED,
+          type: SoundEventsEnum.ENDED,
           soundId: id,
           timestamp: this.context.currentTime,
         });
-      } catch (error) {
-        reject(error);
-      }
-    });
+      };
+
+      // Start playback
+      sound.sources = [source];
+      sound.startTime = this.context.currentTime;
+      sound.state = SoundState.Playing;
+
+      source.start(0, options.startTime || 0);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.STARTED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+      });
+    } catch (error) {
+      this.handleError("playing sound", error, id);
+    }
+  }
+
+  public fadeOut(
+    id: string,
+    duration: number = this.config.fadeOutDuration!
+  ): void {
+    try {
+      const sound = this.validateSound(id);
+      if (!this.isPlaying(id)) return;
+
+      const fadeOutDuration = duration / 1000; // Convert to seconds
+      const currentVolume = sound.gainNode.gain.value;
+
+      // Start fade from current volume
+      sound.gainNode.gain.setValueAtTime(
+        currentVolume,
+        this.context.currentTime
+      );
+
+      // Ramp to zero
+      sound.gainNode.gain.linearRampToValueAtTime(
+        0,
+        this.context.currentTime + fadeOutDuration
+      );
+
+      // Schedule fade-out completed event and stop
+      setTimeout(() => {
+        this.stopSound(id);
+
+        // Reset gain to original volume for next play
+        sound.gainNode.gain.setValueAtTime(
+          sound.volume,
+          this.context.currentTime
+        );
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.FADE_OUT_COMPLETED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+        });
+
+        this.debugLog(`Fade out complete for sound ${id}`);
+      }, duration);
+    } catch (error) {
+      this.handleError("fading out sound", error, id);
+    }
+  }
+
+  public fadeIn(id: string, duration: number): void {
+    try {
+      const sound = this.validateSound(id);
+
+      const fadeInDuration = duration / 1000; // Convert to seconds
+
+      // Store the current volume for later reset
+      const targetVolume = sound.volume;
+
+      // Immediately set volume to 0
+      sound.gainNode.gain.setValueAtTime(0, this.context.currentTime);
+
+      // Ramp to target volume
+      sound.gainNode.gain.linearRampToValueAtTime(
+        targetVolume,
+        this.context.currentTime + fadeInDuration
+      );
+
+      // Schedule fade-in completed event
+      setTimeout(() => {
+        this.dispatchEvent({
+          type: SoundEventsEnum.FADE_IN_COMPLETED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+        });
+      }, duration);
+    } catch (error) {
+      this.handleError("fading in from current position", error, id);
+    }
   }
 
   // Add method to update pan value
@@ -496,47 +517,6 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public async fadeOut(
-    id: string,
-    duration: number = this.config.fadeOutDuration!
-  ): Promise<void> {
-    try {
-      const sound = this.validateSound(id);
-      if (!sound.isPlaying) return;
-
-      // Store current volume
-      const currentVolume = sound.gainNode.gain.value;
-
-      // Start fade from current volume
-      sound.gainNode.gain.setValueAtTime(
-        currentVolume,
-        this.context.currentTime
-      );
-
-      // Ramp to zero
-      sound.gainNode.gain.linearRampToValueAtTime(
-        0,
-        this.context.currentTime + duration / 1000
-      );
-
-      // Wait for fade to complete
-      await new Promise((resolve) => setTimeout(resolve, duration));
-
-      // Stop the sound after fade
-      this.stopSound(id);
-
-      // Reset gain to original volume for next play
-      sound.gainNode.gain.setValueAtTime(
-        sound.volume,
-        this.context.currentTime
-      );
-
-      this.debugLog(`Fade out complete for sound ${id}`);
-    } catch (error) {
-      this.handleError("fading out sound", error, id);
-    }
-  }
-
   public seekTo(id: string, time: number): void {
     try {
       const sound = this.validateSound(id);
@@ -546,7 +526,7 @@ export class SoundManager implements SoundManagerInterface {
       const clampedTime = Math.max(0, Math.min(time, duration));
 
       // If sound is playing, stop current playback and start from new position
-      if (sound.isPlaying) {
+      if (this.isPlaying(id)) {
         // Stop current sources
         sound.sources.forEach((source) => {
           source.stop();
@@ -573,7 +553,7 @@ export class SoundManager implements SoundManagerInterface {
         newSource.onended = () => {
           this.cleanupSource(sound, newSource);
         };
-      } else if (sound.isPaused) {
+      } else if (this.isPaused(id)) {
         // If paused, just update the pausedAt time
         sound.pausedAt = clampedTime;
       }
@@ -593,7 +573,7 @@ export class SoundManager implements SoundManagerInterface {
   public pauseSound(id: string): void {
     try {
       const sound = this.validateSound(id);
-      if (!sound.isPlaying || sound.isPaused) return;
+      if (!this.isPlaying(id) || this.isPaused(id)) return;
 
       // Update state
       sound.state = SoundState.Paused;
@@ -608,10 +588,6 @@ export class SoundManager implements SoundManagerInterface {
       });
       sound.sources = [];
 
-      // Update state to paused
-      sound.isPlaying = false;
-      sound.isPaused = true;
-
       this.dispatchEvent({
         type: SoundEventsEnum.PAUSED,
         soundId: id,
@@ -620,8 +596,6 @@ export class SoundManager implements SoundManagerInterface {
 
       this.debugLog("Pause state:", {
         id,
-        isPlaying: sound.isPlaying,
-        isPaused: sound.isPaused,
         pausedAt: sound.pausedAt,
       });
     } catch (error) {
@@ -694,25 +668,6 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  private updateSoundState(sound: Sound, state: SoundState): void {
-    switch (state) {
-      case SoundState.Playing:
-        sound.isPlaying = true;
-        sound.isPaused = false;
-        break;
-      case SoundState.Paused:
-        sound.isPlaying = false;
-        sound.isPaused = true;
-        // Don't reset pausedAt here
-        break;
-      case SoundState.Stopped:
-        sound.isPlaying = false;
-        sound.isPaused = false;
-        sound.pausedAt = 0;
-        break;
-    }
-  }
-
   private validateSound(id: string): Sound {
     const sound = this.sounds.get(id);
     if (!sound?.buffer) {
@@ -725,17 +680,6 @@ export class SoundManager implements SoundManagerInterface {
     return sound!;
   }
 
-  private calculateTotalDuration(
-    sound: Sound,
-    options?: PlaySoundOptions
-  ): number {
-    const baseDuration = sound.buffer.duration;
-    const isInfiniteLoop = options?.loop && !options?.loopCount;
-    const loopCount = options?.loopCount || 0;
-
-    return isInfiniteLoop ? baseDuration : baseDuration * (loopCount + 1);
-  }
-
   private setValidatedVolume(volume: number): number {
     return Math.max(0, Math.min(1, volume));
   }
@@ -746,14 +690,26 @@ export class SoundManager implements SoundManagerInterface {
       sound.sources.splice(index, 1);
     }
     if (sound.sources.length === 0) {
-      this.updateSoundState(sound, SoundState.Stopped);
+      sound.state = SoundState.Stopped;
+      sound.pausedAt = 0;
+    }
+  }
+
+  private connectAudioNodes(sound: Sound, source: AudioBufferSourceNode): void {
+    if (sound.stereoPanner) {
+      source.connect(sound.gainNode);
+      sound.gainNode.connect(sound.stereoPanner);
+      sound.stereoPanner.connect(this.masterGainNode);
+    } else {
+      source.connect(sound.gainNode);
+      sound.gainNode.connect(this.masterGainNode);
     }
   }
 
   public resumeSound(id: string): void {
     try {
       const sound = this.validateSound(id);
-      if (!sound.isPaused) return;
+      if (!this.isPaused(id)) return;
 
       const source = this.context.createBufferSource();
       source.buffer = sound.buffer;
@@ -766,9 +722,10 @@ export class SoundManager implements SoundManagerInterface {
       source.start(0, offset);
 
       sound.sources = [source];
-      sound.startTime = this.context.currentTime - offset; // Adjust start time
-      sound.isPlaying = true;
-      sound.isPaused = false;
+      sound.startTime = this.context.currentTime - offset;
+
+      // Update state
+      sound.state = SoundState.Playing;
 
       // Set up onended handler
       source.onended = () => {
@@ -791,10 +748,13 @@ export class SoundManager implements SoundManagerInterface {
 
       // Stop and disconnect all sources
       sound.sources.forEach((source) => {
-        // Remove onended handler first to prevent loop logic from triggering
-        source.onended = null;
-        source.stop();
-        source.disconnect();
+        try {
+          source.onended = null; // Remove onended handler first
+          source.stop();
+          source.disconnect();
+        } catch (e) {
+          // Ignore errors if source is already stopped
+        }
       });
       sound.sources = [];
 
@@ -808,13 +768,10 @@ export class SoundManager implements SoundManagerInterface {
       sound.gainNode.disconnect();
       sound.gainNode.connect(this.masterGainNode);
 
-      // Reset loop counter
-      sound.currentLoopCount = 0;
-      sound.loopCount = undefined;
-
-      // Update state
+      // Reset state
+      sound.pausedAt = 0;
+      sound.startTime = 0;
       sound.state = SoundState.Stopped;
-      this.updateSoundState(sound, SoundState.Stopped);
 
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
@@ -831,40 +788,29 @@ export class SoundManager implements SoundManagerInterface {
       this.sounds.forEach((sound) => {
         sound.sources.forEach((source) => source.stop());
         sound.sources = [];
-        this.updateSoundState(sound, SoundState.Stopped);
+        sound.state = SoundState.Stopped;
       });
     } catch (error) {
       this.handleError("stopping all sounds", error);
     }
   }
 
-  /**
-   * Pauses all currently playing sounds
-   */
   public pauseAllSounds(): void {
     this.sounds.forEach((sound, id) => {
-      if (sound.isPlaying) {
+      if (sound.state == SoundState.Playing) {
         this.pauseSound(id);
       }
     });
   }
 
-  /**
-   * Resumes all paused sounds
-   */
   public resumeAllSounds(): void {
     this.sounds.forEach((sound, id) => {
-      if (sound.isPaused) {
+      if (sound.state == SoundState.Paused) {
         this.resumeSound(id);
       }
     });
   }
 
-  /**
-   * Sets the volume for a specific sound
-   * @param id The ID of the sound
-   * @param volume The volume level (0-1)
-   */
   public setVolumeById(id: string, volume: number): void {
     try {
       const sound = this.validateSound(id);
@@ -874,25 +820,27 @@ export class SoundManager implements SoundManagerInterface {
         validatedVolume,
         this.context.currentTime
       );
+      this.dispatchEvent({
+        type: SoundEventsEnum.VOLUME_CHANGED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        volume: sound.volume,
+      });
     } catch (error) {
       this.handleError("setting volume", error, id);
     }
   }
 
-  /**
-   * Gets the current volume of a sound
-   * @param id The ID of the sound
-   * @returns The current volume level
-   */
   public getVolumeById(id: string): number {
-    const sound = this.validateSound(id);
-    return sound.volume;
+    try {
+      const sound = this.validateSound(id);
+      return sound.volume;
+    } catch (error) {
+      this.handleError("getting volume", error, id);
+      return 0;
+    }
   }
 
-  /**
-   * Sets the global volume for all sounds
-   * @param volume The volume level (0-1)
-   */
   public setGlobalVolume(volume: number): void {
     this.previousGlobalVolume = this.setValidatedVolume(volume);
     if (!this.isMuted) {
@@ -900,59 +848,62 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  /**
-   * Gets the current global volume
-   * @returns The current global volume level
-   */
   public getGlobalVolume(): number {
     return this.isMuted ? 0 : this.masterGainNode.gain.value;
   }
 
-  /**
-   * Mutes all sounds
-   */
   public muteAllSounds(): void {
     this.isMuted = true;
     this.masterGainNode.gain.value = 0;
   }
 
-  /**
-   * Unmutes all sounds
-   */
   public unmuteAllSounds(): void {
     this.isMuted = false;
     this.masterGainNode.gain.value = this.previousGlobalVolume;
   }
 
-  /**
-   * Mutes a specific sound
-   * @param id The ID of the sound to mute
-   */
   public muteSoundById(id: string): void {
     try {
       const sound = this.validateSound(id);
-      sound.gainNode.gain.value = 0;
+
+      sound.previousVolume = sound.volume;
+      sound.volume = 0;
+      sound.gainNode.gain.setValueAtTime(0, this.context.currentTime);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.MUTED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        volume: 0,
+      });
     } catch (error) {
       this.handleError("muting sound", error, id);
     }
   }
 
-  /**
-   * Unmutes a specific sound
-   * @param id The ID of the sound to unmute
-   */
   public unmuteSoundById(id: string): void {
     try {
       const sound = this.validateSound(id);
-      sound.gainNode.gain.value = sound.volume;
+      // Restore the previous volume
+      const volumeToRestore =
+        sound.previousVolume || this.config.defaultVolume!;
+      sound.volume = volumeToRestore;
+      sound.gainNode.gain.setValueAtTime(
+        volumeToRestore,
+        this.context.currentTime
+      );
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.UNMUTED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        volume: volumeToRestore,
+      });
     } catch (error) {
       this.handleError("unmuting sound", error, id);
     }
   }
 
-  /**
-   * Toggles global mute state
-   */
   public toggleMute(): void {
     this.isMuted = !this.isMuted;
     this.masterGainNode.gain.value = this.isMuted
@@ -960,37 +911,20 @@ export class SoundManager implements SoundManagerInterface {
       : this.previousGlobalVolume;
   }
 
-  /**
-   * Checks if a sound is currently playing
-   * @param id The ID of the sound
-   * @returns Boolean indicating if the sound is playing
-   */
   public isPlaying(id: string): boolean {
-    try {
-      const sound = this.validateSound(id);
-      return sound.isPlaying;
-    } catch {
-      return false;
-    }
+    const sound = this.validateSound(id);
+    return sound.state === SoundState.Playing;
   }
 
-  /**
-   * Checks if a sound is currently paused
-   * @param id The ID of the sound
-   * @returns Boolean indicating if the sound is paused
-   */
   public isPaused(id: string): boolean {
     try {
       const sound = this.validateSound(id);
-      return sound.isPaused;
+      return !!(sound.state == SoundState.Paused);
     } catch {
       return false;
     }
   }
 
-  /**
-   * Performs cleanup and disposes of the sound manager
-   */
   private cleanup(): void {
     this.sounds.forEach((sound) => {
       if (sound.pannerNode) {
@@ -1002,9 +936,6 @@ export class SoundManager implements SoundManagerInterface {
     this.masterGainNode.disconnect();
   }
 
-  /**
-   * Disposes of the sound manager and closes the audio context
-   */
   public dispose(): void {
     try {
       this.cleanup();
@@ -1024,51 +955,12 @@ export class SoundManager implements SoundManagerInterface {
 
   public getSoundState(id: string): SoundStateInfo {
     const sound = this.validateSound(id);
-    let state: SoundState;
-
-    if (sound.isPaused) {
-      state = SoundState.Paused;
-    } else if (sound.isPlaying) {
-      state = SoundState.Playing;
-    } else {
-      state = SoundState.Stopped;
-    }
-
-    // Calculate total duration based on loop settings
-    const totalDuration = this.calculateTotalDuration(sound, {
-      loop: sound.loopCount !== undefined,
-      loopCount: sound.loopCount,
-    });
-
-    // Calculate current position including completed loops
-    let currentTime = 0;
-    if (sound.isPlaying) {
-      const elapsedTime = this.context.currentTime - sound.startTime;
-      const loopDuration = sound.buffer.duration;
-      const completedLoops = Math.floor(elapsedTime / loopDuration);
-      const positionInLoop = elapsedTime % loopDuration;
-
-      currentTime = completedLoops * loopDuration + positionInLoop;
-    } else if (sound.isPaused) {
-      currentTime =
-        sound.currentLoopCount * sound.buffer.duration + sound.pausedAt;
-    }
-
     return {
-      state,
+      currentTime: this.context.currentTime,
+      duration: sound.buffer?.duration || null,
+      state: sound.state,
       volume: sound.volume,
-      duration: totalDuration,
-      currentTime,
     };
-  }
-
-  private calculateLoopPosition(
-    time: number,
-    duration: number
-  ): { loop: number; position: number } {
-    const loop = Math.floor(time / duration);
-    const position = time % duration;
-    return { loop, position };
   }
 
   private handleError(operation: string, error: unknown, id?: string): void {

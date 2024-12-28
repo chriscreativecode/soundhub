@@ -9,10 +9,7 @@ export interface Sound {
   pannerNode?: PannerNode;
   startTime: number;
   pausedAt: number;
-  isPlaying: boolean;
-  isPaused: boolean;
   volume: number;
-  currentLoopCount: number;
-  loopCount?: number;
-  state: SoundState;
+  previousVolume?: number;
+  state: SoundState;  
 }
