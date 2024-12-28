@@ -13,6 +13,7 @@ export class SoundControl {
   private currentOptions: PlaySoundOptions = {};
   private panSlider: HTMLInputElement;
   private volumeSlider: HTMLInputElement;
+  private isDragging = false;
 
   constructor(
     private id: string,
@@ -56,95 +57,90 @@ export class SoundControl {
 
     this.initializeVolumeControl();
     this.initializePanControl();
+
     // Progress slider events
-    // this.progressSlider.addEventListener("mousedown", () => {
-    //   this.userSeeking = true;
-    // });
+    this.progressSlider.addEventListener("mousedown", () => {
+      this.isDragging = true;
+    });
 
-    // // Add this in initializeEventListeners
-    // document.addEventListener("mouseup", () => {
-    //   if (this.userSeeking) {
-    //     this.userSeeking = false;
-    //   }
-    // });
+    document.addEventListener("mouseup", () => {
+      this.isDragging = false;
+    });
 
-    // this.progressSlider.addEventListener("input", (e) => {
-    //   const progress = parseFloat((e.target as HTMLInputElement).value);
-    //   const state = this.soundManager.getSoundState(this.id);
+    // Update while dragging
+    this.progressSlider.addEventListener("input", (e) => {
+      const progress = parseFloat((e.target as HTMLInputElement).value);
+      const state = this.soundManager.getSoundState(this.id);
 
-    //   // Update visual immediately during dragging
-    //   this.updateProgressVisual(progress);
+      // Update visual immediately during dragging
+      this.updateProgressVisual(progress);
 
-    //   if (state?.duration) {
-    //     const newTime = (progress / 100) * state.duration;
-    //     this.updateTimeDisplay(newTime);
-    //   }
-    // });
+      if (state?.duration) {
+        const newTime = (progress / 100) * state.duration;
+        this.updateTimeDisplay(newTime);
+      }
+    });
 
-    // this.progressSlider.addEventListener("change", (e) => {
-    //   const progress = parseFloat((e.target as HTMLInputElement).value);
-    //   const state = this.soundManager.getSoundState(this.id);
+    // Seek when drag ends
+    this.progressSlider.addEventListener("change", (e) => {
+      const progress = parseFloat((e.target as HTMLInputElement).value);
+      const state = this.soundManager.getSoundState(this.id);
 
-    //   if (state?.duration) {
-    //     const newTime = (progress / 100) * state.duration;
-    //     const wasPlaying = this.soundManager.isPlaying(this.id);
+      if (state?.duration) {
+        const newTime = (progress / 100) * state.duration;
+        const wasPlaying = state.state === SoundState.Playing;
 
-    //     if (wasPlaying) {
-    //       this.soundManager.pauseSound(this.id);
-    //     }
+        // Stop updates while seeking
+        this.stopProgressUpdates();
 
-    //     // Update visual state before seeking
-    //     this.updateProgressVisual(progress);
-    //     this.updateTimeDisplay(newTime);
+        // Pause if playing
+        if (wasPlaying) {
+          this.soundManager.pauseSound(this.id);
+        }
 
-    //     // Seek to new position
-    //     this.soundManager.seekTo(this.id, newTime);
+        // Seek to new position
+        this.soundManager.seekTo(this.id, newTime);
 
-    //     if (wasPlaying) {
-    //       this.soundManager.playSound(this.id, {
-    //         ...this.currentOptions,
-    //         startTime: newTime,
-    //       });
-    //     }
-    //   }
+        // Resume if it was playing
+        if (wasPlaying) {
+          this.soundManager.resumeSound(this.id);
+        }
+      }
+    });
+  }
 
-    //   this.userSeeking = false;
-    // });
+  private startProgressUpdates(): void {
+    // Clear any existing interval
+    if (this.progressInterval) {
+      window.clearInterval(this.progressInterval);
+    }
 
-    // this.soundManager.addEventListener(SoundEventsEnum.SEEKED, (event) => {
-    //   if (event.soundId === this.id && event.currentTime !== undefined) {
-    //     const state = this.soundManager.getSoundState(this.id);
-    //     if (state?.duration) {
-    //       const progress = (event.currentTime / state.duration) * 100;
-    //       this.updateProgressVisual(progress);
-    //       this.updateTimeDisplay(event.currentTime);
-    //     }
-    //   }
-    // });
+    // Update progress every 100ms
+    this.progressInterval = window.setInterval(() => {
+      if (!this.isDragging) {
+        this.updateProgress();
+      }
+    }, 100);
+  }
 
-    // // Handle touch events for mobile
-    // this.progressSlider.addEventListener(
-    //   "touchstart",
-    //   () => {
-    //     this.userSeeking = true;
-    //   },
-    //   { passive: true } // Mark as passive
-    // );
+  private updateProgress(): void {
+    const state = this.soundManager.getSoundState(this.id);
+    if (!state?.duration) return;
 
-    // this.progressSlider.addEventListener(
-    //   "touchend",
-    //   () => {
-    //     this.userSeeking = false;
-    //   },
-    //   { passive: true } // Mark as passive
-    // );
+    // Only update if the sound is playing
+    if (state.state !== SoundState.Playing) return;
 
-    // Update progress regularly when playing
-    // this.progressInterval = window.setInterval(() => {
-    //   if (!this.userSeeking) {
-    //     this.updateProgress();
-    //   }
-    // }, 50);
+    // Use currentTime from state
+    const currentTime = state.currentTime;
+
+    // Calculate progress with Math.min to ensure it doesn't exceed 100
+    const progress = Math.min((currentTime / state.duration) * 100, 100);
+
+    // Round to 2 decimal places to avoid floating point issues
+    const roundedProgress = Math.round(progress * 100) / 100;
+
+    this.updateProgressVisual(roundedProgress);
+    this.updateTimeDisplay(currentTime);
   }
 
   private initializeSoundEventListeners(): void {
@@ -191,25 +187,26 @@ export class SoundControl {
 
     switch (event.type) {
       case SoundEventsEnum.STARTED:
+        this.startProgressUpdates();
         this.updateButtonStates();
         break;
       case SoundEventsEnum.STOPPED:
+      case SoundEventsEnum.ENDED:
+        this.stopProgressUpdates();
+        this.updateButtonStates();
         this.updateProgressVisual(0);
         this.updateTimeDisplay(0);
-        this.updateButtonStates();
         break;
+
       case SoundEventsEnum.PAUSED:
-        console.log("Handling pause event"); // Debug
+        this.stopProgressUpdates();
         this.updateButtonStates();
         break;
       case SoundEventsEnum.RESUMED:
+        this.startProgressUpdates();
         this.updateButtonStates();
         break;
-      case SoundEventsEnum.ENDED:
-        this.updateProgressVisual(0);
-        this.updateTimeDisplay(0);
-        this.updateButtonStates();
-        break;
+
       case SoundEventsEnum.VOLUME_CHANGED:
         if (typeof event.volume === "number") {
           this.updateVolumeDisplay(event.volume);
@@ -226,6 +223,13 @@ export class SoundControl {
       case SoundEventsEnum.UNMUTED:
         this.updateMuteButtonIcon(false);
         break;
+    }
+  }
+
+  private stopProgressUpdates(): void {
+    if (this.progressInterval) {
+      window.clearInterval(this.progressInterval);
+      this.progressInterval = 0; 
     }
   }
 
@@ -278,7 +282,6 @@ export class SoundControl {
   private updateProgressVisual(progress: number): void {
     this.progressSlider.value = progress.toString();
     this.progressSlider.style.setProperty("--progress", `${progress}%`);
-    console.log("update progress visual", progress);
   }
 
   private play(): void {
@@ -288,7 +291,6 @@ export class SoundControl {
 
       if (isPaused) {
         // If the sound is paused, resume it
-        console.log('was paused, resume sound');
         this.soundManager.resumeSound(this.id);
       } else {
         // If the sound is stopped or hasn't been played yet, start from beginning
@@ -316,7 +318,6 @@ export class SoundControl {
   }
 
   private stop(): void {
-    console.log("stop sound??", this.id);
     this.soundManager.stopSound(this.id);
   }
 
@@ -344,28 +345,27 @@ export class SoundControl {
     }
   }
 
- // In SoundControl class
-private fadeIn(): void {
-  try {
-    const state = this.soundManager.getSoundState(this.id);
-    if (state.state === SoundState.Playing) {
-      // If already playing, just fade in from current position
-      this.soundManager.fadeIn(this.id, 2000);
-    } else {
-      // If not playing, start from beginning with fade
-      this.soundManager.playSound(this.id, { 
-        fadeIn: 2000,
-        volume: this.soundManager.getVolumeById(this.id)
-      });
+  private fadeIn(): void {
+    try {
+      const state = this.soundManager.getSoundState(this.id);
+      if (state.state === SoundState.Playing) {
+        // If already playing, just fade in from current position
+        this.soundManager.fadeIn(this.id, 2000);
+      } else {
+        // If not playing, start from beginning with fade
+        this.soundManager.playSound(this.id, {
+          fadeIn: 2000,
+          volume: this.soundManager.getVolumeById(this.id),
+        });
+      }
+    } catch (error) {
+      console.error("Error fading in sound:", error);
     }
-  } catch (error) {
-    console.error("Error fading in sound:", error);
   }
-}
 
   private fadeOut(): void {
     try {
-     this.soundManager.fadeOut(this.id, 2000);
+      this.soundManager.fadeOut(this.id, 2000);
     } catch (error) {
       console.error("Error fading out sound:", error);
     }
@@ -373,7 +373,6 @@ private fadeIn(): void {
 
   private updateButtonStates(): void {
     const state = this.soundManager.getSoundState(this.id);
-    console.log('update button state?', state);
     if (!state) return;
 
     const isPlaying = state.state === SoundState.Playing;
@@ -435,6 +434,9 @@ private fadeIn(): void {
 
     if (this.panSlider) {
       this.panSlider.removeEventListener("input", this.handlePanInput);
+    }
+    if (this.progressInterval) {
+      window.clearInterval(this.progressInterval);
     }
 
     this.element.remove();

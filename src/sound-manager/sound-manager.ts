@@ -18,6 +18,8 @@ export class SoundManager implements SoundManagerInterface {
     SoundEventsEnum,
     Set<(event: SoundEvent) => void>
   > = new Map();
+  private readonly activeSources: Map<string, AudioBufferSourceNode> =
+    new Map();
 
   constructor(config: SoundManagerConfig = {}) {
     // Validate config values
@@ -321,7 +323,6 @@ export class SoundManager implements SoundManagerInterface {
           this.sounds.set(id, {
             id,
             buffer: audioBuffer,
-            sources: [],
             gainNode,
             startTime: 0,
             pausedAt: 0,
@@ -381,43 +382,26 @@ export class SoundManager implements SoundManagerInterface {
     try {
       const sound = this.validateSound(id);
 
-      // Stop any currently playing sources
+      // Clean up any existing sources
       this.stopSound(id);
 
-      const source = this.context.createBufferSource();
-      source.buffer = sound.buffer;
-
-      // Connect source to the audio chain
-      if (options.pan !== undefined) {
-        this.setupStereoPan(sound, options.pan);
-      }
-      this.connectAudioNodes(sound, source);
+      const source = this.setupAudioSource(sound);
 
       if (options.fadeIn) {
         this.fadeIn(id, options.fadeIn);
       } else {
-        // Set immediate volume if no fade
         sound.gainNode.gain.setValueAtTime(
           sound.volume,
           this.context.currentTime
         );
       }
 
-      // Simple onended handler
-      source.onended = () => {
-        this.cleanupSource(sound, source);
-        this.dispatchEvent({
-          type: SoundEventsEnum.ENDED,
-          soundId: id,
-          timestamp: this.context.currentTime,
-        });
-      };
-
-      // Start playback
-      sound.sources = [source];
+      // Update sound state
+      // sound.sources = [source];
       sound.startTime = this.context.currentTime;
       sound.state = SoundState.Playing;
 
+      // Start playback
       source.start(0, options.startTime || 0);
 
       this.dispatchEvent({
@@ -428,6 +412,39 @@ export class SoundManager implements SoundManagerInterface {
     } catch (error) {
       this.handleError("playing sound", error, id);
     }
+  }
+
+  private setupAudioSource(sound: Sound): AudioBufferSourceNode {
+    const source = this.context.createBufferSource();
+    source.buffer = sound.buffer;
+
+    // Connect audio nodes
+    this.connectAudioNodes(sound, source);
+
+    // Set up onended handler
+    source.onended = () => {
+      this.debugLog(`Sound ${sound.id} ended naturally`);
+      if (sound.state === SoundState.Playing) {
+        sound.state = SoundState.Stopped;
+        sound.startTime = 0;
+        sound.pausedAt = 0;
+
+        // Clean up the active source
+        this.activeSources.delete(sound.id);
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.ENDED,
+          soundId: sound.id,
+          timestamp: this.context.currentTime,
+        });
+      }
+    };
+
+    // Store the active source
+    this.activeSources.set(sound.id, source);
+    sound.activeSource = source;
+
+    return source;
   }
 
   public fadeOut(
@@ -517,59 +534,6 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public seekTo(id: string, time: number): void {
-    try {
-      const sound = this.validateSound(id);
-      const duration = sound.buffer.duration;
-
-      // Clamp time value between 0 and duration
-      const clampedTime = Math.max(0, Math.min(time, duration));
-
-      // If sound is playing, stop current playback and start from new position
-      if (this.isPlaying(id)) {
-        // Stop current sources
-        sound.sources.forEach((source) => {
-          source.stop();
-          source.disconnect();
-        });
-
-        // Create new source
-        const newSource = this.context.createBufferSource();
-        newSource.buffer = sound.buffer;
-
-        // Connect the source to the audio chain
-        if (sound.stereoPanner) {
-          newSource.connect(sound.gainNode);
-        } else {
-          newSource.connect(sound.gainNode);
-        }
-
-        // Start playback from the new position
-        newSource.start(0, clampedTime);
-        sound.sources = [newSource];
-        sound.startTime = this.context.currentTime - clampedTime;
-
-        // Set up onended handler
-        newSource.onended = () => {
-          this.cleanupSource(sound, newSource);
-        };
-      } else if (this.isPaused(id)) {
-        // If paused, just update the pausedAt time
-        sound.pausedAt = clampedTime;
-      }
-      this.dispatchEvent({
-        type: SoundEventsEnum.SEEKED,
-        soundId: id,
-        currentTime: clampedTime,
-        timestamp: this.context.currentTime,
-      });
-
-      this.debugLog(`Seeked sound ${id} to ${clampedTime}s`);
-    } catch (error) {
-      this.handleError("seeking sound", error, id);
-    }
-  }
-
   public pauseSound(id: string): void {
     try {
       const sound = this.validateSound(id);
@@ -581,12 +545,14 @@ export class SoundManager implements SoundManagerInterface {
       // Calculate how much of the sound has played
       sound.pausedAt = this.context.currentTime - sound.startTime;
 
-      // Stop current sources without triggering onended
-      sound.sources.forEach((source) => {
-        source.onended = null; // Remove onended handler
-        source.stop();
-      });
-      sound.sources = [];
+      // Stop current source without triggering onended
+      const activeSource = this.activeSources.get(id);
+      if (activeSource) {
+        activeSource.onended = null;
+        activeSource.stop();
+        activeSource.disconnect();
+        this.activeSources.delete(id);
+      }
 
       this.dispatchEvent({
         type: SoundEventsEnum.PAUSED,
@@ -684,17 +650,6 @@ export class SoundManager implements SoundManagerInterface {
     return Math.max(0, Math.min(1, volume));
   }
 
-  private cleanupSource(sound: Sound, source: AudioBufferSourceNode): void {
-    const index = sound.sources.indexOf(source);
-    if (index !== -1) {
-      sound.sources.splice(index, 1);
-    }
-    if (sound.sources.length === 0) {
-      sound.state = SoundState.Stopped;
-      sound.pausedAt = 0;
-    }
-  }
-
   private connectAudioNodes(sound: Sound, source: AudioBufferSourceNode): void {
     if (sound.stereoPanner) {
       source.connect(sound.gainNode);
@@ -711,26 +666,16 @@ export class SoundManager implements SoundManagerInterface {
       const sound = this.validateSound(id);
       if (!this.isPaused(id)) return;
 
-      const source = this.context.createBufferSource();
-      source.buffer = sound.buffer;
-
-      // Connect the source to the audio chain
-      this.connectAudioNodes(sound, source);
+      // Create and set up new source
+      const source = this.setupAudioSource(sound);
 
       // Start playing from the paused position
       const offset = sound.pausedAt || 0;
       source.start(0, offset);
 
-      sound.sources = [source];
-      sound.startTime = this.context.currentTime - offset;
-
       // Update state
+      sound.startTime = this.context.currentTime - offset;
       sound.state = SoundState.Playing;
-
-      // Set up onended handler
-      source.onended = () => {
-        this.cleanupSource(sound, source);
-      };
 
       this.dispatchEvent({
         type: SoundEventsEnum.RESUMED,
@@ -742,36 +687,72 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  public seekTo(id: string, time: number): void {
+    try {
+      const sound = this.validateSound(id);
+      const duration = sound.buffer.duration;
+      const clampedTime = Math.max(0, Math.min(time, duration));
+      const isSeekingToEnd = clampedTime >= duration;
+
+      // Get the current playing state
+      const wasPlaying = sound.state === SoundState.Playing;
+
+      // Stop current playback
+      const currentSource = this.activeSources.get(id);
+      if (currentSource) {
+        currentSource.onended = null; // Remove onended handler
+        currentSource.stop();
+        currentSource.disconnect();
+        this.activeSources.delete(id);
+      }
+
+      if (isSeekingToEnd) {
+        sound.state = SoundState.Stopped;
+        sound.startTime = 0;
+        sound.pausedAt = 0;
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.ENDED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+        });
+      } else if (wasPlaying) {
+        // Create new source and start from new position
+        const newSource = this.setupAudioSource(sound);
+        sound.startTime = this.context.currentTime - clampedTime;
+        newSource.start(0, clampedTime);
+      } else {
+        // If paused, just update the pausedAt time
+        sound.pausedAt = clampedTime;
+      }
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.SEEKED,
+        soundId: id,
+        currentTime: clampedTime,
+        timestamp: this.context.currentTime,
+      });
+    } catch (error) {
+      this.handleError("seeking sound", error, id);
+    }
+  }
+
   public stopSound(id: string): void {
     try {
       const sound = this.validateSound(id);
+      const activeSource = this.activeSources.get(id);
 
-      // Stop and disconnect all sources
-      sound.sources.forEach((source) => {
-        try {
-          source.onended = null; // Remove onended handler first
-          source.stop();
-          source.disconnect();
-        } catch (e) {
-          // Ignore errors if source is already stopped
-        }
-      });
-      sound.sources = [];
-
-      // Clean up stereo panner if it exists
-      if (sound.stereoPanner) {
-        sound.stereoPanner.disconnect();
-        sound.stereoPanner = undefined;
+      if (activeSource) {
+        activeSource.onended = null; // Remove onended handler
+        activeSource.stop();
+        activeSource.disconnect();
+        this.activeSources.delete(id);
       }
 
-      // Reset gain node connection
-      sound.gainNode.disconnect();
-      sound.gainNode.connect(this.masterGainNode);
-
       // Reset state
-      sound.pausedAt = 0;
-      sound.startTime = 0;
       sound.state = SoundState.Stopped;
+      sound.startTime = 0;
+      sound.pausedAt = 0;
 
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
@@ -785,19 +766,18 @@ export class SoundManager implements SoundManagerInterface {
 
   public stopAllSounds(): void {
     try {
-      this.sounds.forEach((sound) => {
-        sound.sources.forEach((source) => source.stop());
-        sound.sources = [];
-        sound.state = SoundState.Stopped;
-      });
+      const activeIds = Array.from(this.activeSources.keys());
+       activeIds.forEach(id => this.stopSound(id));
+      this.debugLog("All sounds stopped");
     } catch (error) {
       this.handleError("stopping all sounds", error);
     }
   }
 
+
   public pauseAllSounds(): void {
     this.sounds.forEach((sound, id) => {
-      if (sound.state == SoundState.Playing) {
+      if (sound.state === SoundState.Playing) {
         this.pauseSound(id);
       }
     });
@@ -926,12 +906,29 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private cleanup(): void {
+    // Stop and disconnect all active sources
+    this.activeSources.forEach((source) => {
+      try {
+        source.onended = null;
+        source.stop();
+        source.disconnect();
+      } catch (e) {
+        // Ignore errors if source is already stopped
+      }
+    });
+    this.activeSources.clear();
+
+    // Clean up other audio nodes
     this.sounds.forEach((sound) => {
       if (sound.pannerNode) {
         sound.pannerNode.disconnect();
       }
+      if (sound.stereoPanner) {
+        sound.stereoPanner.disconnect();
+      }
+      sound.gainNode.disconnect();
     });
-    this.stopAllSounds();
+
     this.sounds.clear();
     this.masterGainNode.disconnect();
   }
@@ -955,8 +952,23 @@ export class SoundManager implements SoundManagerInterface {
 
   public getSoundState(id: string): SoundStateInfo {
     const sound = this.validateSound(id);
+    let currentTime = 0;
+
+    if (sound.state === SoundState.Playing) {
+      // Calculate current playback position for playing sounds
+      currentTime = this.context.currentTime - sound.startTime;
+    } else if (sound.state === SoundState.Paused) {
+      // Use stored pausedAt time for paused sounds
+      currentTime = sound.pausedAt;
+    }
+
+    // Ensure currentTime doesn't exceed duration
+    if (sound.buffer) {
+      currentTime = Math.min(currentTime, sound.buffer.duration);
+    }
+
     return {
-      currentTime: this.context.currentTime,
+      currentTime,
       duration: sound.buffer?.duration || null,
       state: sound.state,
       volume: sound.volume,

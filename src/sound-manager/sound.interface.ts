@@ -3,7 +3,6 @@ import { SoundState } from "./sound-state.interface";
 export interface Sound {
   id: string;
   buffer: AudioBuffer;
-  sources: AudioBufferSourceNode[];
   gainNode: GainNode;
   stereoPanner?: StereoPannerNode;
   pannerNode?: PannerNode;
@@ -11,5 +10,6 @@ export interface Sound {
   pausedAt: number;
   volume: number;
   previousVolume?: number;
+  activeSource?: AudioBufferSourceNode;
   state: SoundState;  
 }
