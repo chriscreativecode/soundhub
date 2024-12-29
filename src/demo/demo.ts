@@ -1,3 +1,4 @@
+import './shared.css';
 import './demo.css';
 
 import { SoundManager } from '../sound-manager/sound-manager';
@@ -68,6 +69,27 @@ export class SoundManagerDemo {
         this.setGlobalVolume(volume);
       });
     }
+
+    const rangeInputs = Array.from(this.containerElement.querySelectorAll('input[type="range"]'));
+    rangeInputs.forEach((element: Element) => {
+      const input = element as HTMLInputElement;
+      input.style.setProperty(
+        "--range-progress",
+        `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`
+      );
+    
+      input.addEventListener("input", (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        target.style.setProperty(
+          "--range-progress",
+          `${
+            ((Number(target.value) - Number(target.min)) / 
+            (Number(target.max) - Number(target.min))) * 100
+          }%`
+        );
+      });
+    });
+
   }
 
   private initializeGlobalControls(): void {
@@ -103,6 +125,9 @@ export class SoundManagerDemo {
         { id: "ringtone", url: sound3 },
         { id: "bounce", url: bounce },
       ]);
+
+      const soundControlsContainer = document.getElementById('soundControlsContainer') as HTMLElement;
+      soundControlsContainer.classList.add('show');
 
       this.createSoundControls();
     } catch (error) {

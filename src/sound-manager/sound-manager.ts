@@ -22,7 +22,10 @@ export class SoundManager implements SoundManagerInterface {
     new Map();
 
   constructor(config: SoundManagerConfig = {}) {
-    // Validate config values
+    this.config = {
+      debug: false, // default value
+      ...config, // override with provided config
+    };
     Object.values(SoundEventsEnum).forEach((type) => {
       this.eventListeners.set(type as SoundEventsEnum, new Set());
     });
@@ -174,9 +177,13 @@ export class SoundManager implements SoundManagerInterface {
 
   public removeSpatialEffect(id: string): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       if (sound.pannerNode) {
-        sound.gainNode.disconnect(sound.pannerNode);
+        const source = this.activeSources.get(id);
+        if (source) {
+          source.disconnect();
+          source.connect(sound.gainNode);
+        }
         sound.pannerNode.disconnect();
         sound.pannerNode = undefined;
         sound.gainNode.connect(this.masterGainNode);
@@ -205,8 +212,21 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    const sound = this.getSound(soundId);
-    if (!sound) return;
+    const sound = this.sounds.get(soundId);
+    const source = this.activeSources.get(soundId);
+
+    if (!sound || !source) {
+      this.debugLog(`Sound ${soundId} not found for position setting`);
+      return;
+    }
+
+    // If stereo panning is active, warn and return
+    if (sound.stereoPanner) {
+      this.debugLog(
+        `Cannot set spatial position when stereo panning is active for sound ${soundId}`
+      );
+      return;
+    }
 
     try {
       // Create a panner node if it doesn't exist
@@ -218,10 +238,10 @@ export class SoundManager implements SoundManagerInterface {
         sound.pannerNode.maxDistance = 10000;
         sound.pannerNode.rolloffFactor = 1;
 
-        // Connect the panner node to the audio graph
-        sound.gainNode.disconnect();
-        sound.gainNode.connect(sound.pannerNode);
-        sound.pannerNode.connect(this.masterGainNode);
+        // Reconnect the audio nodes with the panner
+        source.disconnect();
+        source.connect(sound.pannerNode);
+        sound.pannerNode.connect(sound.gainNode);
       }
 
       // Update position
@@ -285,22 +305,18 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  /**
-   * Preloads multiple sounds for later use
-   * @param soundsToLoad Array of sound configurations to load
-   * @throws Error if loading fails
-   */
   public async preloadSounds(
     soundsToLoad: { id: string; url: string }[]
   ): Promise<void> {
     try {
       const loadPromises = soundsToLoad.map(async ({ id, url }) => {
         if (this.sounds.has(id)) {
-          console.warn(`Sound with id ${id} already exists. Skipping.`);
+          this.debugLog(`Sound with id ${id} already exists. Skipping.`);
           return;
         }
 
         try {
+          // Fetch the audio file
           const response = await fetch(url, {
             credentials:
               this.config.crossOrigin === "use-credentials"
@@ -313,13 +329,16 @@ export class SoundManager implements SoundManagerInterface {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
+          // Decode the audio data
           const arrayBuffer = await response.arrayBuffer();
           const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 
+          // Create and configure gain node
           const gainNode = this.context.createGain();
           gainNode.connect(this.masterGainNode);
           gainNode.gain.value = this.config.defaultVolume!;
 
+          // Store the sound
           this.sounds.set(id, {
             id,
             buffer: audioBuffer,
@@ -332,13 +351,33 @@ export class SoundManager implements SoundManagerInterface {
 
           this.debugLog(`Sound ${id} loaded successfully`);
         } catch (error) {
+          // Log the error but don't fail silently
           this.handleError("loading sound", error, id);
+          // Re-throw to be caught by Promise.allSettled
+          throw error;
         }
       });
 
-      await Promise.all(loadPromises);
+      // Use Promise.allSettled to handle both successful and failed loads
+      const results = await Promise.allSettled(loadPromises);
+
+      // Process results
+      const failedLoads = results.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected"
+      );
+
+      if (failedLoads.length > 0) {
+        const failedIds = soundsToLoad
+          .filter((_, index) => results[index].status === "rejected")
+          .map(({ id }) => id);
+
+        this.debugLog(`Failed to load sounds: ${failedIds.join(", ")}`);
+        throw new Error(`Failed to load ${failedLoads.length} sound(s)`);
+      }
     } catch (error) {
       this.handleError("preloading sounds", error);
+      throw error; // Re-throw to allow caller to handle the error
     }
   }
 
@@ -351,41 +390,18 @@ export class SoundManager implements SoundManagerInterface {
     return sound?.buffer != null;
   }
 
-  private setupStereoPan(sound: Sound, pan: number): void {
-    try {
-      // Create stereo panner if it doesn't exist
-      if (!sound.stereoPanner) {
-        sound.stereoPanner = this.context.createStereoPanner();
-
-        // Disconnect existing connections
-        sound.gainNode.disconnect();
-
-        // Connect the new audio chain: gainNode -> stereoPanner -> masterGainNode
-        sound.gainNode.connect(sound.stereoPanner);
-        sound.stereoPanner.connect(this.masterGainNode);
-      }
-
-      // Clamp pan value between -1 and 1
-      const pannedValue = Math.max(-1, Math.min(1, pan));
-      sound.stereoPanner.pan.setValueAtTime(
-        pannedValue,
-        this.context.currentTime
-      );
-
-      this.debugLog(`Pan set for sound ${sound.id}: ${pannedValue}`);
-    } catch (error) {
-      this.handleError("setting up stereo pan", error);
-    }
-  }
-
   public playSound(id: string, options: PlaySoundOptions = {}): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
 
       // Clean up any existing sources
       this.stopSound(id);
 
       const source = this.setupAudioSource(sound);
+
+      if (options.pan !== undefined) {
+        this.setPan(id, options.pan);
+      }
 
       if (options.fadeIn) {
         this.fadeIn(id, options.fadeIn);
@@ -396,13 +412,12 @@ export class SoundManager implements SoundManagerInterface {
         );
       }
 
-      // Update sound state
-      // sound.sources = [source];
-      sound.startTime = this.context.currentTime;
+      const startOffset = sound.pausedAt || options.startTime || 0;
+      sound.startTime = this.context.currentTime - startOffset;
       sound.state = SoundState.Playing;
 
       // Start playback
-      source.start(0, options.startTime || 0);
+      source.start(0, startOffset);
 
       this.dispatchEvent({
         type: SoundEventsEnum.STARTED,
@@ -452,7 +467,7 @@ export class SoundManager implements SoundManagerInterface {
     duration: number = this.config.fadeOutDuration!
   ): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       if (!this.isPlaying(id)) return;
 
       const fadeOutDuration = duration / 1000; // Convert to seconds
@@ -493,17 +508,31 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public fadeIn(id: string, duration: number): void {
+  public fadeIn(
+    id: string,
+    duration: number,
+    startVolume?: number,
+    endVolume?: number
+  ): void {
+    if (duration <= 0) {
+      this.debugLog(`Invalid fade duration: ${duration}`);
+      return;
+    }
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
+      const fadeInDuration = duration / 1000;
 
-      const fadeInDuration = duration / 1000; // Convert to seconds
+      const defaultStartVolume = 0;
+      const defaultEndVolume = sound.volume;
 
-      // Store the current volume for later reset
-      const targetVolume = sound.volume;
+      const initialVolume = startVolume ?? defaultStartVolume;
+      const targetVolume = endVolume ?? defaultEndVolume;
 
-      // Immediately set volume to 0
-      sound.gainNode.gain.setValueAtTime(0, this.context.currentTime);
+      // Set initial volume
+      sound.gainNode.gain.setValueAtTime(
+        initialVolume,
+        this.context.currentTime
+      );
 
       // Ramp to target volume
       sound.gainNode.gain.linearRampToValueAtTime(
@@ -524,11 +553,38 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  // Add method to update pan value
-  public setPan(id: string, pan: number): void {
+  public setPan(id: string, value: number): void {
     try {
-      const sound = this.validateSound(id);
-      this.setupStereoPan(sound, pan);
+      const sound = this.getValidatedSound(id);
+
+      if (sound.pannerNode) {
+        this.debugLog(
+          `Cannot set stereo pan when spatial audio is active for sound ${id}`
+        );
+        return;
+      }
+
+      // Create stereo panner if it doesn't exist
+      if (!sound.stereoPanner) {
+        sound.stereoPanner = this.context.createStereoPanner();
+        // Get the active source
+        const source = this.activeSources.get(sound.id);
+        if (source) {
+          // Reconnect the audio nodes with the stereo panner
+          source.disconnect();
+          source.connect(sound.stereoPanner);
+          sound.stereoPanner.connect(sound.gainNode);
+        }
+      }
+
+      // Clamp pan value between -1 and 1
+      const pannedValue = Math.max(-1, Math.min(1, value));
+      sound.stereoPanner.pan.setValueAtTime(
+        pannedValue,
+        this.context.currentTime
+      );
+
+      this.debugLog(`Pan set for sound ${sound.id}: ${pannedValue}`);
     } catch (error) {
       this.handleError("setting pan", error, id);
     }
@@ -536,7 +592,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public pauseSound(id: string): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       if (!this.isPlaying(id) || this.isPaused(id)) return;
 
       // Update state
@@ -566,6 +622,42 @@ export class SoundManager implements SoundManagerInterface {
       });
     } catch (error) {
       this.handleError("pausing sound", error, id);
+    }
+  }
+
+  public isSpatialAudioActive(id: string): boolean {
+    const sound = this.sounds.get(id);
+    return !!sound?.pannerNode;
+  }
+
+  public isStereoPanActive(id: string): boolean {
+    const sound = this.sounds.get(id);
+    return !!sound?.stereoPanner;
+  }
+
+  public isStopped(id: string): boolean {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.state === SoundState.Stopped;
+    } catch {
+      return true;
+    }
+  }
+
+  public removePan(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      if (sound.stereoPanner) {
+        const source = this.activeSources.get(id);
+        if (source) {
+          source.disconnect();
+          source.connect(sound.gainNode);
+        }
+        sound.stereoPanner.disconnect();
+        sound.stereoPanner = undefined;
+      }
+    } catch (error) {
+      this.handleError("removing pan", error, id);
     }
   }
 
@@ -634,7 +726,7 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  private validateSound(id: string): Sound {
+  private getValidatedSound(id: string): Sound {
     const sound = this.sounds.get(id);
     if (!sound?.buffer) {
       this.handleError(
@@ -652,9 +744,13 @@ export class SoundManager implements SoundManagerInterface {
 
   private connectAudioNodes(sound: Sound, source: AudioBufferSourceNode): void {
     if (sound.stereoPanner) {
-      source.connect(sound.gainNode);
-      sound.gainNode.connect(sound.stereoPanner);
-      sound.stereoPanner.connect(this.masterGainNode);
+      source.connect(sound.stereoPanner);
+      sound.stereoPanner.connect(sound.gainNode);
+      sound.gainNode.connect(this.masterGainNode);
+    } else if (sound.pannerNode) {
+      source.connect(sound.pannerNode);
+      sound.pannerNode.connect(sound.gainNode);
+      sound.gainNode.connect(this.masterGainNode);
     } else {
       source.connect(sound.gainNode);
       sound.gainNode.connect(this.masterGainNode);
@@ -663,7 +759,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public resumeSound(id: string): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       if (!this.isPaused(id)) return;
 
       // Create and set up new source
@@ -689,7 +785,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public seekTo(id: string, time: number): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       const duration = sound.buffer.duration;
       const clampedTime = Math.max(0, Math.min(time, duration));
       const isSeekingToEnd = clampedTime >= duration;
@@ -739,11 +835,11 @@ export class SoundManager implements SoundManagerInterface {
 
   public stopSound(id: string): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       const activeSource = this.activeSources.get(id);
 
       if (activeSource) {
-        activeSource.onended = null; // Remove onended handler
+        activeSource.onended = null;
         activeSource.stop();
         activeSource.disconnect();
         this.activeSources.delete(id);
@@ -753,6 +849,8 @@ export class SoundManager implements SoundManagerInterface {
       sound.state = SoundState.Stopped;
       sound.startTime = 0;
       sound.pausedAt = 0;
+
+      this.clearAudioProcessing(id);
 
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
@@ -767,13 +865,12 @@ export class SoundManager implements SoundManagerInterface {
   public stopAllSounds(): void {
     try {
       const activeIds = Array.from(this.activeSources.keys());
-       activeIds.forEach(id => this.stopSound(id));
+      activeIds.forEach((id) => this.stopSound(id));
       this.debugLog("All sounds stopped");
     } catch (error) {
       this.handleError("stopping all sounds", error);
     }
   }
-
 
   public pauseAllSounds(): void {
     this.sounds.forEach((sound, id) => {
@@ -793,7 +890,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public setVolumeById(id: string, volume: number): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       const validatedVolume = this.setValidatedVolume(volume);
       sound.volume = validatedVolume;
       sound.gainNode.gain.setValueAtTime(
@@ -813,7 +910,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public getVolumeById(id: string): number {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       return sound.volume;
     } catch (error) {
       this.handleError("getting volume", error, id);
@@ -844,7 +941,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public muteSoundById(id: string): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
 
       sound.previousVolume = sound.volume;
       sound.volume = 0;
@@ -863,7 +960,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public unmuteSoundById(id: string): void {
     try {
-      const sound = this.validateSound(id);
+      const sound = this.getValidatedSound(id);
       // Restore the previous volume
       const volumeToRestore =
         sound.previousVolume || this.config.defaultVolume!;
@@ -892,16 +989,42 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public isPlaying(id: string): boolean {
-    const sound = this.validateSound(id);
+    const sound = this.getValidatedSound(id);
     return sound.state === SoundState.Playing;
   }
 
   public isPaused(id: string): boolean {
     try {
-      const sound = this.validateSound(id);
-      return !!(sound.state == SoundState.Paused);
+      const sound = this.getValidatedSound(id);
+      return sound.state == SoundState.Paused;
     } catch {
       return false;
+    }
+  }
+
+  private clearAudioProcessing(id: string): void {
+    const sound = this.sounds.get(id);
+    if (!sound) return;
+
+    const source = this.activeSources.get(id);
+    if (source) {
+      source.disconnect();
+    }
+
+    if (sound.pannerNode) {
+      sound.pannerNode.disconnect();
+      sound.pannerNode = undefined;
+    }
+
+    if (sound.stereoPanner) {
+      sound.stereoPanner.disconnect();
+      sound.stereoPanner = undefined;
+    }
+
+    // Reconnect the basic audio chain
+    if (source) {
+      source.connect(sound.gainNode);
+      sound.gainNode.connect(this.masterGainNode);
     }
   }
 
@@ -951,7 +1074,7 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public getSoundState(id: string): SoundStateInfo {
-    const sound = this.validateSound(id);
+    const sound = this.getValidatedSound(id);
     let currentTime = 0;
 
     if (sound.state === SoundState.Playing) {

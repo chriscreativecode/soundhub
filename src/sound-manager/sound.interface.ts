@@ -4,8 +4,8 @@ export interface Sound {
   id: string;
   buffer: AudioBuffer;
   gainNode: GainNode;
-  stereoPanner?: StereoPannerNode;
-  pannerNode?: PannerNode;
+  stereoPanner?: StereoPannerNode; // just plain left to right panning
+  pannerNode?: PannerNode; // for 3D panning
   startTime: number;
   pausedAt: number;
   volume: number;
