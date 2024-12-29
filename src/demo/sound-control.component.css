@@ -1,26 +1,22 @@
-
 .sound-control {
   margin-bottom: 1rem;
 }
 
-.button-group {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
 .icon-button {
+  position: relative;
   width: 32px;
   height: 32px;
+  min-width: 32px;
   padding: 8px;
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--color-primary);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .icon-button:hover:not(:disabled) {
@@ -33,6 +29,13 @@
   cursor: not-allowed;
 }
 
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px; /* Minimum width for sliders */
+}
 
 .progress-slider {
   flex: 1;
@@ -99,9 +102,9 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #4CAF50;
+  background: #4caf50;
   cursor: pointer;
-  transition: background-color .15s ease-in-out;
+  transition: background-color 0.15s ease-in-out;
 }
 
 .volume-slider::-moz-range-thumb {
@@ -109,9 +112,9 @@
   height: 16px;
   border: 0;
   border-radius: 50%;
-  background: #4CAF50;
+  background: #4caf50;
   cursor: pointer;
-  transition: background-color .15s ease-in-out;
+  transition: background-color 0.15s ease-in-out;
 }
 
 .volume-slider::-webkit-slider-thumb:hover {
@@ -127,29 +130,6 @@
   text-align: right;
 }
 
-.loop-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.loop-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.loop-count {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.loop-count-input {
-  width: 60px;
-  padding: 4px;
-}
-
 .mute-icon,
 .unmute-icon {
   position: absolute;
@@ -158,18 +138,16 @@
   transform: translate(-50%, -50%);
 }
 
-.icon-button {
-  position: relative;
-}
-
 .control-group {
   margin-bottom: 1rem;
 }
 
-.control-content {
+
+.button-group {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .pan-slider {
@@ -198,9 +176,9 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #4CAF50;
+  background: #4caf50;
   cursor: pointer;
-  transition: background-color .15s ease-in-out;
+  transition: background-color 0.15s ease-in-out;
 }
 
 .pan-slider::-moz-range-thumb {
@@ -208,9 +186,9 @@
   height: 16px;
   border: 0;
   border-radius: 50%;
-  background: #4CAF50;
+  background: #4caf50;
   cursor: pointer;
-  transition: background-color .15s ease-in-out;
+  transition: background-color 0.15s ease-in-out;
 }
 
 .pan-slider::-webkit-slider-thumb:hover {
@@ -219,4 +197,28 @@
 
 .pan-slider::-moz-range-thumb:hover {
   background: #45a049;
+}
+
+@media (max-width: 768px) {
+  .control-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button-group {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .slider-container {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 769px) {
+  .control-group {
+    flex: 1;
+    min-width: 200px;
+  }
 }

@@ -1,39 +1,58 @@
 <div class="sound-manager-demo">
-  <!-- Load Controls -->
-  <div class="controls-section">
-    <div class="control-group">
-      <h4>Load sounds</h4>
-      <div class="control-content">
-        <button class="preload-btn" title="Preload">
-          <span class="button-text">Preload demo sounds</span>
-          <span class="spinner"></span>
-        </button>
-      </div>
+  <div class="control-group">
+    <h4>Load sounds</h4>
+    <div class="control-content">
+      <button class="preload-btn" title="Preload">
+        <span class="button-text">Preload demo sounds</span>
+        <span class="spinner"></span>
+      </button>
     </div>
   </div>
 
-  <!-- Sound Controls Container -->
-  <div id="soundControlsContainer" class="controls-section">
-    <!-- Sound controls will be dynamically added here -->
-  </div>
-
   <!-- Global Controls -->
-  <div class="controls-section">
-    <div class="control-group">
-      <h4>Global controls</h4>
-      <div class="control-content">
+  <div class="control-group sticky">
+    <h4>Global controls</h4>
+    <div class="control-content">
+      <div class="button-group-global">
         <button id="pauseAllBtn">Pause All</button>
         <button id="resumeAllBtn">Resume All</button>
         <button id="stopAllBtn">Stop All</button>
         <button id="toggleMuteBtn">Toggle Mute</button>
-        <div class="volume-controls">
-          <label>
-            Master Volume:
-            <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="1">
-            <span id="masterVolumeValue">100%</span>
-          </label>
+      </div>
+
+      <div class="control-group">
+        <h4>Volume (Global)</h4>
+        <div class="control-content">
+          <div class="slider-container">
+            <input
+            type="range"
+            id="masterVolume"
+            min="0"
+            max="1"
+            step="0.01"
+            value="1"
+          />
+          <span id="masterVolumeValue">100%</span>
+          </div>
         </div>
       </div>
+
+      <!-- <div class="volume-controls">
+        <input
+          type="range"
+          id="masterVolume"
+          min="0"
+          max="1"
+          step="0.01"
+          value="1"
+        />
+        <span id="masterVolumeValue">100%</span>
+      </div> -->
     </div>
+  </div>
+
+  <!-- Sound Controls Container -->
+  <div id="soundControlsContainer">
+    <!-- Sound controls will be dynamically added here -->
   </div>
 </div>

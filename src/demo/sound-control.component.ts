@@ -58,6 +58,26 @@ export class SoundControl {
     this.initializeVolumeControl();
     this.initializePanControl();
 
+    const rangeInputs = Array.from(this.element.querySelectorAll('input[type="range"]'));
+    rangeInputs.forEach((element: Element) => {
+      const input = element as HTMLInputElement;
+      input.style.setProperty(
+        "--range-progress",
+        `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`
+      );
+    
+      input.addEventListener("input", (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        target.style.setProperty(
+          "--range-progress",
+          `${
+            ((Number(target.value) - Number(target.min)) / 
+            (Number(target.max) - Number(target.min))) * 100
+          }%`
+        );
+      });
+    });
+
     // Progress slider events
     this.progressSlider.addEventListener("mousedown", () => {
       this.isDragging = true;
@@ -229,7 +249,7 @@ export class SoundControl {
   private stopProgressUpdates(): void {
     if (this.progressInterval) {
       window.clearInterval(this.progressInterval);
-      this.progressInterval = 0; 
+      this.progressInterval = 0;
     }
   }
 
@@ -281,7 +301,7 @@ export class SoundControl {
 
   private updateProgressVisual(progress: number): void {
     this.progressSlider.value = progress.toString();
-    this.progressSlider.style.setProperty("--progress", `${progress}%`);
+    this.progressSlider.style.setProperty("--range-progress", `${progress}%`);
   }
 
   private play(): void {
