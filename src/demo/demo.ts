@@ -1,19 +1,70 @@
-import './shared.css';
-import './demo.css';
+import "./shared.css";
+import "./demo.css";
 
-import { SoundManager } from '../sound-manager/sound-manager';
-import sound1 from '../sounds/birds.mp3';
-import sound2 from '../sounds/piano.mp3';
-import bounce from '../sounds/pong-bounce.mp3';
-import sound3 from '../sounds/ringtonex.mp3';
-import demoTemplate from './demo.html?raw';
-import { SoundControl } from './sound-control.component';
+import { SoundManager } from "../sound-manager/sound-manager";
+import sound1 from "../sounds/birds.mp3";
+import sound2 from "../sounds/piano.mp3";
+import bounce from "../sounds/pong-bounce.mp3";
+import sound3 from "../sounds/ringtonex.mp3";
+import demoTemplate from "./demo.html?raw";
+import { SoundControl } from "./sound-control.component";
+import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
+import { SoundEvent } from "../sound-manager/sound-event.interface";
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
   private soundControls: Map<string, SoundControl> = new Map();
   private containerElement: HTMLElement;
   private loadingState: boolean = false;
+
+  private readonly BUTTON_IDS = [
+    "pauseAllBtn",
+    "resumeAllBtn",
+    "stopAllBtn",
+    "toggleMuteBtn",
+    "fadeInBtn",
+    "fadeOutBtn",
+  ] as const;
+
+  private readonly BUTTON_HANDLERS = {
+    pauseAllBtn: () => this.soundManager.pauseAllSounds(),
+    resumeAllBtn: () => this.soundManager.resumeAllSounds(),
+    stopAllBtn: () => this.soundManager.stopAllSounds(),
+    toggleMuteBtn: () => this.soundManager.toggleMute(),
+    fadeInBtn: () => this.soundManager.fadeMasterIn(),
+    fadeOutBtn: () => this.soundManager.fadeMasterOut(),
+  } as const;
+
+  private readonly BUTTON_STATES = {
+    [SoundEventsEnum.STARTED]: {
+      pauseAllBtn: false,
+      resumeAllBtn: true,
+      stopAllBtn: false,
+      fadeOutBtn: false,
+      fadeInBtn: true,
+    },
+    [SoundEventsEnum.RESUMED]: {
+      pauseAllBtn: false,
+      resumeAllBtn: true,
+      stopAllBtn: false,
+      fadeOutBtn: false,
+      fadeInBtn: true,
+    },
+    [SoundEventsEnum.PAUSED]: {
+      pauseAllBtn: true,
+      resumeAllBtn: false,
+      stopAllBtn: false,
+      fadeOutBtn: true,
+      fadeInBtn: false,
+    },
+    [SoundEventsEnum.STOPPED]: {
+      pauseAllBtn: true,
+      resumeAllBtn: true,
+      stopAllBtn: true,
+      fadeOutBtn: true,
+      fadeInBtn: false,
+    },
+  } as const;
 
   constructor(container: HTMLElement) {
     if (!container) {
@@ -37,8 +88,24 @@ export class SoundManagerDemo {
     try {
       this.render();
       requestAnimationFrame(() => {
+        const masterPanningInput = document.getElementById(
+          "masterPanning"
+        ) as HTMLInputElement;
+        if (masterPanningInput) {
+          masterPanningInput.value = "0.5"; // Center position (will be converted to 0 pan)
+          masterPanningInput.min = "0";
+          masterPanningInput.max = "1";
+          masterPanningInput.step = "0.01";
+          this.updateMasterPanDisplay(0); // Initialize display to center
+        }
         this.initializeEventListeners();
         this.initializeGlobalControls();
+
+        document
+          .querySelectorAll(".control-group.sticky")
+          .forEach((element) => {
+            this.createStickyObserver(element as HTMLElement);
+          });
       });
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
@@ -58,6 +125,7 @@ export class SoundManagerDemo {
       ".preload-btn"
     ) as HTMLButtonElement;
     const masterVolumeInput = document.getElementById("masterVolume");
+    const masterPanningInput = document.getElementById("masterPanning");
 
     if (preloadBtn) {
       preloadBtn.addEventListener("click", () => this.loadDemoSounds());
@@ -70,41 +138,190 @@ export class SoundManagerDemo {
       });
     }
 
-    const rangeInputs = Array.from(this.containerElement.querySelectorAll('input[type="range"]'));
+    if (masterPanningInput) {
+      masterPanningInput.addEventListener("input", (e) => {
+        const pan = parseFloat((e.target as HTMLInputElement).value);
+        this.setMasterPan(pan);
+      });
+    }
+
+    const rangeInputs = Array.from(
+      this.containerElement.querySelectorAll('input[type="range"]')
+    );
     rangeInputs.forEach((element: Element) => {
       const input = element as HTMLInputElement;
       input.style.setProperty(
         "--range-progress",
-        `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`
+        `${
+          ((Number(input.value) - Number(input.min)) /
+            (Number(input.max) - Number(input.min))) *
+          100
+        }%`
       );
-    
+
       input.addEventListener("input", (e: Event) => {
         const target = e.target as HTMLInputElement;
         target.style.setProperty(
           "--range-progress",
           `${
-            ((Number(target.value) - Number(target.min)) / 
-            (Number(target.max) - Number(target.min))) * 100
+            ((Number(target.value) - Number(target.min)) /
+              (Number(target.max) - Number(target.min))) *
+            100
           }%`
         );
       });
     });
-
   }
 
   private initializeGlobalControls(): void {
-    const controls = {
-      pauseAllBtn: () => this.soundManager.pauseAllSounds(),
-      resumeAllBtn: () => this.soundManager.resumeAllSounds(),
-      stopAllBtn: () => this.soundManager.stopAllSounds(),
-      toggleMuteBtn: () => this.soundManager.toggleMute(),
-    };
+    this.setupButtonHandlers();
+    this.setupEventListeners();
+    this.initializeMuteState();
+    this.initializeButtonStates();
+  }
 
-    Object.entries(controls).forEach(([id, handler]) => {
+  private setupButtonHandlers(): void {
+    this.BUTTON_IDS.forEach((id) => {
       const button = document.getElementById(id);
-      if (button) {
-        button.addEventListener("click", handler);
+      if (button && this.BUTTON_HANDLERS[id]) {
+        button.addEventListener("click", this.BUTTON_HANDLERS[id]);
       }
+    });
+  }
+
+  private setupEventListeners(): void {
+    Object.values(SoundEventsEnum).forEach((eventType) => {
+      this.soundManager.addEventListener(
+        eventType,
+        this.handleSoundEvent.bind(this)
+      );
+    });
+  }
+
+  private setMasterPan(pan: number): void {
+    // Convert from 0-1 range to -1 to 1 range
+    const normalizedPan = pan * 2 - 1;
+    this.soundManager.setMasterPan(normalizedPan);
+    this.updateMasterPanDisplay(normalizedPan);
+  }
+
+  private updateMasterPanDisplay(pan: number): void {
+    const masterPanValue = document.getElementById("masterPanValue");
+    if (masterPanValue) {
+      if (pan === 0) {
+        masterPanValue.textContent = "Center"; // or "Center"
+      } else if (pan < 0) {
+        masterPanValue.textContent = `${Math.abs(Math.round(pan * 100))}% Left`;
+      } else {
+        masterPanValue.textContent = `${Math.round(pan * 100)}% Right`;
+      }
+    }
+  }
+
+  private handleSoundEvent = (event: SoundEvent): void => {
+    switch (event.type) {
+      case SoundEventsEnum.MUTE_GLOBAL:
+        this.updateMuteIcons(true);
+        this.updateMasterVolume(0);
+        break;
+
+      case SoundEventsEnum.MASTER_PAN_CHANGED:
+        if (typeof event.pan === "number") {
+          this.updateMasterPanDisplay(event.pan);
+        }
+        break;
+
+      case SoundEventsEnum.UNMUTE_GLOBAL:
+        this.updateMuteIcons(false);
+        // Assuming the sound manager provides the previous volume in the event
+        // If not, you might need to store the previous volume value
+        if (typeof event.volume === "number") {
+          this.updateMasterVolume(event.volume);
+        }
+        break;
+
+      case SoundEventsEnum.MASTER_VOLUME_CHANGED:
+        this.updateMasterVolume(event);
+        break;
+
+      case SoundEventsEnum.STARTED:
+      case SoundEventsEnum.RESUMED:
+      case SoundEventsEnum.PAUSED:
+      case SoundEventsEnum.STOPPED:
+        if (this.BUTTON_STATES[event.type]) {
+          this.updateButtonStates(this.BUTTON_STATES[event.type]);
+        }
+        break;
+
+      case SoundEventsEnum.FADE_MASTER_IN_COMPLETED:
+        this.updateButtonStates({ fadeInBtn: true, fadeOutBtn: false });
+        break;
+
+      case SoundEventsEnum.FADE_MASTER_OUT_COMPLETED:
+        this.updateButtonStates({ fadeInBtn: false, fadeOutBtn: true });
+        break;
+    }
+  };
+
+  private updateMuteIcons(isMuted: boolean): void {
+    const muteIcon = document.querySelector(".mute-icon");
+    const unmuteIcon = document.querySelector(".unmute-icon");
+    if (muteIcon && unmuteIcon) {
+      muteIcon.setAttribute("style", `display: ${isMuted ? "none" : "block"}`);
+      unmuteIcon.setAttribute(
+        "style",
+        `display: ${isMuted ? "block" : "none"}`
+      );
+    }
+  }
+
+  private updateMasterVolume(eventOrVolume: SoundEvent | number): void {
+    const masterVolumeInput = document.getElementById(
+      "masterVolume"
+    ) as HTMLInputElement;
+    const masterVolumeValue = document.getElementById("masterVolumeValue");
+
+    if (!masterVolumeInput || !masterVolumeValue) return;
+
+    let volume: number;
+
+    if (typeof eventOrVolume === "number") {
+      volume = eventOrVolume;
+    } else if (typeof eventOrVolume.volume === "number") {
+      volume = eventOrVolume.volume;
+    } else {
+      return;
+    }
+
+    const volumePercentage = volume * 100;
+    masterVolumeInput.value = volume.toString();
+    masterVolumeInput.style.setProperty(
+      "--range-progress",
+      `${volumePercentage}%`
+    );
+    masterVolumeValue.textContent = `${Math.round(volumePercentage)}%`;
+  }
+
+  private updateButtonStates(states: Record<string, boolean>): void {
+    Object.entries(states).forEach(([id, disabled]) => {
+      const button = document.getElementById(id) as HTMLButtonElement;
+      if (button) {
+        button.disabled = disabled;
+      }
+    });
+  }
+
+  private initializeMuteState(): void {
+    this.updateMuteIcons(false);
+  }
+
+  private initializeButtonStates(): void {
+    this.updateButtonStates({
+      pauseAllBtn: true,
+      resumeAllBtn: true,
+      stopAllBtn: true,
+      fadeOutBtn: true,
+      fadeInBtn: false,
     });
   }
 
@@ -115,7 +332,6 @@ export class SoundManagerDemo {
     if (!preloadBtn || this.loadingState) return;
 
     try {
-      // Set loading state
       this.loadingState = true;
       this.updateLoadingState(true);
 
@@ -126,8 +342,10 @@ export class SoundManagerDemo {
         { id: "bounce", url: bounce },
       ]);
 
-      const soundControlsContainer = document.getElementById('soundControlsContainer') as HTMLElement;
-      soundControlsContainer.classList.add('show');
+      const soundControlsContainer = document.getElementById(
+        "soundControlsContainer"
+      ) as HTMLElement;
+      soundControlsContainer.classList.add("show");
 
       this.createSoundControls();
     } catch (error) {
@@ -136,6 +354,21 @@ export class SoundManagerDemo {
       this.loadingState = false;
       this.updateLoadingState(false);
     }
+  }
+
+  private createStickyObserver(element: HTMLElement): () => void {
+    const originalTop = element.getBoundingClientRect().top + window.scrollY;
+
+    const checkStuck = () => {
+      const rect = element.getBoundingClientRect();
+      const isStuck = rect.top === 0 && window.scrollY >= originalTop;
+      element.classList.toggle("is-stuck", isStuck);
+    };
+
+    window.addEventListener("scroll", checkStuck, { passive: true });
+    checkStuck();
+
+    return () => window.removeEventListener("scroll", checkStuck);
   }
 
   private updateLoadingState(loading: boolean): void {

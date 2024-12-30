@@ -2,22 +2,24 @@
   margin-bottom: 1rem;
 }
 
-.icon-button {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  padding: 8px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
+.sound-control-header {
+  display: flex;
+  justify-content: space-between;
 }
+
+
+.icon-button.close-btn {
+  top: -10px;
+  right: -10px;
+  position: relative;
+  transform: scale(0.8);
+  background: var(--color-warning);
+}
+
+.icon-button.close-btn:hover:not(:disabled) {
+  background: var(--color-warning);
+}
+
 
 .icon-button:hover:not(:disabled) {
   background: var(--color-primary-hover);
@@ -74,7 +76,6 @@
   transform: scale(1.1);
 }
 
-/* Create the filled part of the slider */
 .progress-slider {
   background: linear-gradient(
     to right,
@@ -130,18 +131,10 @@
   text-align: right;
 }
 
-.mute-icon,
-.unmute-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
 
 .control-group {
   margin-bottom: 1rem;
 }
-
 
 .button-group {
   display: flex;
@@ -160,7 +153,6 @@
   text-align: center;
 }
 
-/* Styling for the range input */
 .pan-slider {
   -webkit-appearance: none;
   appearance: none;

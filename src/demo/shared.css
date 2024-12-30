@@ -2,6 +2,7 @@
   /* Colors */
   --color-primary: #4caf50;
   --color-primary-hover: #45a049;
+  --color-warning: rgb(182, 104, 1);
   --color-disabled: #cccccc;
   --color-background: rgb(0, 18, 74);
   --color-surface: #f5f5f5;
@@ -148,6 +149,16 @@ input[type="range"]::-moz-range-thumb:active {
   z-index: 10;
 }
 
+.control-group.is-stuck {
+  background: rgb(255 255 255 / 70%);
+  backdrop-filter: blur(8px);
+  border-radius: 0;
+  position: fixed;
+  right: 0;
+  left: 0;
+}
+
+
 /* Only target parent control groups */
 .control-group:not(.control-group .control-group) {
   border: 5px solid rgb(51 95 143 / 48%);
@@ -204,4 +215,29 @@ input[type="range"] {
   flex: 1;
   min-width: 200px;
   max-width: 100%;
+}
+
+.icon-button {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.mute-icon,
+.unmute-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }

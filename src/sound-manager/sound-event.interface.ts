@@ -3,8 +3,11 @@ import { SoundEventsEnum } from "./sound-events.enum";
 export interface SoundEvent {
     currentTime?: number;
     error?: Error;
-    soundId: string;
+    soundId?: string;
     timestamp?: number;
     type: SoundEventsEnum;
     volume?: number;
+    isMuted?: boolean;
+    pan?: number;
+    previousPan?: number;
   }
