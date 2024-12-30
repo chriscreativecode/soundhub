@@ -1,7 +1,9 @@
-import { PlaySoundOptions } from "./play-sound-options.interface";
-import { SoundManagerConfig } from "./sound-manager-config";
-import { SoundStateInfo } from "./sound-state-info.interface";
-import { Sound } from "./sound.interface";
+import { PlaySoundOptions } from './play-sound-options.interface';
+import { SoundEvent } from './sound-event.interface';
+import { SoundEventsEnum } from './sound-events.enum';
+import { SoundManagerConfig } from './sound-manager-config';
+import { SoundStateInfo } from './sound-state-info.interface';
+import { Sound } from './sound.interface';
 
 export interface SoundManagerInterface {
   // Playback control
@@ -27,8 +29,8 @@ export interface SoundManagerInterface {
   // Sound loading and management
   preloadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
   updateSoundUrl(id: string, newUrl: string): Promise<void>;
-  hasSound(id: string): boolean;
   isSoundLoaded(id: string): boolean;
+  hasSound(id: string): boolean;
 
   // State checks
   isPlaying(id: string): boolean;
@@ -41,22 +43,34 @@ export interface SoundManagerInterface {
   resumeAllSounds(): void;
 
   // Fading
-  fadeOut(id: string, duration?: number): void;
-  fadeMasterIn(duration?: number): Promise<void>;
-  fadeMasterOut(duration?: number): Promise<void>;
+  fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void;
+  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number): void;
+  fadeMasterIn(duration?: number, startVolume?: number, endVolume?: number): void;
+  fadeMasterOut(duration?: number, startVolume?: number, endVolume?: number): void;
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
   setSoundPosition(id: string, x: number, y: number, z: number): void;
   resetSoundPosition(id: string): void;
   removeSpatialEffect(id: string): void;
+  isSpatialAudioActive(id: string): boolean;
 
   // Pan control
   setPan(id: string, pan: number): void;
+  removePan(id: string): void;
+  setMasterPan(value: number): void;
+  getMasterPan(): number;
+  resetMasterPan(): void;
+  isStereoPanActive(id: string): boolean;
 
   // Utility
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
+  isStopped(id: string): boolean;
   dispose(): void;
+
+  // listeners
+  addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
+  removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
 }

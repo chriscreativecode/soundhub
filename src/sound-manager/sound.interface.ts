@@ -9,6 +9,7 @@ export interface Sound {
   startTime: number;
   pausedAt: number;
   volume: number;
+  originalVolume?: number;
   previousVolume?: number;
   activeSource?: AudioBufferSourceNode;
   state: SoundState;  

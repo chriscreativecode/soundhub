@@ -1,10 +1,22 @@
 import soundControlComponentHtml from "./sound-control.component.html?raw";
+import "./shared.css";
 import "./sound-control.component.css";
 import { SoundManager } from "../sound-manager/sound-manager";
 import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
 import { PlaySoundOptions } from "../sound-manager/play-sound-options.interface";
 import { SoundState } from "../sound-manager/sound-state.interface";
+
+interface SoundControlState {
+  isPlaying: boolean;
+  isPaused: boolean;
+  isMuted: boolean;
+  volume: number;
+  currentTime: number;
+  duration: number;
+  pan: number;
+  progress: number;
+}
 
 export class SoundControl {
   private element: HTMLElement;
@@ -14,12 +26,20 @@ export class SoundControl {
   private panSlider: HTMLInputElement;
   private volumeSlider: HTMLInputElement;
   private isDragging = false;
+  private previousVolume: number = 1;
 
-  constructor(
-    private id: string,
-    private soundManager: SoundManager,
-    private container: HTMLElement
-  ) {
+  private state: SoundControlState = {
+    isPlaying: false,
+    isPaused: false,
+    isMuted: false,
+    volume: 1,
+    currentTime: 0,
+    duration: 0,
+    pan: 0,
+    progress: 0,
+  };
+
+  constructor(private id: string, private soundManager: SoundManager, private container: HTMLElement) {
     this.element = this.createControl();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
     this.panSlider = this.element.querySelector(".pan-slider")!;
@@ -29,104 +49,216 @@ export class SoundControl {
     this.container.appendChild(this.element);
   }
 
+  private initializeSoundEventListeners(): void {
+    // Listen to all sound events
+    Object.values(SoundEventsEnum).forEach((eventType) => {
+      this.soundManager.addEventListener(eventType, this.handleSoundEvent.bind(this));
+    });
+  }
+
   private createControl(): HTMLElement {
-    const template = soundControlComponentHtml.replace(
-      /\${this\.id}/g,
-      this.id
-    );
+    const template = soundControlComponentHtml.replace(/\${this\.id}/g, this.id);
     const wrapper = document.createElement("div");
     wrapper.innerHTML = template;
     return wrapper.firstElementChild as HTMLElement;
   }
 
+  private bindButtonEvents(): void {
+    const buttonHandlers = {
+      "play-btn": () => this.play(),
+      "pause-btn": () => this.pause(),
+      "stop-btn": () => this.stop(),
+      "mute-btn": () => this.toggleMute(),
+      "fade-in-btn": () => this.fadeIn(),
+      "fade-out-btn": () => this.fadeOut(),
+      "close-btn": () => this.destroy(),
+    };
+
+    Object.entries(buttonHandlers).forEach(([className, handler]) => {
+      this.element.querySelector(`.${className}`)?.addEventListener("click", handler);
+    });
+  }
+
+  private readonly eventHandlers: Partial<Record<SoundEventsEnum, (event: SoundEvent) => void>> = {
+    [SoundEventsEnum.STARTED]: () => this.startProgressUpdates(),
+    [SoundEventsEnum.STOPPED]: () => {
+      this.stopProgressUpdates();
+      this.resetProgress();
+    },
+    [SoundEventsEnum.ENDED]: () => {
+      this.stopProgressUpdates();
+      this.resetProgress();
+    },
+    [SoundEventsEnum.PAUSED]: () => this.stopProgressUpdates(),
+    [SoundEventsEnum.RESUMED]: () => this.startProgressUpdates(),
+    [SoundEventsEnum.VOLUME_CHANGED]: (event) => {
+      console.log("volume changed?");
+      if (typeof event.volume === "number") {
+        this.updateVolumeDisplay(event.volume);
+        this.volumeSlider.value = event.volume.toString();
+      }
+    },
+    [SoundEventsEnum.ERROR]: (event) => console.error("Sound error:", event.error),
+    [SoundEventsEnum.MUTED]: () => {
+      this.updateMuteButtonIcon(true);
+      this.volumeSlider.value = "0";
+      this.handleRangeInput(this.volumeSlider);
+    },
+    [SoundEventsEnum.UNMUTED]: () => {
+      this.updateMuteButtonIcon(false);
+      this.volumeSlider.value = this.previousVolume.toString();
+      this.handleRangeInput(this.volumeSlider);
+    },
+
+    [SoundEventsEnum.FADE_IN_COMPLETED]: () => {
+      // Handle fade in completion if needed
+    },
+    [SoundEventsEnum.FADE_OUT_COMPLETED]: () => {
+      // Handle fade out completion if needed
+    },
+    [SoundEventsEnum.SEEKED]: () => {
+      // Handle seek completion if needed
+      this.updateProgress();
+    },
+  };
+
+  private updateState(): void {
+    const soundState = this.soundManager.getSoundState(this.id);
+    if (!soundState) return;
+
+    const newState = {
+      isPlaying: soundState.state === SoundState.Playing,
+      isPaused: soundState.state === SoundState.Paused,
+      isMuted: soundState.volume === 0,
+      volume: soundState.volume,
+      currentTime: soundState.currentTime,
+      duration: soundState.duration ?? 0,
+      pan: parseFloat(this.panSlider.value),
+      progress: 0,
+    };
+
+    newState.progress = newState.duration > 0 ? (newState.currentTime / newState.duration) * 100 : 0;
+
+    this.state = newState;
+    this.updateUIFromState();
+  }
+
+  private updateUIFromState(): void {
+    // Button states
+    const buttons = {
+      "play-btn": this.state.isPlaying,
+      "pause-btn": !this.state.isPlaying,
+      "stop-btn": !this.state.isPlaying && !this.state.isPaused,
+    };
+
+    Object.entries(buttons).forEach(([className, disabled]) => {
+      this.element.querySelector(`.${className}`)!.toggleAttribute("disabled", disabled);
+    });
+
+    // Update displays
+    if (this.state.isMuted) {
+      this.volumeSlider.value = "0";
+    } else {
+      this.volumeSlider.value = this.state.volume.toString();
+    }
+    this.handleRangeInput(this.volumeSlider);
+    this.updateVolumeDisplay(this.state.volume);
+    this.updatePanDisplay(this.state.pan);
+    this.updateTimeDisplay(this.state.currentTime);
+    this.updateMuteButtonIcon(this.state.isMuted);
+  }
+
+  private handleRangeInput(input: HTMLInputElement, callback?: (value: number) => void): void {
+    const value = parseFloat(input.value);
+    const progress = ((value - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100;
+
+    input.style.setProperty("--range-progress", `${progress}%`);
+    callback?.(value);
+  }
+
+  private readonly boundHandlers = {
+    progressDrag: (e: Event) => {
+      const progress = parseFloat((e.target as HTMLInputElement).value);
+      const state = this.soundManager.getSoundState(this.id);
+      if (state?.duration) {
+        this.updateTimeDisplay((progress / 100) * state.duration);
+      }
+    },
+
+    progressSeek: (e: Event) => {
+      const state = this.soundManager.getSoundState(this.id);
+      if (!state?.duration) return;
+      const progress = parseFloat((e.target as HTMLInputElement).value);
+      const newTime = (progress / 100) * state.duration;
+      const wasPlaying = state.state === SoundState.Playing;
+      this.seekToPosition(newTime, wasPlaying);
+    },
+
+    setDragging: () => (this.isDragging = true),
+    clearDragging: () => (this.isDragging = false),
+
+    rangeInput: (input: HTMLInputElement) => () => {
+      this.handleRangeInput(input);
+    },
+  };
+
+  private initializeRangeInputs(): void {
+    const inputs = this.element.querySelectorAll('input[type="range"]');
+    inputs.forEach((input: Element) => {
+      const rangeInput = input as HTMLInputElement;
+
+      // Set initial visual state
+      this.handleRangeInput(rangeInput);
+
+      // Add event listener
+      const handler = this.boundHandlers.rangeInput(rangeInput);
+      rangeInput.addEventListener("input", handler);
+      (rangeInput as any)._rangeHandler = handler;
+    });
+
+    // Initialize specific sliders with their initial values
+    if (this.volumeSlider) {
+      const state = this.soundManager.getSoundState(this.id);
+      const initialVolume = state?.volume ?? 1;
+      this.volumeSlider.value = initialVolume.toString();
+      this.handleRangeInput(this.volumeSlider);
+    }
+
+    if (this.panSlider) {
+      this.panSlider.value = "0"; // or get from state if you store pan value
+      this.handleRangeInput(this.panSlider);
+    }
+
+    if (this.progressSlider) {
+      this.progressSlider.value = "0";
+      this.handleRangeInput(this.progressSlider);
+    }
+  }
+
+  private initializeProgressSlider(): void {
+    this.progressSlider.addEventListener("mousedown", this.boundHandlers.setDragging);
+    this.progressSlider.addEventListener("input", this.boundHandlers.progressDrag);
+    this.progressSlider.addEventListener("change", this.boundHandlers.progressSeek);
+    document.addEventListener("mouseup", this.boundHandlers.clearDragging);
+  }
+
+  private seekToPosition(time: number, resumePlayback: boolean): void {
+    this.stopProgressUpdates();
+    if (resumePlayback) {
+      this.soundManager.pauseSound(this.id);
+    }
+    this.soundManager.seekTo(this.id, time);
+    if (resumePlayback) {
+      this.soundManager.resumeSound(this.id);
+    }
+  }
+
   private initializeEventListeners(): void {
-    // Button controls
-    const playBtn = this.element.querySelector(".play-btn");
-    const pauseBtn = this.element.querySelector(".pause-btn");
-    const stopBtn = this.element.querySelector(".stop-btn");
-    const muteBtn = this.element.querySelector(".mute-btn");
-    const fadeInBtn = this.element.querySelector(".fade-in-btn");
-    const fadeOutBtn = this.element.querySelector(".fade-out-btn");
-
-    playBtn?.addEventListener("click", () => this.play());
-    pauseBtn?.addEventListener("click", () => this.pause());
-    stopBtn?.addEventListener("click", () => this.stop());
-    muteBtn?.addEventListener("click", () => this.toggleMute());
-    fadeInBtn?.addEventListener("click", () => this.fadeIn());
-    fadeOutBtn?.addEventListener("click", () => this.fadeOut());
-
+    this.bindButtonEvents();
     this.initializeVolumeControl();
     this.initializePanControl();
-
-    const rangeInputs = Array.from(this.element.querySelectorAll('input[type="range"]'));
-    rangeInputs.forEach((element: Element) => {
-      const input = element as HTMLInputElement;
-      input.style.setProperty(
-        "--range-progress",
-        `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`
-      );
-    
-      input.addEventListener("input", (e: Event) => {
-        const target = e.target as HTMLInputElement;
-        target.style.setProperty(
-          "--range-progress",
-          `${
-            ((Number(target.value) - Number(target.min)) / 
-            (Number(target.max) - Number(target.min))) * 100
-          }%`
-        );
-      });
-    });
-
-    // Progress slider events
-    this.progressSlider.addEventListener("mousedown", () => {
-      this.isDragging = true;
-    });
-
-    document.addEventListener("mouseup", () => {
-      this.isDragging = false;
-    });
-
-    // Update while dragging
-    this.progressSlider.addEventListener("input", (e) => {
-      const progress = parseFloat((e.target as HTMLInputElement).value);
-      const state = this.soundManager.getSoundState(this.id);
-
-      // Update visual immediately during dragging
-      this.updateProgressVisual(progress);
-
-      if (state?.duration) {
-        const newTime = (progress / 100) * state.duration;
-        this.updateTimeDisplay(newTime);
-      }
-    });
-
-    // Seek when drag ends
-    this.progressSlider.addEventListener("change", (e) => {
-      const progress = parseFloat((e.target as HTMLInputElement).value);
-      const state = this.soundManager.getSoundState(this.id);
-
-      if (state?.duration) {
-        const newTime = (progress / 100) * state.duration;
-        const wasPlaying = state.state === SoundState.Playing;
-
-        // Stop updates while seeking
-        this.stopProgressUpdates();
-
-        // Pause if playing
-        if (wasPlaying) {
-          this.soundManager.pauseSound(this.id);
-        }
-
-        // Seek to new position
-        this.soundManager.seekTo(this.id, newTime);
-
-        // Resume if it was playing
-        if (wasPlaying) {
-          this.soundManager.resumeSound(this.id);
-        }
-      }
-    });
+    this.initializeRangeInputs();
+    this.initializeProgressSlider();
   }
 
   private startProgressUpdates(): void {
@@ -143,34 +275,31 @@ export class SoundControl {
     }, 100);
   }
 
+  private resetProgress(): void {
+    this.progressSlider.value = "0";
+    this.handleRangeInput(this.progressSlider);
+    this.updateTimeDisplay(0);
+  }
+
   private updateProgress(): void {
     const state = this.soundManager.getSoundState(this.id);
     if (!state?.duration) return;
 
-    // Only update if the sound is playing
-    if (state.state !== SoundState.Playing) return;
+    if (state.state !== SoundState.Playing) {
+      if (state.currentTime >= state.duration) {
+        // Sound has ended, reset progress to 0
+        this.resetProgress();
+      }
+      return;
+    }
 
-    // Use currentTime from state
-    const currentTime = state.currentTime;
-
-    // Calculate progress with Math.min to ensure it doesn't exceed 100
-    const progress = Math.min((currentTime / state.duration) * 100, 100);
-
-    // Round to 2 decimal places to avoid floating point issues
+    const progress = Math.min((state.currentTime / state.duration) * 100, 100);
     const roundedProgress = Math.round(progress * 100) / 100;
 
-    this.updateProgressVisual(roundedProgress);
-    this.updateTimeDisplay(currentTime);
-  }
-
-  private initializeSoundEventListeners(): void {
-    // Listen to all sound events
-    Object.values(SoundEventsEnum).forEach((eventType) => {
-      this.soundManager.addEventListener(
-        eventType,
-        this.handleSoundEvent.bind(this)
-      );
-    });
+    // Update slider and visual
+    this.progressSlider.value = roundedProgress.toString();
+    this.handleRangeInput(this.progressSlider);
+    this.updateTimeDisplay(state.currentTime);
   }
 
   private handleVolumeInput = (e: Event): void => {
@@ -191,58 +320,21 @@ export class SoundControl {
   }
 
   private updateVolumeDisplay(value: number): void {
-    const volumeValue = this.element.querySelector(
-      ".volume-value"
-    ) as HTMLSpanElement;
+    const volumeValue = this.element.querySelector(".volume-value") as HTMLSpanElement;
     volumeValue.textContent = `${Math.round(value * 100)}%`;
   }
 
   private handleSoundEvent(event: SoundEvent): void {
-    // Only handle events for this sound
     if (event.soundId !== this.id) return;
 
     if (process.env.NODE_ENV === "development") {
       console.log(`Received ${event.type} event for sound ${event.soundId}`);
     }
 
-    switch (event.type) {
-      case SoundEventsEnum.STARTED:
-        this.startProgressUpdates();
-        this.updateButtonStates();
-        break;
-      case SoundEventsEnum.STOPPED:
-      case SoundEventsEnum.ENDED:
-        this.stopProgressUpdates();
-        this.updateButtonStates();
-        this.updateProgressVisual(0);
-        this.updateTimeDisplay(0);
-        break;
-
-      case SoundEventsEnum.PAUSED:
-        this.stopProgressUpdates();
-        this.updateButtonStates();
-        break;
-      case SoundEventsEnum.RESUMED:
-        this.startProgressUpdates();
-        this.updateButtonStates();
-        break;
-
-      case SoundEventsEnum.VOLUME_CHANGED:
-        if (typeof event.volume === "number") {
-          this.updateVolumeDisplay(event.volume);
-          this.volumeSlider.value = event.volume.toString();
-        }
-        break;
-      case SoundEventsEnum.ERROR:
-        console.error("Sound error:", event.error);
-        this.updateButtonStates();
-        break;
-      case SoundEventsEnum.MUTED:
-        this.updateMuteButtonIcon(true);
-        break;
-      case SoundEventsEnum.UNMUTED:
-        this.updateMuteButtonIcon(false);
-        break;
+    this.updateState();
+    const handler = this.eventHandlers[event.type];
+    if (handler) {
+      handler(event);
     }
   }
 
@@ -257,9 +349,7 @@ export class SoundControl {
     const timeDisplay = this.element.querySelector(".time-display");
     const state = this.soundManager.getSoundState(this.id);
     if (timeDisplay && state?.duration) {
-      timeDisplay.textContent = `${this.formatTime(
-        currentTime
-      )} / ${this.formatTime(state.duration)}`;
+      timeDisplay.textContent = `${this.formatTime(currentTime)} / ${this.formatTime(state.duration)}`;
     }
   }
 
@@ -284,24 +374,25 @@ export class SoundControl {
     this.updatePanDisplay(0);
   }
 
-  private updatePanDisplay(value: number): void {
-    const panValue = this.element.querySelector(
-      ".pan-value"
-    ) as HTMLSpanElement;
-    panValue.textContent = value.toFixed(1);
+  private updatePanDisplay(pan: number): void {
+    const panValue = this.element.querySelector(".pan-value") as HTMLSpanElement;
+
+    if (panValue) {
+      if (pan === 0) {
+        panValue.textContent = "Center";
+      } else if (pan < 0) {
+        panValue.textContent = `${Math.abs(Math.round(pan * 100))}% Left`;
+      } else {
+        panValue.textContent = `${Math.round(pan * 100)}% Right`;
+      }
+    }
   }
 
-  private getCurrentOptions(newOptions: any = {}): any {
-    // Merge current options with new options
+  private getCurrentOptions(newOptions: Partial<PlaySoundOptions> = {}): PlaySoundOptions {
     return {
       ...this.currentOptions,
       ...newOptions,
     };
-  }
-
-  private updateProgressVisual(progress: number): void {
-    this.progressSlider.value = progress.toString();
-    this.progressSlider.style.setProperty("--range-progress", `${progress}%`);
   }
 
   private play(): void {
@@ -318,10 +409,7 @@ export class SoundControl {
         const panValue = parseFloat(this.panSlider.value);
 
         const options = this.getCurrentOptions({
-          startTime:
-            state?.duration && progress > 0
-              ? (progress / 100) * state.duration
-              : undefined,
+          startTime: state?.duration && progress > 0 ? (progress / 100) * state.duration : undefined,
           pan: panValue,
         });
 
@@ -346,17 +434,22 @@ export class SoundControl {
     if (!state) return;
 
     if (state.volume === 0) {
+      // Unmuting - restore previous volume
+      this.soundManager.setVolumeById(this.id, this.previousVolume);
       this.soundManager.unmuteSoundById(this.id);
     } else {
+      // Muting - store current volume
+      this.previousVolume = state.volume;
       this.soundManager.muteSoundById(this.id);
+      // Update volume slider to 0
+      this.volumeSlider.value = "0";
+      this.handleRangeInput(this.volumeSlider);
     }
   }
 
   private updateMuteButtonIcon(isMuted: boolean): void {
     const muteIcon = this.element.querySelector(".mute-icon") as HTMLElement;
-    const unmuteIcon = this.element.querySelector(
-      ".unmute-icon"
-    ) as HTMLElement;
+    const unmuteIcon = this.element.querySelector(".unmute-icon") as HTMLElement;
 
     if (muteIcon && unmuteIcon) {
       // Show/hide appropriate icons
@@ -391,74 +484,113 @@ export class SoundControl {
     }
   }
 
-  private updateButtonStates(): void {
-    const state = this.soundManager.getSoundState(this.id);
-    if (!state) return;
-
-    const isPlaying = state.state === SoundState.Playing;
-    const isPaused = state.state === SoundState.Paused;
-    const isMuted = state.volume === 0;
-
-    // Only log in development
-    if (process.env.NODE_ENV === "development") {
-      console.log("Button states:", {
-        state: state.state,
-        isPlaying,
-        isPaused,
-        isMuted,
-      });
-    }
-
-    // Play button should be enabled when sound is paused or stopped
-    this.element
-      .querySelector(".play-btn")!
-      .toggleAttribute("disabled", isPlaying);
-
-    // Pause button should only be enabled when sound is playing
-    this.element
-      .querySelector(".pause-btn")!
-      .toggleAttribute("disabled", !isPlaying);
-
-    // Stop button should be enabled when sound is either playing or paused
-    this.element
-      .querySelector(".stop-btn")!
-      .toggleAttribute("disabled", !isPlaying && !isPaused);
-  }
-
   public destroy(): void {
-    // Remove event listeners
-    Object.values(SoundEventsEnum).forEach((eventType) => {
-      this.soundManager.removeEventListener(eventType, this.handleSoundEvent);
-    });
+    try {
+      const cleanupTasks: (() => void)[] = [
+        // Clear intervals
+        () => {
+          if (this.progressInterval) {
+            window.clearInterval(this.progressInterval);
+            this.progressInterval = 0;
+          }
+        },
 
-    // Clear interval
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
+        // Remove sound event listeners
+        () => {
+          const boundHandler = this.handleSoundEvent.bind(this);
+          Object.values(SoundEventsEnum).forEach((eventType) => {
+            this.soundManager.removeEventListener(eventType, boundHandler);
+          });
+        },
+
+        // Remove button event listeners
+        () => {
+          const buttonHandlers = {
+            "play-btn": this.play.bind(this),
+            "pause-btn": this.pause.bind(this),
+            "stop-btn": this.stop.bind(this),
+            "mute-btn": this.toggleMute.bind(this),
+            "fade-in-btn": this.fadeIn.bind(this),
+            "fade-out-btn": this.fadeOut.bind(this),
+          };
+
+          Object.entries(buttonHandlers).forEach(([className, handler]) => {
+            this.element.querySelector(`.${className}`)?.removeEventListener("click", handler);
+          });
+        },
+
+        // Remove slider event listeners
+        () => {
+          if (this.volumeSlider) {
+            this.volumeSlider.removeEventListener("input", this.handleVolumeInput);
+          }
+
+          if (this.panSlider) {
+            this.panSlider.removeEventListener("input", this.handlePanInput);
+          }
+
+          if (this.progressSlider) {
+            this.progressSlider.removeEventListener("mousedown", this.boundHandlers.setDragging);
+            this.progressSlider.removeEventListener("input", this.boundHandlers.progressDrag);
+            this.progressSlider.removeEventListener("change", this.boundHandlers.progressSeek);
+          }
+
+          document.removeEventListener("mouseup", this.boundHandlers.clearDragging);
+        },
+
+        // Remove range input listeners
+        () => {
+          this.element.querySelectorAll('input[type="range"]').forEach((input: Element) => {
+            const rangeInput = input as HTMLInputElement;
+            const handler = (rangeInput as any)._rangeHandler;
+            if (handler) {
+              rangeInput.removeEventListener("input", handler);
+              delete (rangeInput as any)._rangeHandler;
+            }
+          });
+        },
+
+        // Stop sound if playing
+        () => {
+          if (this.state.isPlaying) {
+            this.soundManager.stopSound(this.id);
+          }
+        },
+
+        // Remove the element from DOM
+        () => {
+          if (this.element && this.element.parentNode) {
+            this.element.remove();
+          }
+        },
+
+        // Clear state
+        () => {
+          this.state = {
+            isPlaying: false,
+            isPaused: false,
+            isMuted: false,
+            volume: 1,
+            currentTime: 0,
+            duration: 0,
+            pan: 0,
+            progress: 0,
+          };
+        },
+      ];
+
+      // Execute all cleanup tasks
+      cleanupTasks.forEach((task, index) => {
+        try {
+          task();
+        } catch (error) {
+          console.error(`Error during cleanup task ${index}:`, error);
+        }
+      });
+
+      this.element.innerHTML = "";
+    } catch (error) {
+      console.error("Error during component destruction:", error);
     }
-
-    // Remove DOM event listeners
-    this.element
-      .querySelector(".play-btn")
-      ?.removeEventListener("click", this.play);
-    this.element
-      .querySelector(".pause-btn")
-      ?.removeEventListener("click", this.pause);
-
-    if (this.volumeSlider) {
-      this.volumeSlider.removeEventListener("input", this.handleVolumeInput);
-    }
-
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
-    }
-
-    if (this.panSlider) {
-      this.panSlider.removeEventListener("input", this.handlePanInput);
-    }
-    if (this.progressInterval) {
-      window.clearInterval(this.progressInterval);
-    }
-
-    this.element.remove();
   }
 }

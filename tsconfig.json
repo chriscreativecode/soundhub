@@ -15,7 +15,8 @@
     "noFallthroughCasesInSwitch": true,
     "declaration": true,
     "declarationDir": "./dist",
-    "emitDeclarationOnly": true,  // Add this
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
     "outDir": "./dist"
   },
   "include": ["src"],
