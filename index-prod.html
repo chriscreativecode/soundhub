@@ -1,3 +1,4 @@
+<!-- index-prod.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +8,8 @@
 </head>
 <body>
     <div id="app"></div>
-    <script type="module" src="/src/demo/main.ts"></script>
+    <!-- Only prod mode needs the UMD script -->
+    <script src="./lib/sound-manager-ts.umd.js?v=2.0.0"></script>
+    <script type="module" src="/src/demo/main-prod.ts"></script>
 </body>
 </html>

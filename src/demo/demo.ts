@@ -1,7 +1,6 @@
 import "./shared.css";
 import "./demo.css";
 
-import { SoundManager } from "../sound-manager/sound-manager";
 import sound1 from "../sounds/birds.mp3";
 import sound2 from "../sounds/piano.mp3";
 import bounce from "../sounds/pong-bounce.mp3";
@@ -10,6 +9,13 @@ import demoTemplate from "./demo.html?raw";
 import { SoundControl } from "./sound-control.component";
 import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
+import type { SoundManager } from "../sound-manager/sound-manager";
+import { SoundManagerConfig } from "../sound-manager/sound-manager-config";
+
+
+interface SoundManagerLibrary {
+  SoundManager: new (config?: SoundManagerConfig) => SoundManager;
+}
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
@@ -68,13 +74,13 @@ export class SoundManagerDemo {
     },
   } as const;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, library: SoundManagerLibrary) {
     if (!container) {
       throw new Error("Container element is required for SoundManagerDemo");
     }
 
     if (!(container instanceof HTMLElement)) {
-      throw new Error("Container must be an HTMLElement");
+      throw new Error("Container must be attached to the DOM");
     }
 
     if (!container.parentElement) {
@@ -82,7 +88,7 @@ export class SoundManagerDemo {
     }
 
     this.containerElement = container;
-    this.soundManager = new SoundManager({ spatialAudio: true, debug: false });
+    this.soundManager = new library.SoundManager({ spatialAudio: true, debug: false });
     this.initialize();
   }
 
@@ -383,7 +389,7 @@ export class SoundManagerDemo {
     const container = document.getElementById("soundControlsContainer")!;
     container.innerHTML = "";
 
-    this.soundManager.getSoundIds().forEach((id) => {
+    this.soundManager.getSoundIds().forEach((id: string) => {
       const control = new SoundControl(id, this.soundManager, container);
       this.soundControls.set(id, control);
     });
