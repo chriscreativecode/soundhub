@@ -20,6 +20,9 @@
   /* Border radius */
   --border-radius: 5px;
 
+  /* Font sizes */
+  --range-value-size: 0.85rem;
+
   /* Common dimensions */
   --input-number-width: 70px;
   --range-min-width: 200px;

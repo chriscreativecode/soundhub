@@ -1,9 +1,10 @@
-import { PlaySoundOptions } from './play-sound-options.interface';
-import { SoundEvent } from './sound-event.interface';
-import { SoundEventsEnum } from './sound-events.enum';
-import { SoundManagerConfig } from './sound-manager-config';
-import { SoundStateInfo } from './sound-state-info.interface';
-import { Sound } from './sound.interface';
+import { PlaySoundOptions } from "./play-sound-options.interface";
+import { SoundEvent } from "./sound-event.interface";
+import { SoundEventsEnum } from "./sound-events.enum";
+import { SoundManagerConfig } from "./sound-manager-config";
+import { SoundResetOptions } from "./sound-reset-options.interface";
+import { SoundStateInfo } from "./sound-state-info.interface";
+import { Sound } from "./sound.interface";
 
 export interface SoundManagerInterface {
   // Playback control
@@ -41,6 +42,7 @@ export interface SoundManagerInterface {
   stopAllSounds(): void;
   pauseAllSounds(): void;
   resumeAllSounds(): void;
+  reset(options?: SoundResetOptions): void;
 
   // Fading
   fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void;
@@ -68,7 +70,7 @@ export interface SoundManagerInterface {
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
   isStopped(id: string): boolean;
-  dispose(): void;
+  destroy(): void;
 
   // listeners
   addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
