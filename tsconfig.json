@@ -14,10 +14,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "declaration": true,
-    "declarationDir": "./dist",
+    "declarationDir": "./dist/lib/types",
     "declarationMap": true,
     "emitDeclarationOnly": true,
-    "outDir": "./dist"
+    "outDir": "./dist/lib"
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

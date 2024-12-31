@@ -220,6 +220,6 @@
 @media (min-width: 769px) {
   .control-group {
     flex: 1;
-    min-width: 200px;
+    min-width: 250px;
   }
 }

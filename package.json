@@ -19,26 +19,31 @@
     "minimal"
   ],
   "type": "module",
-  "main": "./dist/sound-manager-ts.umd.js",
-  "module": "./dist/sound-manager-ts.es.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/lib/sound-manager-ts.umd.js",
+  "module": "./dist/lib/sound-manager-ts.es.js",
+  "types": "./dist/lib/types/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/sound-manager-ts.es.js",
-      "require": "./dist/sound-manager-ts.umd.js"
+      "import": "./dist/lib/sound-manager-ts.es.js",
+      "require": "./dist/lib/sound-manager-ts.umd.js"
     }
   },
   "files": [
-    "dist"
+    "dist/lib"
   ],
   "scripts": {
     "dev": "vite",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && tsc && vite build",
+    "build": "npm run clean && npm run build:lib && npm run build:demo",
+    "build:lib": "tsc && vite build --mode lib",
+    "build:demo": "vite build --mode demo && npm run copy-demo-assets && npm run rename-index",
+    "rename-index": "node scripts/rename-index.js",
+    "copy-demo-assets": "node scripts/copy-demo-assets.js",
     "preview": "vite preview"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "fs-extra": "^11.2.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.4",
     "vite-plugin-dts": "^4.4.0"
