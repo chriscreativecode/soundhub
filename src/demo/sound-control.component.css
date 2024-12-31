@@ -129,6 +129,13 @@
 .volume-value {
   min-width: 4em;
   text-align: right;
+  white-space: nowrap;
+  font-size: var(--range-value-size); 
+}
+
+.time-display {
+  white-space: nowrap;
+  font-size: var(--range-value-size); 
 }
 
 
@@ -151,6 +158,8 @@
 .pan-value {
   min-width: 2em;
   text-align: center;
+  white-space: nowrap;
+  font-size: var(--range-value-size); 
 }
 
 .pan-slider {

@@ -24,6 +24,7 @@ export class SoundManagerDemo {
     "toggleMuteBtn",
     "fadeInBtn",
     "fadeOutBtn",
+    "resetBtn",
   ] as const;
 
   private readonly BUTTON_HANDLERS = {
@@ -33,6 +34,7 @@ export class SoundManagerDemo {
     toggleMuteBtn: () => this.soundManager.toggleMute(),
     fadeInBtn: () => this.soundManager.fadeMasterIn(),
     fadeOutBtn: () => this.soundManager.fadeMasterOut(),
+    resetBtn: () => this.soundManager.reset(),
   } as const;
 
   private readonly BUTTON_STATES = {
@@ -88,24 +90,20 @@ export class SoundManagerDemo {
     try {
       this.render();
       requestAnimationFrame(() => {
-        const masterPanningInput = document.getElementById(
-          "masterPanning"
-        ) as HTMLInputElement;
+        const masterPanningInput = document.getElementById("masterPanning") as HTMLInputElement;
         if (masterPanningInput) {
           masterPanningInput.value = "0.5"; // Center position (will be converted to 0 pan)
           masterPanningInput.min = "0";
           masterPanningInput.max = "1";
           masterPanningInput.step = "0.01";
-          this.updateMasterPanDisplay(0); // Initialize display to center
+          this.updateMasterPan(0); // Initialize display to center
         }
         this.initializeEventListeners();
         this.initializeGlobalControls();
 
-        document
-          .querySelectorAll(".control-group.sticky")
-          .forEach((element) => {
-            this.createStickyObserver(element as HTMLElement);
-          });
+        document.querySelectorAll(".control-group.sticky").forEach((element) => {
+          this.createStickyObserver(element as HTMLElement);
+        });
       });
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
@@ -121,9 +119,7 @@ export class SoundManagerDemo {
   }
 
   private initializeEventListeners(): void {
-    const preloadBtn = document.querySelector(
-      ".preload-btn"
-    ) as HTMLButtonElement;
+    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
     const masterVolumeInput = document.getElementById("masterVolume");
     const masterPanningInput = document.getElementById("masterPanning");
 
@@ -145,29 +141,19 @@ export class SoundManagerDemo {
       });
     }
 
-    const rangeInputs = Array.from(
-      this.containerElement.querySelectorAll('input[type="range"]')
-    );
+    const rangeInputs = Array.from(this.containerElement.querySelectorAll('input[type="range"]'));
     rangeInputs.forEach((element: Element) => {
       const input = element as HTMLInputElement;
       input.style.setProperty(
         "--range-progress",
-        `${
-          ((Number(input.value) - Number(input.min)) /
-            (Number(input.max) - Number(input.min))) *
-          100
-        }%`
+        `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`
       );
 
       input.addEventListener("input", (e: Event) => {
         const target = e.target as HTMLInputElement;
         target.style.setProperty(
           "--range-progress",
-          `${
-            ((Number(target.value) - Number(target.min)) /
-              (Number(target.max) - Number(target.min))) *
-            100
-          }%`
+          `${((Number(target.value) - Number(target.min)) / (Number(target.max) - Number(target.min))) * 100}%`
         );
       });
     });
@@ -191,10 +177,7 @@ export class SoundManagerDemo {
 
   private setupEventListeners(): void {
     Object.values(SoundEventsEnum).forEach((eventType) => {
-      this.soundManager.addEventListener(
-        eventType,
-        this.handleSoundEvent.bind(this)
-      );
+      this.soundManager.addEventListener(eventType, this.handleSoundEvent.bind(this));
     });
   }
 
@@ -202,20 +185,7 @@ export class SoundManagerDemo {
     // Convert from 0-1 range to -1 to 1 range
     const normalizedPan = pan * 2 - 1;
     this.soundManager.setMasterPan(normalizedPan);
-    this.updateMasterPanDisplay(normalizedPan);
-  }
-
-  private updateMasterPanDisplay(pan: number): void {
-    const masterPanValue = document.getElementById("masterPanValue");
-    if (masterPanValue) {
-      if (pan === 0) {
-        masterPanValue.textContent = "Center"; // or "Center"
-      } else if (pan < 0) {
-        masterPanValue.textContent = `${Math.abs(Math.round(pan * 100))}% Left`;
-      } else {
-        masterPanValue.textContent = `${Math.round(pan * 100)}% Right`;
-      }
-    }
+    this.updateMasterPan(normalizedPan);
   }
 
   private handleSoundEvent = (event: SoundEvent): void => {
@@ -227,7 +197,7 @@ export class SoundManagerDemo {
 
       case SoundEventsEnum.MASTER_PAN_CHANGED:
         if (typeof event.pan === "number") {
-          this.updateMasterPanDisplay(event.pan);
+          this.updateMasterPan(event.pan);
         }
         break;
 
@@ -260,6 +230,12 @@ export class SoundManagerDemo {
       case SoundEventsEnum.FADE_MASTER_OUT_COMPLETED:
         this.updateButtonStates({ fadeInBtn: false, fadeOutBtn: true });
         break;
+
+      case SoundEventsEnum.RESET:
+        if (!event.resetOptions?.keepPanning) {
+          this.updateMasterPan(0);
+        }
+       break;
     }
   };
 
@@ -268,17 +244,12 @@ export class SoundManagerDemo {
     const unmuteIcon = document.querySelector(".unmute-icon");
     if (muteIcon && unmuteIcon) {
       muteIcon.setAttribute("style", `display: ${isMuted ? "none" : "block"}`);
-      unmuteIcon.setAttribute(
-        "style",
-        `display: ${isMuted ? "block" : "none"}`
-      );
+      unmuteIcon.setAttribute("style", `display: ${isMuted ? "block" : "none"}`);
     }
   }
 
   private updateMasterVolume(eventOrVolume: SoundEvent | number): void {
-    const masterVolumeInput = document.getElementById(
-      "masterVolume"
-    ) as HTMLInputElement;
+    const masterVolumeInput = document.getElementById("masterVolume") as HTMLInputElement;
     const masterVolumeValue = document.getElementById("masterVolumeValue");
 
     if (!masterVolumeInput || !masterVolumeValue) return;
@@ -295,11 +266,39 @@ export class SoundManagerDemo {
 
     const volumePercentage = volume * 100;
     masterVolumeInput.value = volume.toString();
-    masterVolumeInput.style.setProperty(
-      "--range-progress",
-      `${volumePercentage}%`
-    );
+    masterVolumeInput.style.setProperty("--range-progress", `${volumePercentage}%`);
     masterVolumeValue.textContent = `${Math.round(volumePercentage)}%`;
+  }
+
+  private updateMasterPan(eventOrPan: SoundEvent | number): void {
+    const masterPanningInput = document.getElementById("masterPanning") as HTMLInputElement;
+    const masterPanValue = document.getElementById("masterPanValue");
+
+    if (!masterPanningInput || !masterPanValue) return;
+
+    let pan: number;
+
+    if (typeof eventOrPan === "number") {
+      pan = eventOrPan;
+    } else if (typeof eventOrPan.pan === "number") {
+      pan = eventOrPan.pan;
+    } else {
+      return;
+    }
+
+    // Convert from -1,1 range to 0,1 range for the slider
+    const sliderValue = (pan + 1) / 2;
+    masterPanningInput.value = sliderValue.toString();
+    masterPanningInput.style.setProperty("--range-progress", `${sliderValue * 100}%`);
+
+    // Update display text
+    if (pan === 0) {
+      masterPanValue.textContent = "center";
+    } else if (pan < 0) {
+      masterPanValue.textContent = `${Math.abs(Math.round(pan * 100))}% left`;
+    } else {
+      masterPanValue.textContent = `${Math.round(pan * 100)}% right`;
+    }
   }
 
   private updateButtonStates(states: Record<string, boolean>): void {
@@ -326,9 +325,7 @@ export class SoundManagerDemo {
   }
 
   private async loadDemoSounds(): Promise<void> {
-    const preloadBtn = document.querySelector(
-      ".preload-btn"
-    ) as HTMLButtonElement;
+    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
     if (!preloadBtn || this.loadingState) return;
 
     try {
@@ -342,9 +339,7 @@ export class SoundManagerDemo {
         { id: "bounce", url: bounce },
       ]);
 
-      const soundControlsContainer = document.getElementById(
-        "soundControlsContainer"
-      ) as HTMLElement;
+      const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
       soundControlsContainer.classList.add("show");
 
       this.createSoundControls();
@@ -372,9 +367,7 @@ export class SoundManagerDemo {
   }
 
   private updateLoadingState(loading: boolean): void {
-    const preloadBtn = document.querySelector(
-      ".preload-btn"
-    ) as HTMLButtonElement;
+    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
     if (!preloadBtn) return;
 
     preloadBtn.disabled = loading;
@@ -398,8 +391,6 @@ export class SoundManagerDemo {
 
   private setGlobalVolume(volume: number): void {
     this.soundManager.setGlobalVolume(volume);
-    document.getElementById("masterVolumeValue")!.textContent = `${Math.round(
-      volume * 100
-    )}%`;
+    document.getElementById("masterVolumeValue")!.textContent = `${Math.round(volume * 100)}%`;
   }
 }

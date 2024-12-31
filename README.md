@@ -44,7 +44,7 @@ const config: SoundManagerConfig = {
   autoResumeOnFocus: true,     // Resume on tab focus
   debug: true,                 // Enable debug logging
   defaultVolume: 0.8,          // Default volume (0-1)
-  defaultPan: 0,              // Default stereo pan (-1 to 1)
+  defaultPan: 0,               // Default stereo pan (-1 to 1)
   fadeInDuration: 1000,        // Default fade-in duration (ms)
   fadeOutDuration: 1000,       // Default fade-out duration (ms)
   spatialAudio: false,         // Enable spatial audio
@@ -121,8 +121,21 @@ const isPlaying = soundManager.isPlaying('background-music');
 const isPaused = soundManager.isPaused('background-music');
 const state = soundManager.getSoundState('background-music');
 
+// Reset all sound settings to default values
+soundManager.reset();
+
+// Or use the SoundResetOptions
+soundManager.reset({
+  keepVolumes: true; // Keep current volume settings
+  keepPanning: false; // Keep current panning settings
+  keepSpatial: false; // Keep spatial audio settings
+  unloadSounds: false; // Unload all sounds
+})
+
 // Cleanup
-soundManager.dispose();
+soundManager.destroy();
+
+
 
 ```
 

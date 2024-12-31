@@ -97,6 +97,13 @@ html {
 
 #masterVolumeValue {
   margin-left: 10px;
+  white-space: nowrap;
+  font-size: var(--range-value-size); 
+}
+
+#masterPanValue {
+  white-space: nowrap;
+  font-size: var(--range-value-size); 
 }
 
 @keyframes spin {
@@ -154,6 +161,6 @@ html {
   .button-group-global {
     display: flex;
     gap: var(--spacing-sm);
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 }

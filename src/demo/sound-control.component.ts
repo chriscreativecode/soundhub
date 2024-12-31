@@ -92,7 +92,6 @@ export class SoundControl {
     [SoundEventsEnum.PAUSED]: () => this.stopProgressUpdates(),
     [SoundEventsEnum.RESUMED]: () => this.startProgressUpdates(),
     [SoundEventsEnum.VOLUME_CHANGED]: (event) => {
-      console.log("volume changed?");
       if (typeof event.volume === "number") {
         this.updateVolumeDisplay(event.volume);
         this.volumeSlider.value = event.volume.toString();
@@ -119,6 +118,9 @@ export class SoundControl {
     [SoundEventsEnum.SEEKED]: () => {
       // Handle seek completion if needed
       this.updateProgress();
+    },
+    [SoundEventsEnum.RESET]: (event) => {
+      this.reset(event.resetOptions);
     },
   };
 
@@ -261,6 +263,44 @@ export class SoundControl {
     this.initializeProgressSlider();
   }
 
+
+  private reset(resetOptions?: { keepVolumes?: boolean; keepPanning?: boolean }): void {
+
+    this.stopProgressUpdates();
+
+    this.resetProgress();
+  
+    // Reset volume if not keeping volumes
+    if (!resetOptions?.keepVolumes) {
+      const defaultVolume = this.soundManager.getConfig().defaultVolume ?? 1;
+      this.volumeSlider.value = defaultVolume.toString();
+      this.handleRangeInput(this.volumeSlider);
+      this.updateVolumeDisplay(defaultVolume);
+      this.previousVolume = defaultVolume;
+      this.updateMuteButtonIcon(false);
+    }
+  
+    // Reset pan if not keeping panning
+    if (!resetOptions?.keepPanning) {
+      this.resetPan();
+    }
+  
+    // Update state
+    this.state = {
+      ...this.state,
+      isPlaying: false,
+      isPaused: false,
+      isMuted: false,
+      currentTime: 0,
+      progress: 0,
+      volume: !resetOptions?.keepVolumes ? (this.soundManager.getConfig().defaultVolume ?? 1) : this.state.volume,
+      pan: !resetOptions?.keepPanning ? 0 : this.state.pan,
+    };
+  
+    // Update UI
+    this.updateUIFromState();
+  }
+
   private startProgressUpdates(): void {
     // Clear any existing interval
     if (this.progressInterval) {
@@ -279,6 +319,16 @@ export class SoundControl {
     this.progressSlider.value = "0";
     this.handleRangeInput(this.progressSlider);
     this.updateTimeDisplay(0);
+  }
+
+  private resetPan(): void {
+    this.panSlider.value = "0"; 
+    this.handleRangeInput(this.panSlider);
+    this.updatePanDisplay(0);
+    
+    if (this.soundManager.isPlaying(this.id)) {
+      this.soundManager.setPan(this.id, 0);
+    }
   }
 
   private updateProgress(): void {
@@ -325,12 +375,22 @@ export class SoundControl {
   }
 
   private handleSoundEvent(event: SoundEvent): void {
+    // Handle global events that don't need soundId checking
+    if (event.type === SoundEventsEnum.RESET) {
+      const handler = this.eventHandlers[event.type];
+      if (handler) {
+        handler(event);
+      }
+      return;
+    }
+  
+    // Handle sound-specific events
     if (event.soundId !== this.id) return;
-
+  
     if (process.env.NODE_ENV === "development") {
       console.log(`Received ${event.type} event for sound ${event.soundId}`);
     }
-
+  
     this.updateState();
     const handler = this.eventHandlers[event.type];
     if (handler) {
@@ -379,11 +439,11 @@ export class SoundControl {
 
     if (panValue) {
       if (pan === 0) {
-        panValue.textContent = "Center";
+        panValue.textContent = "center";
       } else if (pan < 0) {
-        panValue.textContent = `${Math.abs(Math.round(pan * 100))}% Left`;
+        panValue.textContent = `${Math.abs(Math.round(pan * 100))}% left`;
       } else {
-        panValue.textContent = `${Math.round(pan * 100)}% Right`;
+        panValue.textContent = `${Math.round(pan * 100)}% right`;
       }
     }
   }

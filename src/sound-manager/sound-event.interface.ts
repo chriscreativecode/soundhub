@@ -1,4 +1,5 @@
 import { SoundEventsEnum } from "./sound-events.enum";
+import { SoundResetOptions } from "./sound-reset-options.interface";
 
 export interface SoundEvent {
     currentTime?: number;
@@ -10,4 +11,5 @@ export interface SoundEvent {
     isMuted?: boolean;
     pan?: number;
     previousPan?: number;
+    resetOptions?: SoundResetOptions;
   }

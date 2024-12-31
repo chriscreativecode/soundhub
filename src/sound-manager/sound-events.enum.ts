@@ -11,6 +11,7 @@ export enum SoundEventsEnum {
     UNMUTE_GLOBAL = 'unmute_global',
     MASTER_PAN_CHANGED = 'master_pan_changed',
     PAUSED = 'paused',
+    RESET = 'reset',
     RESUMED = 'resumed',
     SEEKED = 'seeked',
     STARTED = 'started',

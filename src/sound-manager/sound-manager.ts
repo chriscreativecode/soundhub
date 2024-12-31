@@ -3,6 +3,7 @@ import { SoundEvent } from './sound-event.interface';
 import { SoundEventsEnum } from './sound-events.enum';
 import { DEFAULT_CONFIG, SoundManagerConfig } from './sound-manager-config';
 import { SoundManagerInterface } from './sound-manager.interface';
+import { SoundResetOptions } from './sound-reset-options.interface';
 import { SoundStateInfo } from './sound-state-info.interface';
 import { SoundState } from './sound-state.interface';
 import { Sound } from './sound.interface';
@@ -604,6 +605,12 @@ export class SoundManager implements SoundManagerInterface {
     if (!this.isMuted) {
       this.masterGainNode.gain.value = this.previousGlobalVolume;
     }
+    
+    this.dispatchEvent({
+      type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
+      timestamp: this.context.currentTime,
+      volume: this.previousGlobalVolume,
+    });
   }
 
   public getGlobalVolume(): number {
@@ -839,6 +846,60 @@ export class SoundManager implements SoundManagerInterface {
         this.resumeSound(id);
       }
     });
+  }
+
+  public reset(options: SoundResetOptions = {}): void {
+    this.debugLog('Resetting sound manager with options:', options);
+  
+    // Stop all playback
+    this.stopAllSounds();
+  
+    // Reset master controls if not keeping volumes
+    if (!options.keepVolumes) {
+      console.log('default volume?', this.config.defaultVolume);
+      this.setGlobalVolume(this.config.defaultVolume ?? 1);
+      if (this.isMuted) {
+        this.unmuteAllSounds();
+      }
+    }
+  
+    // Reset master pan if not keeping panning
+    if (!options.keepPanning) {
+      this.resetMasterPan();
+    }
+  
+    // Handle loaded sounds
+    if (options.unloadSounds) {
+      this.cleanup();
+      this.sounds.clear();
+    } else {
+      this.sounds.forEach((sound, id) => {
+        if (!options.keepVolumes) {
+          this.setVolumeById(id, this.config.defaultVolume ?? 1);
+        }
+        
+        if (!options.keepPanning && this.isStereoPanActive(id)) {
+          this.removePan(id);
+        }
+  
+        if (!options.keepSpatial && this.isSpatialAudioActive(id)) {
+          this.removeSpatialEffect(id);
+        }
+  
+        // Reset sound state
+        sound.state = SoundState.Stopped;
+        sound.startTime = 0;
+        sound.pausedAt = 0;
+      });
+    }
+  
+    this.dispatchEvent({
+      type: SoundEventsEnum.RESET,
+      timestamp: this.context.currentTime,
+      resetOptions: options
+    });
+  
+    this.debugLog('Sound manager reset completed');
   }
 
   // End Master / Global batch operations-------------------------------------------------------------------------------------------
@@ -1201,7 +1262,7 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public dispose(): void {
+  public destroy(): void {
     try {
       this.cleanup();
       this.context.close();
