@@ -2,18 +2,21 @@
 
 A minimalist yet powerful sound management solution that puts you in control of audio playback. Perfect for web apps, games, and interactive experiences. Handle multiple audio streams, control playback, and manage sound effects with just a few lines of code.
 
+## Live demo
+[Link to demo page](https://chriscreativecode.com/sound-manager-ts/demo/ 'A demo showcase of my Sound Manager')
+
 ## About me
 ### Chris Schardijn (Front-end Developer)
 
 My journey in web development spans back to the Flash era, where among various projects, I developed a sound manager using ActionScript 3.0. As technology evolved, so did I, embracing new challenges and opportunities to grow. This Sound Manager TypeScript project represents not just a modern reimagining of a concept I once built in Flash, but also my passion for continuous learning and adaptation in the ever-changing landscape of web development.
 
-I built this library in my spare time, combining my love for audio programming with my commitment to creating clean, maintainable code. What started as a personal study project has grown into a robust solution that I'm excited to share with the developer community.
+I built this library in my spare time. What started as a personal study project has grown into a robust solution that I'm excited to share with the developer community.
 
 Feel free to use this library in your projects, and I hope it inspires you to pursue your own passion projects, regardless of how technology changes. Sometimes the best learning comes from rebuilding something you once loved in a completely new way.
 
 
 ## Features
-- Ultralightweight (20.14 kB │ gzip: 5.67 kB) with zero dependencies (This is without the demo files)
+- Ultralightweight (20.04 kB │ gzip: 5.29 kB) with zero dependencies (This is without the demo files)
 - Simple API for audio loading and playback control
 - Audio context management with automatic initialization
 - Sound preloading and caching
