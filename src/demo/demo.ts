@@ -1,17 +1,19 @@
 import "./shared.css";
 import "./demo.css";
 
-import sound1 from "../sounds/birds.mp3";
-import sound2 from "../sounds/piano.mp3";
-import bounce from "../sounds/pong-bounce.mp3";
-import sound3 from "../sounds/ringtonex.mp3";
+import song from "../sounds/demo-song.mp3";
+import birds from "../sounds/birds-forest.mp3";
+import rain from "../sounds/rain.mp3";
+import woodpecker from "../sounds/woodpecker.mp3";
+import brook from "../sounds/brook.mp3";
+import magma from "../sounds/under-sea-magma.mp3";
+
 import demoTemplate from "./demo.html?raw";
 import { SoundControl } from "./sound-control.component";
 import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
 import type { SoundManager } from "../sound-manager/sound-manager";
 import { SoundManagerConfig } from "../sound-manager/sound-manager-config";
-
 
 interface SoundManagerLibrary {
   SoundManager: new (config?: SoundManagerConfig) => SoundManager;
@@ -241,7 +243,7 @@ export class SoundManagerDemo {
         if (!event.resetOptions?.keepPanning) {
           this.updateMasterPan(0);
         }
-       break;
+        break;
     }
   };
 
@@ -338,17 +340,23 @@ export class SoundManagerDemo {
       this.loadingState = true;
       this.updateLoadingState(true);
 
-      await this.soundManager.preloadSounds([
-        { id: "birds", url: sound1 },
-        { id: "piano", url: sound2 },
-        { id: "ringtone", url: sound3 },
-        { id: "bounce", url: bounce },
-      ]);
+
+      const soundsToLoad = [
+        { id: "song", url: song },
+        { id: "birds", url: birds },
+        { id: "rain", url: rain },
+        { id: "woodpecker", url: woodpecker },
+        { id: "brook", url: brook },
+        { id: "magma", url: magma },
+      ];
+
+      await this.soundManager.preloadSounds(soundsToLoad);
 
       const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
       soundControlsContainer.classList.add("show");
 
-      this.createSoundControls();
+      // Create sound controls based on the same order
+      this.createSoundControls(soundsToLoad);
     } catch (error) {
       console.error("Error loading sounds:", error);
     } finally {
@@ -359,12 +367,21 @@ export class SoundManagerDemo {
 
   private createStickyObserver(element: HTMLElement): () => void {
     const originalTop = element.getBoundingClientRect().top + window.scrollY;
+    const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
 
     const checkStuck = () => {
       const rect = element.getBoundingClientRect();
       const isStuck = rect.top === 0 && window.scrollY >= originalTop;
       element.classList.toggle("is-stuck", isStuck);
+     
+      if (isStuck) {
+        const stickyDivHeight = element.offsetHeight; 
+        soundControlsContainer.style.marginTop = `${stickyDivHeight + 50}px`; 
+      } else {
+        soundControlsContainer.style.marginTop = "0";
+      }
     };
+
 
     window.addEventListener("scroll", checkStuck, { passive: true });
     checkStuck();
@@ -384,17 +401,17 @@ export class SoundManagerDemo {
     }
   }
 
-  private createSoundControls(): void {
+  private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
     this.soundControls.clear();
     const container = document.getElementById("soundControlsContainer")!;
     container.innerHTML = "";
 
-    this.soundManager.getSoundIds().forEach((id: string) => {
+    // Create controls in the same order as soundsToLoad
+    soundsToLoad.forEach(({ id }) => {
       const control = new SoundControl(id, this.soundManager, container);
       this.soundControls.set(id, control);
     });
   }
-
   private setGlobalVolume(volume: number): void {
     this.soundManager.setGlobalVolume(volume);
     document.getElementById("masterVolumeValue")!.textContent = `${Math.round(volume * 100)}%`;
