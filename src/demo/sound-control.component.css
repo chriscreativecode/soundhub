@@ -217,14 +217,38 @@
   cursor: pointer;
 }
 
+.spatial-grid::before,
+.spatial-grid::after {
+  content: '';
+  position: absolute;
+  z-index: 10;
+  background-color: rgb(21, 21, 148);
+}
+
+.spatial-grid::before {
+  width: 100%; 
+  height: 2px; 
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.spatial-grid::after {
+  width: 2px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
 .spatial-position-circle {
   position: absolute;
   width: 20px;
   height: 20px;
   background: var(--color-primary);
   border-radius: 50%;
-  top: 40px; /* Center vertically */
-  left: 40px; /* Center horizontally */
+  top: 40px; 
+  left: 40px;
   cursor: grab;
   transform: translate(-50%, -50%);
   transition: background-color 0.2s;

@@ -10,6 +10,7 @@ export interface SoundEvent {
     volume?: number;
     isMuted?: boolean;
     pan?: number;
+    position?: {x:number, y:number, z: number};
     previousPan?: number;
     resetOptions?: SoundResetOptions;
   }
