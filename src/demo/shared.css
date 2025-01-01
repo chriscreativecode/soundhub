@@ -163,7 +163,6 @@ input[type="range"]::-moz-range-thumb:active {
   z-index: 20;
 }
 
-
 /* Only target parent control groups */
 .control-group:not(.control-group .control-group) {
   border: 5px solid rgb(51 95 143 / 48%);
