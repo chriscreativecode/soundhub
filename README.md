@@ -158,14 +158,15 @@ Event object dispatched by the sound manager:
 ```typescript
 interface SoundEvent {
     currentTime?: number;  // Current playback time
-    error?: Error;        // Error details if applicable
-    soundId?: string;     // ID of the sound
-    timestamp?: number;   // When the event occurred
+    error?: Error;         // Error details if applicable
+    soundId?: string;      // ID of the sound
+    timestamp?: number;    // When the event occurred
     type: SoundEventsEnum; // Event type
-    volume?: number;      // Current volume
-    isMuted?: boolean;    // Mute state
-    pan?: number;         // Current pan value
-    previousPan?: number; // Previous pan value
+    volume?: number;       // Current volume
+    isMuted?: boolean;     // Mute state
+    pan?: number;          // Current pan value
+    position?: number;     // Current sound position for the spatial audio (3d Audio)
+    previousPan?: number;  // Previous pan value
 }
 ```
 
@@ -188,6 +189,7 @@ enum SoundEventsEnum {
     PAUSED,
     RESUMED,
     SEEKED,
+    SPATIAL_POSITION_CHANGED,
     STARTED,
     STOPPED,
     UNMUTED,

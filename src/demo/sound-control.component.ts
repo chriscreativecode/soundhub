@@ -119,6 +119,15 @@ export class SoundControl {
       // Handle seek completion if needed
       this.updateProgress();
     },
+    [SoundEventsEnum.SPATIAL_POSITION_CHANGED]: (event) => {
+      if (event.position) {
+        this.updateSpatialPosition(event.position.x, event.position.y, event.position.z);
+        // Reset pan slider to center
+        this.panSlider.value = "0";
+        this.handleRangeInput(this.panSlider);
+        this.updatePanDisplay(0);
+      }
+    },
     [SoundEventsEnum.RESET]: (event) => {
       this.reset(event.resetOptions);
     },
@@ -261,6 +270,7 @@ export class SoundControl {
     this.initializePanControl();
     this.initializeRangeInputs();
     this.initializeProgressSlider();
+    this.initializeSpatialControl();
   }
 
 
@@ -383,8 +393,7 @@ export class SoundControl {
       }
       return;
     }
-  
-    // Handle sound-specific events
+
     if (event.soundId !== this.id) return;
   
     if (process.env.NODE_ENV === "development") {
@@ -541,6 +550,80 @@ export class SoundControl {
       this.soundManager.fadeOut(this.id, 2000);
     } catch (error) {
       console.error("Error fading out sound:", error);
+    }
+  }
+
+  private initializeSpatialControl(): void {
+    const grid = this.element.querySelector('.spatial-grid') as HTMLElement;
+    const circle = this.element.querySelector('.spatial-position-circle') as HTMLElement;
+    let isDragging = false;
+  
+    const updatePosition = (e: MouseEvent) => {
+      const rect = grid.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      
+      // Convert 0-100 range to -1 to 1 range for all coordinates
+      const normalizedX = (x / 50) - 1;  // Left (-1) to Right (1)
+      const normalizedY = -((y / 50) - 1); // Up (1) to Down (-1)
+      const normalizedZ = normalizedY;  // Front (-1) to Back (1)
+      
+      circle.style.left = `${x}%`;
+      circle.style.top = `${y}%`;
+  
+      // Update sound position
+      this.soundManager.setSoundPosition(
+        this.id,
+        normalizedX,    // X: -1 (left) to 1 (right)
+        normalizedY,    // Y: -1 (down) to 1 (up)
+        normalizedZ     // Z: -1 (front) to 1 (back)
+      );
+  
+      // Update coordinates display
+      const coordsDisplay = this.element.querySelector('.spatial-coordinates') as HTMLElement;
+      coordsDisplay.textContent = 
+        `Position: X: ${normalizedX.toFixed(2)}, Y: ${normalizedY.toFixed(2)}, Z: ${normalizedZ.toFixed(2)}`;
+    };
+  
+    // Mouse events for dragging
+    circle.addEventListener('mousedown', () => isDragging = true);
+    document.addEventListener('mouseup', () => isDragging = false);
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        updatePosition(e);
+      }
+    });
+  
+    // Click on grid to set position
+    grid.addEventListener('click', updatePosition);
+  
+    // Initialize position at center
+    const centerX = 50;
+    const centerY = 50;
+    circle.style.left = `${centerX}%`;
+    circle.style.top = `${centerY}%`;
+  
+    this.soundManager.setSoundPosition(this.id, 0, 0, 0);
+  }
+
+  private updateSpatialPosition(x: number, y: number, z: number): void {
+    const grid = this.element.querySelector('.spatial-grid') as HTMLElement;
+    const circle = this.element.querySelector('.spatial-position-circle') as HTMLElement;
+    
+    if (!grid || !circle) return;
+  
+    // Convert from -1,1 range to 0,100 range
+    const gridX = ((x + 1) * 50);
+    const gridY = ((-y + 1) * 50); // Invert Y axis
+  
+    circle.style.left = `${gridX}%`;
+    circle.style.top = `${gridY}%`;
+  
+    // Update coordinates display
+    const coordsDisplay = this.element.querySelector('.spatial-coordinates') as HTMLElement;
+    if (coordsDisplay) {
+      coordsDisplay.textContent = 
+        `Position: X: ${x.toFixed(2)}, Y: ${y.toFixed(2)}, Z: ${z.toFixed(2)}`;
     }
   }
 

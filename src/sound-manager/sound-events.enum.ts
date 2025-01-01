@@ -14,6 +14,7 @@ export enum SoundEventsEnum {
     RESET = 'reset',
     RESUMED = 'resumed',
     SEEKED = 'seeked',
+    SPATIAL_POSITION_CHANGED = 'spatial_position_changed',
     STARTED = 'started',
     STOPPED = 'stopped',
     UNMUTED = 'unmuted',

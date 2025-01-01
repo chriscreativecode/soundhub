@@ -3,7 +3,11 @@
     <h4>Sound: ${this.id}</h4>
     <button class="icon-button close-btn" title="Close panel">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-        <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        <path
+          fillRule="evenodd"
+          d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z"
+          clipRule="evenodd"
+        />
       </svg>
     </button>
   </header>
@@ -13,13 +17,7 @@
       <div class="control-content">
         <div class="button-group">
           <button class="icon-button play-btn" title="Play">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              width="14"
-              height="14"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
               <path
                 fill-rule="evenodd"
                 d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z"
@@ -28,13 +26,7 @@
             </svg>
           </button>
           <button class="icon-button pause-btn" title="Pause">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              width="14"
-              height="14"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
               <path
                 fill-rule="evenodd"
                 d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z"
@@ -43,13 +35,7 @@
             </svg>
           </button>
           <button class="icon-button stop-btn" title="Stop">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              width="14"
-              height="14"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
               <path
                 fill-rule="evenodd"
                 d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z"
@@ -91,11 +77,7 @@
             </svg>
           </button>
           <button class="icon-button fade-in-btn" title="Fade In">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
               <path
                 d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75ZM9.75 8.625c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-.75a1.875 1.875 0 0 1-1.875-1.875V8.625ZM3 13.125c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v6.75c0 1.035-.84 1.875-1.875 1.875h-.75A1.875 1.875 0 0 1 3 19.875v-6.75Z"
               />
@@ -121,15 +103,7 @@
       <h4>Volume</h4>
       <div class="control-content">
         <div class="slider-container">
-          <input
-            type="range"
-            class="volume-slider"
-            min="0"
-            max="1"
-            value="1"
-            step="0.01"
-            title="Volume control"
-          />
+          <input type="range" class="volume-slider" min="0" max="1" value="1" step="0.01" title="Volume control" />
           <span class="volume-value">100%</span>
         </div>
       </div>
@@ -158,15 +132,25 @@
       <h4>Progress control</h4>
       <div class="control-content">
         <div class="slider-container">
-          <input
-            type="range"
-            class="progress-slider"
-            min="0"
-            max="100"
-            value="0"
-            step="0.1"
-          />
+          <input type="range" class="progress-slider" min="0" max="100" value="0" step="0.1" />
           <span class="time-display">0:00 / 0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="control-content">
+    <div class="control-group">
+      <h4>Spatial audio</h4>
+      <div class="control-content">
+        <div class="spatial-grid-container">
+          <div class="spatial-grid">
+            <div class="spatial-position-circle" draggable="false"></div>
+            <div class="spatial-grid-lines"></div>
+          </div>
+          <div class="spatial-controls">
+            <span class="spatial-coordinates">Position: X: 0, Y: 0, Z: 0</span>
+          </div>
         </div>
       </div>
     </div>
