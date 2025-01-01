@@ -27,16 +27,112 @@ Feel free to use this library in your projects, and I hope it inspires you to pu
 - TypeScript support with full type definitions
 - Perfect for games and interactive web applications
 
-## Installation
+## Installation / imlement in your project
+
+## Implement in your project
+
+### 1. Using the Sound Manager as TypeScript Module
+For TypeScript projects, it is recommended to install the package and import it directly. This method provides better type safety and allows you to take full advantage of TypeScript features.
+
+#### Install the package
 
 ```bash
-npm install sound-manager-typescript
+npm install sound-manager-ts
+```
+
+In your TypeScript file, you can import and use the Sound Manager like this:
+
+```typescript
+
+import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager-ts';
+
+// Optional configuration
+const config: SoundManagerConfig = {
+    autoMuteOnHidden: true,      // Mute when tab is hidden
+    autoResumeOnFocus: true,     // Resume on tab focus
+    defaultVolume: 0.8,          // Default volume (0-1)
+};
+
+// Initialize sound manager with config
+const soundManager = new SoundManager(config);
+
+// Define sounds to preload
+const soundsToLoad = [
+    { id: 'background-music', url: '/assets/sounds/background.mp3' },
+    { id: 'click-effect', url: '/assets/sounds/click.wav' }
+];
+
+// Preload sounds
+soundManager.preloadSounds(soundsToLoad).then(() => {
+    console.log('All sounds loaded successfully');
+}).catch(error => {
+    console.error('Error loading sounds:', error);
+});
+
+// Play a sound
+soundManager.playSound('background-music', {
+    volume: 0.7,
+    fadeIn: 2000
+});
+
+```
+
+### 2.The legacy way to use the Sound Manager 
+If you want to use the Sound Manager directly in your HTML file without any additional setup, you can include the UMD version of the library. This method is suitable for quick implementations in any web project.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <title>Sound Manager Implementation</title>
+</head>
+<body>
+    <div id="app"></div>
+    <!-- Include the UMD version of the Sound Manager -->
+    <script src="./lib/sound-manager-ts.umd.js?v=2.0.0"></script>
+    <script>
+        // Initialize the Sound Manager
+        const soundManager = new SoundManager({
+            autoMuteOnHidden: true,      // Mute when tab is hidden
+            autoResumeOnFocus: true,     // Resume on tab focus
+            defaultVolume: 0.8,          // Default volume (0-1)
+            spatialAudio: false          // Enable spatial audio
+        });
+
+        // Define sounds to preload
+        const soundsToLoad = [
+            { id: 'background-music', url: '/assets/sounds/background.mp3' },
+            { id: 'click-effect', url: '/assets/sounds/click.wav' }
+        ];
+
+        // Preload sounds
+        soundManager.preloadSounds(soundsToLoad).then(() => {
+            console.log('All sounds loaded successfully');
+        }).catch(error => {
+            console.error('Error loading sounds:', error);
+        });
+
+        // Play a sound
+        soundManager.playSound('background-music', {
+            volume: 0.7,
+            fadeIn: 2000
+        });
+
+        // Control individual sounds
+        soundManager.stopSound('background-music');
+    </script>
+</body>
+</html>
+
 ```
 
 ## Usage
 
 ```typescript
-import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager-typescript';
+import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager-ts';
 
 // Optional configuration
 const config: SoundManagerConfig = {
@@ -318,4 +414,4 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 - Basic audio playback functionality
 
 ## Upcoming Features
-- Add Spatial (3d sound) for every sound in the demo page.
+- Add Spatial (3d) recording. So you can playback the sound positions over time. 
