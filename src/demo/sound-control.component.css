@@ -200,6 +200,46 @@
   background: #45a049;
 }
 
+.spatial-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.spatial-grid {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  background: 
+    linear-gradient(to right, #ddd 1px, transparent 1px) 0 0 / 10px 100%,
+    linear-gradient(to bottom, #ddd 1px, transparent 1px) 0 0 / 100% 10px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+.spatial-position-circle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  top: 40px; /* Center vertically */
+  left: 40px; /* Center horizontally */
+  cursor: grab;
+  transform: translate(-50%, -50%);
+  transition: background-color 0.2s;
+}
+
+.spatial-position-circle:active {
+  cursor: grabbing;
+  background: var(--color-primary-hover);
+}
+
+.spatial-coordinates {
+  font-size: var(--range-value-size);
+  color: var(--color-text);
+}
+
 @media (max-width: 768px) {
   .control-content {
     flex-direction: column;
