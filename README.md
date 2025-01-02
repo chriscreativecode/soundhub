@@ -3,7 +3,7 @@
 A minimalist yet powerful sound management solution that puts you in control of audio playback. Perfect for web apps, games, and interactive experiences. Handle multiple audio streams, control playback, and manage sound effects with just a few lines of code.
 
 ## Live demo
-[Link to demo page](https://chriscreativecode.com/sound-manager-ts/demo/ 'A demo showcase of my Sound Manager')
+[Click here to visit the demo page](https://chriscreativecode.com/sound-manager-ts/demo/ 'A demo showcase of my Sound Manager')
 
 ## About me
 ### Chris Schardijn (Front-end Developer)
@@ -14,6 +14,26 @@ I built this library in my spare time. What started as a personal study project 
 
 Feel free to use this library in your projects, and I hope it inspires you to pursue your own passion projects, regardless of how technology changes. Sometimes the best learning comes from rebuilding something you once loved in a completely new way.
 
+## Table of Contents
+- [Live Demo](#live-demo)
+- [About Me](#about-me)
+- [Features](#features)
+- [Installation / Implement in Your Project](#installation--implement-in-your-project)
+  - [Using the Sound Manager as TypeScript Module](#1-using-the-sound-manager-as-typescript-module)
+  - [Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
+- [Usage](#usage)
+- [Interfaces](#interfaces)
+  - [SoundEvent](#soundevent)
+  - [SoundEventsEnum](#soundeventsenum)
+  - [SoundManagerConfig](#soundmanagerconfig)
+  - [Sound State Information](#sound-state-information)
+  - [SoundState](#soundstate)
+- [Demo Included](#demo-included)
+- [Running the Demo](#running-the-demo)
+- [Browser Support](#browser-support)
+- [Licence](#licence)
+- [Version History](#version-history)
+- [Upcoming Features](#upcoming-features)
 
 ## Features
 - Ultralightweight (20.04 kB │ gzip: 5.29 kB) with zero dependencies (This is without the demo files)
@@ -80,8 +100,8 @@ soundManager.playSound('background-music', {
 
 ```
 
-### 2.The legacy way to use the Sound Manager 
-If you want to use the Sound Manager directly in your HTML file without any additional setup, you can include the UMD version of the library. This method is suitable for quick implementations in any web project.
+### 2. Using Sound Manager as a Library File
+If you prefer to include Sound Manager directly as a library file in your project, you can use the UMD (Universal Module Definition) version. This approach allows you to integrate the sound manager without package managers or build tools - simply include the JavaScript file in your HTML.
 
 ```html
 <!DOCTYPE html>
@@ -389,6 +409,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 - fixed a recursive event loop when resetting the pan and resetting the spatial audio
 - fliped the z logic for spatial audio, so when moving up it is now going to the front
 - added a front indicator line
+- updated README.MD 
 
 ### 2.0.0 
 - Rebuild some current logic
