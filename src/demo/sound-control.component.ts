@@ -18,6 +18,12 @@ interface SoundControlState {
   progress: number;
 }
 
+type SpatialAudioListener = {
+  target: HTMLElement | Document;
+  type: keyof HTMLElementEventMap | keyof DocumentEventMap;
+  listener: EventListenerOrEventListenerObject;
+};
+
 export class SoundControl {
   private element: HTMLElement;
   private progressSlider: HTMLInputElement;
@@ -27,6 +33,8 @@ export class SoundControl {
   private volumeSlider: HTMLInputElement;
   private isDragging = false;
   private previousVolume: number = 1;
+  private listenersSpatialAudio: SpatialAudioListener[] = [];
+  private circle!: HTMLElement;
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -119,13 +127,15 @@ export class SoundControl {
       // Handle seek completion if needed
       this.updateProgress();
     },
+    [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
+      this.resetSpatialPosition();
+    },
+    [SoundEventsEnum.PAN_CHANGED]: () => {
+      this.resetSpatialPosition();
+    },
     [SoundEventsEnum.SPATIAL_POSITION_CHANGED]: (event) => {
       if (event.position) {
-        this.updateSpatialPosition(event.position.x, event.position.y, event.position.z);
-        // Reset pan slider to center
-        this.panSlider.value = "0";
-        this.handleRangeInput(this.panSlider);
-        this.updatePanDisplay(0);
+        this.resetPan(true);
       }
     },
     [SoundEventsEnum.RESET]: (event) => {
@@ -273,13 +283,11 @@ export class SoundControl {
     this.initializeSpatialControl();
   }
 
-
   private reset(resetOptions?: { keepVolumes?: boolean; keepPanning?: boolean }): void {
-
     this.stopProgressUpdates();
 
     this.resetProgress();
-  
+
     // Reset volume if not keeping volumes
     if (!resetOptions?.keepVolumes) {
       const defaultVolume = this.soundManager.getConfig().defaultVolume ?? 1;
@@ -289,12 +297,12 @@ export class SoundControl {
       this.previousVolume = defaultVolume;
       this.updateMuteButtonIcon(false);
     }
-  
+
     // Reset pan if not keeping panning
     if (!resetOptions?.keepPanning) {
       this.resetPan();
     }
-  
+
     // Update state
     this.state = {
       ...this.state,
@@ -303,10 +311,10 @@ export class SoundControl {
       isMuted: false,
       currentTime: 0,
       progress: 0,
-      volume: !resetOptions?.keepVolumes ? (this.soundManager.getConfig().defaultVolume ?? 1) : this.state.volume,
+      volume: !resetOptions?.keepVolumes ? this.soundManager.getConfig().defaultVolume ?? 1 : this.state.volume,
       pan: !resetOptions?.keepPanning ? 0 : this.state.pan,
     };
-  
+
     // Update UI
     this.updateUIFromState();
   }
@@ -331,12 +339,12 @@ export class SoundControl {
     this.updateTimeDisplay(0);
   }
 
-  private resetPan(): void {
-    this.panSlider.value = "0"; 
+  private resetPan(visualOnly: boolean = false): void {
+    this.panSlider.value = "0";
     this.handleRangeInput(this.panSlider);
     this.updatePanDisplay(0);
-    
-    if (this.soundManager.isPlaying(this.id)) {
+
+    if (this.soundManager.isPlaying(this.id) && !visualOnly) {
       this.soundManager.setPan(this.id, 0);
     }
   }
@@ -394,12 +402,13 @@ export class SoundControl {
       return;
     }
 
-    if (event.soundId !== this.id) return;
-  
+    // Handle events for this sound or events without soundId (global events)
+    if (event.soundId && event.soundId !== this.id) return;
+
     if (process.env.NODE_ENV === "development") {
       console.log(`Received ${event.type} event for sound ${event.soundId}`);
     }
-  
+
     this.updateState();
     const handler = this.eventHandlers[event.type];
     if (handler) {
@@ -431,9 +440,9 @@ export class SoundControl {
   private handlePanInput = (e: Event): void => {
     const value = parseFloat((e.target as HTMLInputElement).value);
     this.updatePanDisplay(value);
-    if (this.soundManager.isPlaying(this.id)) {
-      this.soundManager.setPan(this.id, value);
-    }
+    // if (this.soundManager.isPlaying(this.id)) {
+    this.soundManager.setPan(this.id, value);
+    // }
   };
 
   private initializePanControl(): void {
@@ -554,76 +563,117 @@ export class SoundControl {
   }
 
   private initializeSpatialControl(): void {
-    const grid = this.element.querySelector('.spatial-grid') as HTMLElement;
-    const circle = this.element.querySelector('.spatial-position-circle') as HTMLElement;
+    const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
+    this.circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
     let isDragging = false;
-  
-    const updatePosition = (e: MouseEvent) => {
-      const rect = grid.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-      
-      // Convert 0-100 range to -1 to 1 range for all coordinates
-      const normalizedX = (x / 50) - 1;  // Left (-1) to Right (1)
-      const normalizedY = -((y / 50) - 1); // Up (1) to Down (-1)
-      const normalizedZ = normalizedY;  // Front (-1) to Back (1)
-      
-      circle.style.left = `${x}%`;
-      circle.style.top = `${y}%`;
-  
-      // Update sound position
-      this.soundManager.setSoundPosition(
-        this.id,
-        normalizedX,    // X: -1 (left) to 1 (right)
-        normalizedY,    // Y: -1 (down) to 1 (up)
-        normalizedZ     // Z: -1 (front) to 1 (back)
-      );
-  
-      // Update coordinates display
-      const coordsDisplay = this.element.querySelector('.spatial-coordinates') as HTMLElement;
-      coordsDisplay.textContent = 
-        `Position: X: ${normalizedX.toFixed(2)}, Y: ${normalizedY.toFixed(2)}, Z: ${normalizedZ.toFixed(2)}`;
+
+    const handleMouseMove: EventListener = (e: Event): void => {
+        if (!isDragging) return;
+        const mouseEvent = e as MouseEvent;
+        const rect = grid.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
+        const normalizedZ = (y / 50 - 1) * -1;
+        this.updateSpatialPosition(x, y, normalizedZ);
     };
-  
-    // Mouse events for dragging
-    circle.addEventListener('mousedown', () => isDragging = true);
-    document.addEventListener('mouseup', () => isDragging = false);
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        updatePosition(e);
-      }
+
+    const handleTouchMove: EventListener = (e: Event): void => {
+        if (!isDragging) return;
+        const touchEvent = e as TouchEvent;
+        const rect = grid.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientY - rect.top) / rect.height) * 100));
+        const normalizedZ = (y / 50 - 1) * -1;
+        this.updateSpatialPosition(x, y, normalizedZ);
+    };
+
+    const handleMouseDown: EventListener = (): void => { isDragging = true; };
+    const handleMouseUp: EventListener = (): void => { isDragging = false; };
+    const handleTouchStart: EventListener = (e: Event): void => {
+        isDragging = true;
+        (e as TouchEvent).preventDefault();
+    };
+    const handleTouchEnd: EventListener = (): void => { isDragging = false; };
+    const handleGridClick: EventListener = (e: Event): void => {
+        const mouseEvent = e as MouseEvent;
+        const rect = grid.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
+        const normalizedZ = (y / 50 - 1) * -1;
+        this.updateSpatialPosition(x, y, normalizedZ);
+    };
+
+    const listeners: SpatialAudioListener[] = [
+        { target: this.circle, type: "mousedown", listener: handleMouseDown },
+        { target: document, type: "mouseup", listener: handleMouseUp },
+        { target: document, type: "mousemove", listener: handleMouseMove },
+        { target: this.circle, type: "touchstart", listener: handleTouchStart },
+        { target: document, type: "touchend", listener: handleTouchEnd },
+        { target: document, type: "touchmove", listener: handleTouchMove },
+        { target: grid, type: "click", listener: handleGridClick }
+    ];
+
+    listeners.forEach(({ target, type, listener }) => {
+        target.addEventListener(type, listener);
     });
-  
-    // Click on grid to set position
-    grid.addEventListener('click', updatePosition);
-  
+
+    this.listenersSpatialAudio = listeners;
+
     // Initialize position at center
     const centerX = 50;
     const centerY = 50;
-    circle.style.left = `${centerX}%`;
-    circle.style.top = `${centerY}%`;
-  
+    this.circle.style.left = `${centerX}%`;
+    this.circle.style.top = `${centerY}%`;
+
     this.soundManager.setSoundPosition(this.id, 0, 0, 0);
+}
+
+  private isSpatialPositionCentered(): boolean {
+    const circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
+    if (!circle) return false;
+
+    // Get current position (in percentage)
+    const currentLeft = parseFloat(circle.style.left);
+    const currentTop = parseFloat(circle.style.top);
+
+    // Check if position is centered (50% is center)
+    return Math.abs(currentLeft - 50) < 0.1 && Math.abs(currentTop - 50) < 0.1;
   }
 
-  private updateSpatialPosition(x: number, y: number, z: number): void {
-    const grid = this.element.querySelector('.spatial-grid') as HTMLElement;
-    const circle = this.element.querySelector('.spatial-position-circle') as HTMLElement;
-    
+  private resetSpatialPosition(): void {
+    // If already centered, don't do anything
+    if (this.isSpatialPositionCentered()) {
+      return;
+    }
+    // Reset to center (50% is center for both x and y)
+    this.updateSpatialPosition(50, 50, 0, true);
+  }
+
+  private updateSpatialPosition(x: number, y: number, z: number, visualOnly: boolean = false): void {
+    const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
+    const circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
+
     if (!grid || !circle) return;
-  
-    // Convert from -1,1 range to 0,100 range
-    const gridX = ((x + 1) * 50);
-    const gridY = ((-y + 1) * 50); // Invert Y axis
-  
-    circle.style.left = `${gridX}%`;
-    circle.style.top = `${gridY}%`;
-  
+
+    circle.style.left = `${x}%`;
+    circle.style.top = `${y}%`;
+
+    // Update sound position
+    if (!visualOnly) {
+      this.soundManager.setSoundPosition(
+        this.id,
+        x / 50 - 1, // X: -1 (left) to 1 (right)
+        -(y / 50 - 1), // Y: -1 (down) to 1 (up)
+        z // Z: -1 (down) to 1 (up)
+      );
+    }
+
     // Update coordinates display
-    const coordsDisplay = this.element.querySelector('.spatial-coordinates') as HTMLElement;
+    const coordsDisplay = this.element.querySelector(".spatial-coordinates") as HTMLElement;
     if (coordsDisplay) {
-      coordsDisplay.textContent = 
-        `Position: X: ${x.toFixed(2)}, Y: ${y.toFixed(2)}, Z: ${z.toFixed(2)}`;
+      coordsDisplay.textContent = `Position: X: ${(x / 50 - 1).toFixed(2)}, Y: ${(-(y / 50 - 1)).toFixed(
+        2
+      )}, Z: ${z.toFixed(2)}`;
     }
   }
 
@@ -691,6 +741,16 @@ export class SoundControl {
               delete (rangeInput as any)._rangeHandler;
             }
           });
+        },
+
+        // Remove spatial audio event listeners
+        () => {
+          if (this.listenersSpatialAudio) {
+            this.listenersSpatialAudio.forEach(({ target, type, listener }) =>
+              target.removeEventListener(type, listener)
+            );
+            this.listenersSpatialAudio = [];
+          }
         },
 
         // Stop sound if playing

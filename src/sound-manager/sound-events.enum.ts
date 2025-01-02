@@ -10,6 +10,7 @@ export enum SoundEventsEnum {
     MUTE_GLOBAL = 'mute_global',
     UNMUTE_GLOBAL = 'unmute_global',
     MASTER_PAN_CHANGED = 'master_pan_changed',
+    PAN_CHANGED = 'pan_changed',
     PAUSED = 'paused',
     RESET = 'reset',
     RESUMED = 'resumed',
