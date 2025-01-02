@@ -1076,7 +1076,7 @@ export class SoundManager implements SoundManagerInterface {
     const sound = this.sounds.get(soundId);
     const source = this.activeSources.get(soundId);
 
-    if (!sound || !source) {
+    if (!sound) {
       this.debugLog(`Sound ${soundId} not found for position setting`);
       return;
     }
@@ -1100,8 +1100,8 @@ export class SoundManager implements SoundManagerInterface {
         sound.pannerNode.rolloffFactor = 1;
 
         // Reconnect the audio nodes with the panner
-        source.disconnect();
-        source.connect(sound.pannerNode);
+        source?.disconnect();
+        source?.connect(sound.pannerNode);
         sound.pannerNode.connect(sound.gainNode);
       }
 
@@ -1139,13 +1139,6 @@ export class SoundManager implements SoundManagerInterface {
         sound.pannerNode.disconnect();
         sound.pannerNode = undefined;
         sound.gainNode.connect(this.masterGainNode);
-
-        this.dispatchEvent({
-          type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
-          soundId: id,
-          timestamp: this.context.currentTime,
-          position: { x: 0, y: 0, z: 0 },
-        });
       }
     } catch (error) {
       this.handleError("removing spatial effect", error, id);
@@ -1168,12 +1161,6 @@ export class SoundManager implements SoundManagerInterface {
       // Remove spatial audio if active
       if (this.isSpatialAudioActive(id)) {
         this.removeSpatialEffect(id);
-        this.dispatchEvent({
-          type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
-          soundId: id,
-          timestamp: this.context.currentTime,
-          position: { x: 0, y: 0, z: 0 },
-        });
       }
 
       // Create stereo panner if it doesn't exist
@@ -1192,6 +1179,14 @@ export class SoundManager implements SoundManagerInterface {
       // Clamp pan value between -1 and 1
       const pannedValue = Math.max(-1, Math.min(1, value));
       sound.stereoPanner.pan.setValueAtTime(pannedValue, this.context.currentTime);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.PAN_CHANGED,
+        soundId: id,  // Add this line
+        timestamp: this.context?.currentTime ?? 0,
+        pan: pannedValue,
+        previousPan: this.previousGlobalPan,
+      });
 
       this.debugLog(`Pan set for sound ${sound.id}: ${pannedValue}`);
     } catch (error) {
@@ -1223,13 +1218,7 @@ export class SoundManager implements SoundManagerInterface {
       // Reset spatial position for all sounds using spatial audio
       this.sounds.forEach((_sound, id) => {
         if (this.isSpatialAudioActive(id)) {
-          this.removeSpatialEffect(id);
-          this.dispatchEvent({
-            type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
-            soundId: id,
-            timestamp: this.context.currentTime,
-            position: { x: 0, y: 0, z: 0 },
-          });
+          this.removeSpatialEffect(id); 
         }
       });
 

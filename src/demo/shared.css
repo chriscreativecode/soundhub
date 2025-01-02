@@ -13,9 +13,9 @@
 
   /* Spacing */
   --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 15px;
-  --spacing-lg: 20px;
+  --spacing-sm: 6px;
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
 
   /* Border radius */
   --border-radius: 5px;
@@ -167,6 +167,7 @@ input[type="range"]::-moz-range-thumb:active {
 .control-group:not(.control-group .control-group) {
   border: 5px solid rgb(51 95 143 / 48%);
   border-radius: 5px;
+  margin-bottom : 0;
 }
 
 .control-group h4 {

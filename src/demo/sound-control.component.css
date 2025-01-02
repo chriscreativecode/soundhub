@@ -240,6 +240,12 @@
   top: 0;
   transform: translateX(-50%);
 }
+.front-line {
+  width: 100px;
+  text-align:center;
+  border-bottom: 4px solid rgb(99, 99, 99);
+  font-size: 0.75rem;
+}
 
 .spatial-position-circle {
   position: absolute;

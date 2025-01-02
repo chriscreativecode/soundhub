@@ -285,6 +285,7 @@ enum SoundEventsEnum {
     MUTE_GLOBAL,
     UNMUTE_GLOBAL,
     MASTER_PAN_CHANGED,
+    PAN_CHANGED,
     PAUSED,
     RESUMED,
     SEEKED,
@@ -383,7 +384,13 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## Version History
 
-### 2.0.0 (current)
+### 2.1.0 (current)
+- added PAN_CHANGED event
+- fixed a recursive event loop when resetting the pan and resetting the spatial audio
+- fliped the z logic for spatial audio, so when moving up it is now going to the front
+- added a front indicator line
+
+### 2.0.0 
 - Rebuild some current logic
 - Added master pan control
 - Enhanced spatial audio support
