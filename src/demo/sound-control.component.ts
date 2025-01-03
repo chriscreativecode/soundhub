@@ -128,10 +128,10 @@ export class SoundControl {
       this.updateProgress();
     },
     [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
-      this.resetSpatialPosition();
+       this.resetSpatialPosition();
     },
     [SoundEventsEnum.PAN_CHANGED]: () => {
-      this.resetSpatialPosition();
+      this.resetSpatialPosition(true);
     },
     [SoundEventsEnum.SPATIAL_POSITION_CHANGED]: (event) => {
       if (event.position) {
@@ -345,7 +345,7 @@ export class SoundControl {
     this.updatePanDisplay(0);
 
     if (this.soundManager.isPlaying(this.id) && !visualOnly) {
-      this.soundManager.setPan(this.id, 0);
+       this.soundManager.setPan(this.id, 0);
     }
   }
 
@@ -488,8 +488,11 @@ export class SoundControl {
 
         const options = this.getCurrentOptions({
           startTime: state?.duration && progress > 0 ? (progress / 100) * state.duration : undefined,
-          pan: panValue,
         });
+
+        if(panValue) {
+          options.pan = panValue;
+        }
 
         this.currentOptions = options;
         this.soundManager.playSound(this.id, options);
@@ -640,13 +643,13 @@ export class SoundControl {
     return Math.abs(currentLeft - 50) < 0.1 && Math.abs(currentTop - 50) < 0.1;
   }
 
-  private resetSpatialPosition(): void {
+  private resetSpatialPosition(visualOnly: boolean = false): void {
     // If already centered, don't do anything
     if (this.isSpatialPositionCentered()) {
       return;
     }
     // Reset to center (50% is center for both x and y)
-    this.updateSpatialPosition(50, 50, 0, true);
+    this.updateSpatialPosition(50, 50, 0, visualOnly);
   }
 
   private updateSpatialPosition(x: number, y: number, z: number, visualOnly: boolean = false): void {

@@ -404,12 +404,20 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## Version History
 
-### 2.1.0 (current)
+### 2.1.2
+- Fixed spatial audio positioning bug: sounds now correctly maintain their spatial position when played for the first time
+- Reordered sound preloading sequence
+- Replaced woodpecker sound with crickets in demo for better spatial audio demonstration
+
+### 2.1.1
+- Updated documentation in README.MD
+- Updated package.json dependencies and metadata
+
+### 2.1.0 
 - added PAN_CHANGED event
 - fixed a recursive event loop when resetting the pan and resetting the spatial audio
 - fliped the z logic for spatial audio, so when moving up it is now going to the front
 - added a front indicator line
-- updated README.MD 
 
 ### 2.0.0 
 - Rebuild some current logic
