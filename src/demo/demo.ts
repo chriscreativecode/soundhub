@@ -4,7 +4,7 @@ import "./demo.css";
 import song from "../sounds/demo-song.mp3";
 import birds from "../sounds/birds-forest.mp3";
 import rain from "../sounds/rain.mp3";
-import woodpecker from "../sounds/woodpecker.mp3";
+import crickets from "../sounds/crickets.mp3";
 import brook from "../sounds/brook.mp3";
 import magma from "../sounds/under-sea-magma.mp3";
 
@@ -342,12 +342,12 @@ export class SoundManagerDemo {
 
 
       const soundsToLoad = [
-        { id: "song", url: song },
         { id: "birds", url: birds },
         { id: "rain", url: rain },
-        { id: "woodpecker", url: woodpecker },
+        { id: "crickets", url: crickets },
         { id: "brook", url: brook },
         { id: "magma", url: magma },
+        { id: "song", url: song },
       ];
 
       await this.soundManager.preloadSounds(soundsToLoad);

@@ -324,7 +324,7 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  private clearAudioProcessing(id: string): void {
+  private clearAudioProcessing(id: string, preserveSpatialAudio: boolean = false): void {
     const sound = this.sounds.get(id);
     if (!sound) return;
 
@@ -333,7 +333,17 @@ export class SoundManager implements SoundManagerInterface {
       source.disconnect();
     }
 
-    if (sound.pannerNode) {
+    // Store spatial position if we need to preserve it
+    const pannerPosition =
+      preserveSpatialAudio && sound.pannerNode
+        ? {
+            x: sound.pannerNode.positionX.value,
+            y: sound.pannerNode.positionY.value,
+            z: sound.pannerNode.positionZ.value,
+          }
+        : null;
+
+    if (sound.pannerNode && !preserveSpatialAudio) {
       sound.pannerNode.disconnect();
       sound.pannerNode = undefined;
     }
@@ -343,9 +353,21 @@ export class SoundManager implements SoundManagerInterface {
       sound.stereoPanner = undefined;
     }
 
-    // Reconnect the basic audio chain
+    // Reconnect the audio chain, preserving spatial audio if needed
     if (source) {
-      source.connect(sound.gainNode);
+      if (preserveSpatialAudio && pannerPosition) {
+        if (!sound.pannerNode) {
+          sound.pannerNode = this.context.createPanner();
+          // Set position using individual properties, pannerNode.setPosition is depricated.
+          sound.pannerNode.positionX.value = pannerPosition.x;
+          sound.pannerNode.positionY.value = pannerPosition.y;
+          sound.pannerNode.positionZ.value = pannerPosition.z;
+        }
+        source.connect(sound.pannerNode);
+        sound.pannerNode.connect(sound.gainNode);
+      } else {
+        source.connect(sound.gainNode);
+      }
       sound.gainNode.connect(this.masterGainNode);
     }
   }
@@ -506,7 +528,8 @@ export class SoundManager implements SoundManagerInterface {
       sound.startTime = 0;
       sound.pausedAt = 0;
 
-      this.clearAudioProcessing(id);
+      // Pass true to preserve spatial audio
+      this.clearAudioProcessing(id, true);
 
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
@@ -1114,9 +1137,9 @@ export class SoundManager implements SoundManagerInterface {
         type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
         soundId,
         timestamp: this.context.currentTime,
-        position: { x, y, z},
+        position: { x, y, z },
       });
-    
+
       this.debugLog(`Set position for sound ${soundId}: x=${x}, y=${y}, z=${z}`);
     } catch (error) {
       this.handleError("setting sound position", error);
@@ -1182,7 +1205,7 @@ export class SoundManager implements SoundManagerInterface {
 
       this.dispatchEvent({
         type: SoundEventsEnum.PAN_CHANGED,
-        soundId: id,  // Add this line
+        soundId: id, // Add this line
         timestamp: this.context?.currentTime ?? 0,
         pan: pannedValue,
         previousPan: this.previousGlobalPan,
@@ -1218,7 +1241,7 @@ export class SoundManager implements SoundManagerInterface {
       // Reset spatial position for all sounds using spatial audio
       this.sounds.forEach((_sound, id) => {
         if (this.isSpatialAudioActive(id)) {
-          this.removeSpatialEffect(id); 
+          this.removeSpatialEffect(id);
         }
       });
 

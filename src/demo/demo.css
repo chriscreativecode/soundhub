@@ -69,7 +69,6 @@ html {
   flex-direction: column;
   gap: 0.5rem;
   display: none;
-  transition: margin-top 0.3s;
 }
 
 #soundControlsContainer.show {
