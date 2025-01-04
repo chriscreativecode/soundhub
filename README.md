@@ -1,9 +1,3 @@
-```markdown
-[![npm version](https://badge.fury.io/js/sound-manager-ts.svg)](https://badge.fury.io/js/sound-manager-ts)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
-```
-
 # 🎵 Modern Web Audio Manager build in TypeScript.
 
 A powerful yet lightweight (5KB gzipped) sound management system built on the modern Web Audio API. Perfect for web applications, games, and interactive experiences that demand precise audio control.
@@ -37,7 +31,6 @@ A powerful yet lightweight (5KB gzipped) sound management system built on the mo
 - 🎚️ Volume control & fading
 - 🎯 Spatial audio positioning
 - ⏯️ Play, pause, resume, and stop
-- 🔄 Loop control
 - 🎛️ Pan and balance adjustment
 - ⚡ Event-driven architecture
 - 📱 Mobile-friendly
@@ -438,7 +431,10 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 2.1.2 (Current)
+### 2.1.3 and 2.1.4 (Current)
+- Enhanced README.MD documentation
+
+### 2.1.2
 🐛 **Bug Fixes**
 - Fixed spatial audio positioning bug for initial playback
 - Improved sound preloading sequence
@@ -512,4 +508,3 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 📍 **Spatial Recording & Playback**
 - Add Spatial (3d) recording capability
 - Enable playback of recorded sound positions over time
-- Create timeline-based spatial movement paths
