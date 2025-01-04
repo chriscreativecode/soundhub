@@ -1,3 +1,7 @@
+[![npm version](https://badge.fury.io/js/@chriscreativecode%2Fsound-manager-ts.svg)](https://badge.fury.io/js/@chriscreativecode%2Fsound-manager-ts)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Bundle Size](https://img.shields.io/bundlephobia/minzip/@chriscreativecode%2Fsound-manager-ts)](https://bundlephobia.com/package/@chriscreativecode%2Fsound-manager-ts)
+
 # 🎵 Modern Web Audio Manager build in TypeScript.
 
 A powerful yet lightweight (5KB gzipped) sound management system built on the modern Web Audio API. Perfect for web applications, games, and interactive experiences that demand precise audio control.
@@ -431,7 +435,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 2.1.3 and 2.1.4 (Current)
+### 2.1.3 ~ 2.1.5 (Current)
 - Enhanced README.MD documentation
 
 ### 2.1.2
