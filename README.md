@@ -154,7 +154,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=2.0.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=2.1.6"></script>
     <script>
         // Initialize the Sound Manager
         const soundManager = new SoundManager({

@@ -12,6 +12,7 @@
     "typescript",
     "sound-manager",
     "sound-engine",
+    "audio-manager",
     "web-audio",
     "audio-player",
     "sound-effects",
