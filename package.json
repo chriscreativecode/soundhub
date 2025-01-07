@@ -1,11 +1,12 @@
 {
   "name": "sound-manager-ts",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
     "url": "https://www.chriscreativecode.com"
   },
+  "description": "A lightweight, TypeScript-based Web Audio API manager for seamless sound control in web apps and games",
   "keywords": [
     "audio",
     "sound",
@@ -27,11 +28,12 @@
   "type": "module",
   "main": "./dist/lib/sound-manager-ts.umd.js",
   "module": "./dist/lib/sound-manager-ts.es.js",
-  "types": "./dist/lib/types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/lib/types/index.d.ts",
       "import": "./dist/lib/sound-manager-ts.es.js",
-      "require": "./dist/lib/sound-manager-ts.umd.js"
+      "require": "./dist/lib/sound-manager-ts.umd.js",
+      "default": "./dist/lib/sound-manager-ts.es.js"
     }
   },
   "files": [

@@ -1,5 +1,5 @@
-# Logs
-logs
+# Logs and debugging
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,20 +7,34 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Runtime data and dependencies
+node_modules/
+dist/
+dist-ssr/
 *.local
+*.env
+*.env.*.local
+.env.ci
+.env.production
 
-# Editor directories and files
-.vscode/*
+# Ignore all .ignore files and the .ignore folder
+.ignore/
+*.ignore
+
+# Editor and IDE settings
+.vscode/
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-.codegpt
+# OS and system files
+.DS_Store
+Thumbs.db
+
+# Tooling and codegen artifacts
+.codegpt/
+excluded/
