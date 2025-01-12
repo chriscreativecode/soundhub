@@ -156,7 +156,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=2.2.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=2.3.0"></script>
     <script>
         // Initialize the Sound Manager
         const soundManager = new SoundManager({
@@ -418,10 +418,9 @@ The package includes a comprehensive demo showcasing all features:
 
 
 ## Running the Demo
-1. Clone the repository
-2. Install dependencies: npm install
-3. Start the demo: npm run dev
-4. Open http://localhost:5173 in your browser
+1. Install dependencies: ``` npm install ```
+2. Start the demo: npm run dev
+3. Open http://localhost:5173 in your browser
 
 
 Features are automatically adapted based on browser support:
@@ -436,6 +435,10 @@ Features are automatically adapted based on browser support:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 2.3.0
+- 🔧 Fixed type declarations to prevent duplicate exports with incremental suffixes (_2)
+- 📁 Reorganized types into dedicated folder structure
 
 ### 2.2.0 
 - 🏗️ Restructured project with dedicated types folder
@@ -523,3 +526,4 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 📍 **Spatial Recording & Playback**
 - Add Spatial (3d) recording capability
 - Enable playback of recorded sound positions over time
+- Configure option for the Spatial audio in the setSoundPosition
