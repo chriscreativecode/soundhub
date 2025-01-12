@@ -1,6 +1,6 @@
 {
   "name": "sound-manager-ts",
-  "version": "2.1.9",
+  "version": "2.2.0",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -26,18 +26,20 @@
     "lightweight-soundmanager"
   ],
   "type": "module",
-  "main": "./dist/lib/sound-manager-ts.umd.js",
-  "module": "./dist/lib/sound-manager-ts.es.js",
+  "main": "./dist/sound-manager-ts.umd.js",
+  "module": "./dist/sound-manager-ts.es.js",
+  "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/lib/types/index.d.ts",
-      "import": "./dist/lib/sound-manager-ts.es.js",
-      "require": "./dist/lib/sound-manager-ts.umd.js",
-      "default": "./dist/lib/sound-manager-ts.es.js"
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/sound-manager-ts.es.js",
+      "require": "./dist/sound-manager-ts.umd.js"
     }
   },
-  "files": [
-    "dist/lib"
+ "files": [
+    "dist/sound-manager-ts.umd.js",
+    "dist/sound-manager-ts.es.js",
+    "dist/types"
   ],
   "scripts": {
     "dev": "vite",
