@@ -19,30 +19,30 @@ const libConfig = {
       external: [],
       output: {
         globals: {},
-        dir: "dist/lib",
+        dir: "dist",
       },
     },
-    outDir: "dist/lib",
+    outDir: "dist",
   },
   plugins: [
     dts({
       insertTypesEntry: true,
-      outDir: "dist/lib/types",
+      outDir: "dist/types",
       rollupTypes: true,
     }),
   ],
 };
 
 const devConfig = {
-  root: '.', // Keep this as root directory
+  root: '.', 
   base: '/',
   build: {
     outDir: "dist/demo",
   },
   server: {
     port: 5174,
-    strictPort: false, // Allow Vite to use alternative ports
-    open: '/index-dev.html', // Specify the exact path to open
+    strictPort: false, 
+    open: '/index-dev.html',
   },
   resolve: {
     alias: {
