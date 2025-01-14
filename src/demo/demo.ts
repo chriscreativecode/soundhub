@@ -7,6 +7,7 @@ import rain from "../sounds/rain.mp3";
 import crickets from "../sounds/crickets.mp3";
 import brook from "../sounds/brook.mp3";
 import magma from "../sounds/under-sea-magma.mp3";
+import pongBounce from "../sounds/pong-bounce.mp3";
 
 import demoTemplate from "./demo.html?raw";
 import { SoundControl } from "./sound-control.component";
@@ -342,6 +343,7 @@ export class SoundManagerDemo {
 
 
       const soundsToLoad = [
+        { id: "pong-bounce", url: pongBounce },
         { id: "birds", url: birds },
         { id: "rain", url: rain },
         { id: "crickets", url: crickets },

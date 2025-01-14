@@ -100,6 +100,36 @@
     </div>
 
     <div class="control-group">
+      <h4>Loop Settings</h4>
+      <div class="control-content">
+        <div class="loop-controls">
+          <label class="checkbox-container">
+            <input type="checkbox" class="loop-checkbox" title="Enable/disable loop">
+            <span class="checkbox-label">Loop</span>
+          </label>
+          
+          <div class="loop-settings" style="display: none;">
+            <div class="loop-count-container">
+              <label for="maxLoops">Max Loops:</label>
+              <select class="max-loops-select">
+                <option value="-1">Infinite</option>
+                <option value="custom">Custom</option>
+              </select>
+              <input 
+                type="number" 
+                class="max-loops-input" 
+                min="1" 
+                value="1"
+                style="display: none;"
+                title="Number of times to loop"
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-group">
       <h4>Volume</h4>
       <div class="control-content">
         <div class="slider-container">

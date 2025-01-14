@@ -35,6 +35,7 @@ export class SoundControl {
   private previousVolume: number = 1;
   private listenersSpatialAudio: SpatialAudioListener[] = [];
   private circle!: HTMLElement;
+  private debounceTimer: number = 0;
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -54,6 +55,7 @@ export class SoundControl {
     this.volumeSlider = this.element.querySelector(".volume-slider")!;
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
+    this.initializeLoopControls();
     this.container.appendChild(this.element);
   }
 
@@ -128,7 +130,7 @@ export class SoundControl {
       this.updateProgress();
     },
     [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
-       this.resetSpatialPosition();
+      this.resetSpatialPosition();
     },
     [SoundEventsEnum.PAN_CHANGED]: () => {
       this.resetSpatialPosition(true);
@@ -198,21 +200,21 @@ export class SoundControl {
   }
 
   private readonly boundHandlers = {
-    progressDrag: (e: Event) => {
-      const progress = parseFloat((e.target as HTMLInputElement).value);
-      const state = this.soundManager.getSoundState(this.id);
-      if (state?.duration) {
-        this.updateTimeDisplay((progress / 100) * state.duration);
-      }
-    },
-
     progressSeek: (e: Event) => {
       const state = this.soundManager.getSoundState(this.id);
       if (!state?.duration) return;
+
       const progress = parseFloat((e.target as HTMLInputElement).value);
       const newTime = (progress / 100) * state.duration;
-      const wasPlaying = state.state === SoundState.Playing;
-      this.seekToPosition(newTime, wasPlaying);
+
+      // Update time display immediately
+      this.updateTimeDisplay(newTime);
+
+      // Debounce the actual seeking
+      window.clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(() => {
+        this.seekToPosition(newTime);
+      }, 16); // Approximately one frame at 60fps
     },
 
     setDragging: () => (this.isDragging = true),
@@ -258,20 +260,13 @@ export class SoundControl {
 
   private initializeProgressSlider(): void {
     this.progressSlider.addEventListener("mousedown", this.boundHandlers.setDragging);
-    this.progressSlider.addEventListener("input", this.boundHandlers.progressDrag);
-    this.progressSlider.addEventListener("change", this.boundHandlers.progressSeek);
+    this.progressSlider.addEventListener("input", this.boundHandlers.progressSeek);
     document.addEventListener("mouseup", this.boundHandlers.clearDragging);
   }
 
-  private seekToPosition(time: number, resumePlayback: boolean): void {
+  private seekToPosition(time: number): void {
     this.stopProgressUpdates();
-    if (resumePlayback) {
-      this.soundManager.pauseSound(this.id);
-    }
     this.soundManager.seekTo(this.id, time);
-    if (resumePlayback) {
-      this.soundManager.resumeSound(this.id);
-    }
   }
 
   private initializeEventListeners(): void {
@@ -345,7 +340,7 @@ export class SoundControl {
     this.updatePanDisplay(0);
 
     if (this.soundManager.isPlaying(this.id) && !visualOnly) {
-       this.soundManager.setPan(this.id, 0);
+      this.soundManager.setPan(this.id, 0);
     }
   }
 
@@ -440,9 +435,7 @@ export class SoundControl {
   private handlePanInput = (e: Event): void => {
     const value = parseFloat((e.target as HTMLInputElement).value);
     this.updatePanDisplay(value);
-    // if (this.soundManager.isPlaying(this.id)) {
     this.soundManager.setPan(this.id, value);
-    // }
   };
 
   private initializePanControl(): void {
@@ -490,11 +483,12 @@ export class SoundControl {
           startTime: state?.duration && progress > 0 ? (progress / 100) * state.duration : undefined,
         });
 
-        if(panValue) {
+        if (panValue) {
           options.pan = panValue;
         }
 
         this.currentOptions = options;
+
         this.soundManager.playSound(this.id, options);
       }
     } catch (error) {
@@ -565,59 +559,121 @@ export class SoundControl {
     }
   }
 
+  private initializeLoopControls(): void {
+    const maxLoopsSelect = this.element.querySelector(".max-loops-select") as HTMLSelectElement;
+    const loopCheckbox = this.element.querySelector(".loop-checkbox") as HTMLInputElement;
+    const loopSettings = this.element.querySelector(".loop-settings") as HTMLElement;
+    const maxLoopsInput = this.element.querySelector(".max-loops-input") as HTMLInputElement;
+
+    // Initialize with current options
+    loopCheckbox.checked = this.currentOptions.loop ?? false;
+    maxLoopsInput.value = (this.currentOptions.maxLoops ?? 1).toString();
+    loopSettings.style.display = loopCheckbox.checked ? "block" : "none";
+
+    // Set initial select/input state
+    if (this.currentOptions.maxLoops === undefined || this.currentOptions.maxLoops === -1) {
+      maxLoopsSelect.value = "-1";
+      maxLoopsInput.style.display = "none";
+    } else {
+      maxLoopsSelect.value = "custom";
+      maxLoopsInput.style.display = "inline";
+      maxLoopsInput.value = this.currentOptions.maxLoops.toString();
+    }
+
+    // Loop checkbox handler
+    loopCheckbox.addEventListener("change", () => {
+      this.currentOptions.loop = loopCheckbox.checked;
+      loopSettings.style.display = loopCheckbox.checked ? "block" : "none";
+
+      if (loopCheckbox.checked) {
+        // Default to infinite when enabling loop
+        this.currentOptions.maxLoops = -1;
+        maxLoopsSelect.value = "-1";
+        maxLoopsInput.style.display = "none";
+      } else {
+        delete this.currentOptions.maxLoops;
+      }
+    });
+
+    // Max loops select handler
+    maxLoopsSelect.addEventListener("change", () => {
+      if (maxLoopsSelect.value === "-1") {
+        this.currentOptions.maxLoops = -1;
+        maxLoopsInput.style.display = "none";
+      } else {
+        maxLoopsInput.style.display = "inline";
+        this.currentOptions.maxLoops = parseInt(maxLoopsInput.value);
+      }
+    });
+
+    // Max loops input handler
+    maxLoopsInput.addEventListener("change", () => {
+      const value = parseInt(maxLoopsInput.value);
+      if (value > 0) {
+        this.currentOptions.maxLoops = value;
+      }
+    });
+  }
+
   private initializeSpatialControl(): void {
     const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
     this.circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
     let isDragging = false;
 
     const handleMouseMove: EventListener = (e: Event): void => {
-        if (!isDragging) return;
-        const mouseEvent = e as MouseEvent;
-        const rect = grid.getBoundingClientRect();
-        const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
-        const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
-        const normalizedZ = (y / 50 - 1) * -1;
-        this.updateSpatialPosition(x, y, normalizedZ);
+      if (!isDragging) return;
+      const mouseEvent = e as MouseEvent;
+      const rect = grid.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
+      const normalizedZ = (y / 50 - 1) * -1;
+      this.updateSpatialPosition(x, y, normalizedZ);
     };
 
     const handleTouchMove: EventListener = (e: Event): void => {
-        if (!isDragging) return;
-        const touchEvent = e as TouchEvent;
-        const rect = grid.getBoundingClientRect();
-        const x = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientX - rect.left) / rect.width) * 100));
-        const y = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientY - rect.top) / rect.height) * 100));
-        const normalizedZ = (y / 50 - 1) * -1;
-        this.updateSpatialPosition(x, y, normalizedZ);
+      if (!isDragging) return;
+      const touchEvent = e as TouchEvent;
+      const rect = grid.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientY - rect.top) / rect.height) * 100));
+      const normalizedZ = (y / 50 - 1) * -1;
+      this.updateSpatialPosition(x, y, normalizedZ);
     };
 
-    const handleMouseDown: EventListener = (): void => { isDragging = true; };
-    const handleMouseUp: EventListener = (): void => { isDragging = false; };
-    const handleTouchStart: EventListener = (e: Event): void => {
-        isDragging = true;
-        (e as TouchEvent).preventDefault();
+    const handleMouseDown: EventListener = (): void => {
+      isDragging = true;
     };
-    const handleTouchEnd: EventListener = (): void => { isDragging = false; };
+    const handleMouseUp: EventListener = (): void => {
+      isDragging = false;
+    };
+    const handleTouchStart: EventListener = (e: Event): void => {
+      isDragging = true;
+      (e as TouchEvent).preventDefault();
+    };
+    const handleTouchEnd: EventListener = (): void => {
+      isDragging = false;
+    };
     const handleGridClick: EventListener = (e: Event): void => {
-        const mouseEvent = e as MouseEvent;
-        const rect = grid.getBoundingClientRect();
-        const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
-        const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
-        const normalizedZ = (y / 50 - 1) * -1;
-        this.updateSpatialPosition(x, y, normalizedZ);
+      const mouseEvent = e as MouseEvent;
+      const rect = grid.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
+      const normalizedZ = (y / 50 - 1) * -1;
+      this.updateSpatialPosition(x, y, normalizedZ);
     };
 
     const listeners: SpatialAudioListener[] = [
-        { target: this.circle, type: "mousedown", listener: handleMouseDown },
-        { target: document, type: "mouseup", listener: handleMouseUp },
-        { target: document, type: "mousemove", listener: handleMouseMove },
-        { target: this.circle, type: "touchstart", listener: handleTouchStart },
-        { target: document, type: "touchend", listener: handleTouchEnd },
-        { target: document, type: "touchmove", listener: handleTouchMove },
-        { target: grid, type: "click", listener: handleGridClick }
+      { target: this.circle, type: "mousedown", listener: handleMouseDown },
+      { target: document, type: "mouseup", listener: handleMouseUp },
+      { target: document, type: "mousemove", listener: handleMouseMove },
+      { target: this.circle, type: "touchstart", listener: handleTouchStart },
+      { target: document, type: "touchend", listener: handleTouchEnd },
+      { target: document, type: "touchmove", listener: handleTouchMove },
+      { target: grid, type: "click", listener: handleGridClick },
     ];
 
     listeners.forEach(({ target, type, listener }) => {
-        target.addEventListener(type, listener);
+      target.addEventListener(type, listener);
     });
 
     this.listenersSpatialAudio = listeners;
@@ -629,7 +685,7 @@ export class SoundControl {
     this.circle.style.top = `${centerY}%`;
 
     this.soundManager.setSoundPosition(this.id, 0, 0, 0);
-}
+  }
 
   private isSpatialPositionCentered(): boolean {
     const circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
@@ -689,6 +745,10 @@ export class SoundControl {
             window.clearInterval(this.progressInterval);
             this.progressInterval = 0;
           }
+          if (this.debounceTimer) {
+            window.clearTimeout(this.debounceTimer);
+            this.debounceTimer = 0;
+          }
         },
 
         // Remove sound event listeners
@@ -727,7 +787,7 @@ export class SoundControl {
 
           if (this.progressSlider) {
             this.progressSlider.removeEventListener("mousedown", this.boundHandlers.setDragging);
-            this.progressSlider.removeEventListener("input", this.boundHandlers.progressDrag);
+            // this.progressSlider.removeEventListener("input", this.boundHandlers.progressDrag);
             this.progressSlider.removeEventListener("change", this.boundHandlers.progressSeek);
           }
 
