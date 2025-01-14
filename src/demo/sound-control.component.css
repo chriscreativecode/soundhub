@@ -271,6 +271,52 @@
   color: var(--color-text);
 }
 
+.loop-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  font-size: var(--range-value-size);
+  user-select: none;
+}
+
+.max-loops-select {
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  margin-right: 0.5rem;
+}
+
+.loop-count-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+
+.max-loops-input {
+  width: 60px;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.loop-settings {
+  margin-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 @media (max-width: 768px) {
   .control-content {
     flex-direction: column;
