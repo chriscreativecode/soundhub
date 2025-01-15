@@ -9,9 +9,9 @@ export interface Sound {
   startTime: number;
   pausedAt: number;
   volume: number;
-  loop: boolean;
-  maxLoops: number; // 0 means infinite
-  currentLoopCount: number;
+  loop?: boolean;
+  maxLoops?: number; // 0 means infinite
+  currentLoopCount?: number;
   originalVolume?: number;
   previousVolume?: number;
   activeSource?: AudioBufferSourceNode;

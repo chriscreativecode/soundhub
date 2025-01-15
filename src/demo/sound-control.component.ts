@@ -6,6 +6,8 @@ import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
 import { PlaySoundOptions } from "../sound-manager/play-sound-options.interface";
 import { SoundState } from "../sound-manager/sound-state.interface";
+import { SoundManagerConfig } from "./../sound-manager/sound-manager-config";
+import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../sound-manager/sound-panner-config";
 
 interface SoundControlState {
   isPlaying: boolean;
@@ -36,6 +38,7 @@ export class SoundControl {
   private listenersSpatialAudio: SpatialAudioListener[] = [];
   private circle!: HTMLElement;
   private debounceTimer: number = 0;
+  private soundManagerConfig: SoundManagerConfig;
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -50,6 +53,7 @@ export class SoundControl {
 
   constructor(private id: string, private soundManager: SoundManager, private container: HTMLElement) {
     this.element = this.createControl();
+    this.soundManagerConfig = this.soundManager.getConfig();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
     this.panSlider = this.element.querySelector(".pan-slider")!;
     this.volumeSlider = this.element.querySelector(".volume-slider")!;
@@ -128,6 +132,10 @@ export class SoundControl {
     [SoundEventsEnum.SEEKED]: () => {
       // Handle seek completion if needed
       this.updateProgress();
+      // If the sound is playing, ensure progress updates continue
+      if (this.soundManager.isPlaying(this.id)) {
+        this.startProgressUpdates();
+      }
     },
     [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
       this.resetSpatialPosition();
@@ -265,7 +273,6 @@ export class SoundControl {
   }
 
   private seekToPosition(time: number): void {
-    this.stopProgressUpdates();
     this.soundManager.seekTo(this.id, time);
   }
 
@@ -276,6 +283,8 @@ export class SoundControl {
     this.initializeRangeInputs();
     this.initializeProgressSlider();
     this.initializeSpatialControl();
+    this.initializeSpatialSettings();
+    this.initializeCollapsiblePanel();
   }
 
   private reset(resetOptions?: { keepVolumes?: boolean; keepPanning?: boolean }): void {
@@ -285,7 +294,7 @@ export class SoundControl {
 
     // Reset volume if not keeping volumes
     if (!resetOptions?.keepVolumes) {
-      const defaultVolume = this.soundManager.getConfig().defaultVolume ?? 1;
+      const defaultVolume = this.soundManagerConfig.defaultVolume ?? 1;
       this.volumeSlider.value = defaultVolume.toString();
       this.handleRangeInput(this.volumeSlider);
       this.updateVolumeDisplay(defaultVolume);
@@ -306,7 +315,7 @@ export class SoundControl {
       isMuted: false,
       currentTime: 0,
       progress: 0,
-      volume: !resetOptions?.keepVolumes ? this.soundManager.getConfig().defaultVolume ?? 1 : this.state.volume,
+      volume: !resetOptions?.keepVolumes ? this.soundManagerConfig.defaultVolume ?? 1 : this.state.volume,
       pan: !resetOptions?.keepPanning ? 0 : this.state.pan,
     };
 
@@ -401,7 +410,7 @@ export class SoundControl {
     if (event.soundId && event.soundId !== this.id) return;
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`Received ${event.type} event for sound ${event.soundId}`);
+      console.log(`Received ${event.type} event for sound ${event.soundId ? event.soundId : "global"}`);
     }
 
     this.updateState();
@@ -565,19 +574,30 @@ export class SoundControl {
     const loopSettings = this.element.querySelector(".loop-settings") as HTMLElement;
     const maxLoopsInput = this.element.querySelector(".max-loops-input") as HTMLInputElement;
 
-    // Initialize with current options
-    loopCheckbox.checked = this.currentOptions.loop ?? false;
-    maxLoopsInput.value = (this.currentOptions.maxLoops ?? 1).toString();
-    loopSettings.style.display = loopCheckbox.checked ? "block" : "none";
+    // Initialize loop state from config or current options
+    const shouldLoop = this.currentOptions.loop ?? this.soundManagerConfig.loopSounds ?? false;
 
-    // Set initial select/input state
-    if (this.currentOptions.maxLoops === undefined || this.currentOptions.maxLoops === -1) {
-      maxLoopsSelect.value = "-1";
-      maxLoopsInput.style.display = "none";
-    } else {
-      maxLoopsSelect.value = "custom";
-      maxLoopsInput.style.display = "inline";
-      maxLoopsInput.value = this.currentOptions.maxLoops.toString();
+    // Set initial loop state
+    loopCheckbox.checked = shouldLoop;
+    loopSettings.style.display = shouldLoop ? "block" : "none";
+
+    // Update currentOptions with initial loop state
+    if (shouldLoop) {
+      this.currentOptions.loop = true;
+      this.currentOptions.maxLoops = -1; // Default to infinite loops
+    }
+
+    // Initialize max loops state
+    const initialMaxLoops = this.currentOptions.maxLoops ?? (shouldLoop ? -1 : undefined);
+    if (initialMaxLoops !== undefined) {
+      if (initialMaxLoops === -1) {
+        maxLoopsSelect.value = "-1";
+        maxLoopsInput.style.display = "none";
+      } else {
+        maxLoopsSelect.value = "custom";
+        maxLoopsInput.style.display = "inline";
+        maxLoopsInput.value = initialMaxLoops.toString();
+      }
     }
 
     // Loop checkbox handler
@@ -593,6 +613,12 @@ export class SoundControl {
       } else {
         delete this.currentOptions.maxLoops;
       }
+
+      // Update sound options
+      this.soundManager.updateSoundOptions(this.id, {
+        loop: this.currentOptions.loop,
+        maxLoops: this.currentOptions.loop ? this.currentOptions.maxLoops || -1 : 0,
+      });
     });
 
     // Max loops select handler
@@ -604,6 +630,10 @@ export class SoundControl {
         maxLoopsInput.style.display = "inline";
         this.currentOptions.maxLoops = parseInt(maxLoopsInput.value);
       }
+
+      this.soundManager.updateSoundOptions(this.id, {
+        maxLoops: this.currentOptions.maxLoops || 0,
+      });
     });
 
     // Max loops input handler
@@ -612,7 +642,19 @@ export class SoundControl {
       if (value > 0) {
         this.currentOptions.maxLoops = value;
       }
+      this.soundManager.updateSoundOptions(this.id, {
+        maxLoops: this.currentOptions.maxLoops || 0,
+      });
     });
+
+    // If looping is enabled from config, update play options
+    if (shouldLoop) {
+      this.currentOptions = {
+        ...this.currentOptions,
+        loop: true,
+        maxLoops: -1,
+      };
+    }
   }
 
   private initializeSpatialControl(): void {
@@ -684,7 +726,6 @@ export class SoundControl {
     this.circle.style.left = `${centerX}%`;
     this.circle.style.top = `${centerY}%`;
 
-    this.soundManager.setSoundPosition(this.id, 0, 0, 0);
   }
 
   private isSpatialPositionCentered(): boolean {
@@ -730,9 +771,120 @@ export class SoundControl {
     // Update coordinates display
     const coordsDisplay = this.element.querySelector(".spatial-coordinates") as HTMLElement;
     if (coordsDisplay) {
-      coordsDisplay.textContent = `Position: X: ${(x / 50 - 1).toFixed(2)}, Y: ${(-(y / 50 - 1)).toFixed(
+      coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${(-(y / 50 - 1)).toFixed(
         2
-      )}, Z: ${z.toFixed(2)}`;
+      )},<br/>Z: ${z.toFixed(2)}`;
+    }
+  }
+
+
+  private initializeSpatialSettings(): void {
+    const container = this.element.querySelector('.spatial-settings');
+    if (!container) return;
+  
+    // Get initial config
+    const config = {
+      ...DEFAULT_PANNER_CONFIG,
+      ...(this.soundManagerConfig.pannerNodeConfig || {}),
+    };
+  
+    // Initialize all inputs with current values
+    const elements = {
+      panningModel: container.querySelector('.panning-model-select') as HTMLSelectElement,
+      distanceModel: container.querySelector('.distance-model-select') as HTMLSelectElement,
+      refDistance: container.querySelector('.ref-distance-input') as HTMLInputElement,
+      maxDistance: container.querySelector('.max-distance-input') as HTMLInputElement,
+      rolloffFactor: container.querySelector('.rolloff-factor-input') as HTMLInputElement,
+      coneInnerAngle: container.querySelector('.cone-inner-angle-input') as HTMLInputElement,
+      coneOuterAngle: container.querySelector('.cone-outer-angle-input') as HTMLInputElement,
+      coneOuterGain: container.querySelector('.cone-outer-gain-input') as HTMLInputElement,
+    };
+  
+    // Set initial values
+    elements.panningModel.value = config.panningModel!;
+    elements.distanceModel.value = config.distanceModel!;
+    elements.refDistance.value = config.refDistance!.toString();
+    elements.maxDistance.value = config.maxDistance!.toString();
+    elements.rolloffFactor.value = config.rolloffFactor!.toString();
+    elements.coneInnerAngle.value = config.coneInnerAngle!.toString();
+    elements.coneOuterAngle.value = config.coneOuterAngle!.toString();
+    elements.coneOuterGain.value = config.coneOuterGain!.toString();
+  
+    // Add change handlers
+    const handleChange = (e: Event) => {
+      const target = e.target as HTMLInputElement | HTMLSelectElement;
+      const value = target.type === 'number' ? parseFloat(target.value) : target.value;
+      
+      // Map class names to property names
+      const propertyMap: Record<string, keyof SoundPannerConfig> = {
+        'panning-model-select': 'panningModel',
+        'distance-model-select': 'distanceModel',
+        'ref-distance-input': 'refDistance',
+        'max-distance-input': 'maxDistance',
+        'rolloff-factor-input': 'rolloffFactor',
+        'cone-inner-angle-input': 'coneInnerAngle',
+        'cone-outer-angle-input': 'coneOuterAngle',
+        'cone-outer-gain-input': 'coneOuterGain'
+      };
+  
+      const property = propertyMap[target.className];
+      if (!property) return;
+  
+      // Update the panner node configuration
+      const newConfig: Partial<SoundPannerConfig> = {
+        [property]: value
+      };
+  
+
+      console.log('new Config', newConfig);
+
+      // Update the sound's spatial settings
+      this.soundManager.setSoundPosition(
+        this.id,
+        parseFloat(this.circle.style.left) / 50 - 1,
+        -(parseFloat(this.circle.style.top) / 50 - 1),
+        0,
+        newConfig
+      );
+    };
+  
+    // Add event listeners
+    Object.values(elements).forEach(element => {
+      element.addEventListener('change', handleChange);
+    });
+  }
+
+
+  private initializeCollapsiblePanel(): void {
+    const header = this.element.querySelector('.control-header') as HTMLElement;
+    const content = this.element.querySelector('.spatial-content') as HTMLElement;
+    const button = header.querySelector('.collapse-btn') as HTMLButtonElement;
+    
+    // Set initial state (collapsed)
+    content.classList.add('collapsed');
+    
+    const toggleCollapse = () => {
+      const isCollapsed = content.classList.contains('collapsed');
+      content.classList.toggle('collapsed');
+      button.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+      
+      // Store the state in localStorage (optional)
+      localStorage.setItem(`spatial-panel-${this.id}-collapsed`, (!isCollapsed).toString());
+    };
+  
+    // Add click handler to both header and button
+    header.addEventListener('click', toggleCollapse);
+    
+    // Prevent double-triggering when clicking the button
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleCollapse();
+    });
+  
+    // Restore state from localStorage (optional)
+    const savedState = localStorage.getItem(`spatial-panel-${this.id}-collapsed`);
+    if (savedState === 'false') {
+      toggleCollapse();
     }
   }
 

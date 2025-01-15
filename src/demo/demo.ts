@@ -1,13 +1,14 @@
 import "./shared.css";
 import "./demo.css";
 
-import song from "../sounds/demo-song.mp3";
+import song from "../sounds/we-are-dreaming-song.mp3";
+import song2 from "../sounds/little-wonders-song.mp3";
 import birds from "../sounds/birds-forest.mp3";
 import rain from "../sounds/rain.mp3";
 import crickets from "../sounds/crickets.mp3";
 import brook from "../sounds/brook.mp3";
 import magma from "../sounds/under-sea-magma.mp3";
-import pongBounce from "../sounds/pong-bounce.mp3";
+import laserSound from "../sounds/laser-sound.mp3";
 
 import demoTemplate from "./demo.html?raw";
 import { SoundControl } from "./sound-control.component";
@@ -15,6 +16,7 @@ import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
 import type { SoundManager } from "../sound-manager/sound-manager";
 import { SoundManagerConfig } from "../sound-manager/sound-manager-config";
+import { DEMO_CONFIG } from "./demo.config";
 
 interface SoundManagerLibrary {
   SoundManager: new (config?: SoundManagerConfig) => SoundManager;
@@ -25,6 +27,7 @@ export class SoundManagerDemo {
   private soundControls: Map<string, SoundControl> = new Map();
   private containerElement: HTMLElement;
   private loadingState: boolean = false;
+  private soundManagerConfig: SoundManagerConfig = DEMO_CONFIG;
 
   private readonly BUTTON_IDS = [
     "pauseAllBtn",
@@ -91,7 +94,7 @@ export class SoundManagerDemo {
     }
 
     this.containerElement = container;
-    this.soundManager = new library.SoundManager({ spatialAudio: true, debug: false });
+    this.soundManager = new library.SoundManager(<SoundManagerConfig>this.soundManagerConfig);
     this.initialize();
   }
 
@@ -99,14 +102,25 @@ export class SoundManagerDemo {
     try {
       this.render();
       requestAnimationFrame(() => {
+        // Initialize master panning
         const masterPanningInput = document.getElementById("masterPanning") as HTMLInputElement;
+        const defaultPan = this.soundManagerConfig.defaultPan ?? 0;
         if (masterPanningInput) {
-          masterPanningInput.value = "0.5"; // Center position (will be converted to 0 pan)
+          masterPanningInput.value = ((defaultPan + 1) / 2).toString(); // Convert from -1,1 to 0,1
           masterPanningInput.min = "0";
           masterPanningInput.max = "1";
           masterPanningInput.step = "0.01";
-          this.updateMasterPan(0); // Initialize display to center
+          this.updateMasterPan(defaultPan);
         }
+
+        // Initialize master volume
+        const masterVolumeInput = document.getElementById("masterVolume") as HTMLInputElement;
+        const defaultVolume = this.soundManagerConfig.defaultVolume ?? 1;
+        if (masterVolumeInput) {
+          masterVolumeInput.value = defaultVolume.toString();
+          this.updateMasterVolume(defaultVolume);
+        }
+
         this.initializeEventListeners();
         this.initializeGlobalControls();
 
@@ -341,15 +355,15 @@ export class SoundManagerDemo {
       this.loadingState = true;
       this.updateLoadingState(true);
 
-
       const soundsToLoad = [
-        { id: "pong-bounce", url: pongBounce },
+        { id: "laser-sound", url: laserSound },
         { id: "birds", url: birds },
         { id: "rain", url: rain },
         { id: "crickets", url: crickets },
         { id: "brook", url: brook },
         { id: "magma", url: magma },
-        { id: "song", url: song },
+        { id: "we-are-dreaming-song", url: song },
+        { id: "little-wonders-song", url: song2} ,
       ];
 
       await this.soundManager.preloadSounds(soundsToLoad);
@@ -375,15 +389,14 @@ export class SoundManagerDemo {
       const rect = element.getBoundingClientRect();
       const isStuck = rect.top === 0 && window.scrollY >= originalTop;
       element.classList.toggle("is-stuck", isStuck);
-     
+
       if (isStuck) {
-        const stickyDivHeight = element.offsetHeight; 
-        soundControlsContainer.style.marginTop = `${stickyDivHeight + 50}px`; 
+        const stickyDivHeight = element.offsetHeight;
+        soundControlsContainer.style.marginTop = `${stickyDivHeight + 50}px`;
       } else {
         soundControlsContainer.style.marginTop = "0";
       }
     };
-
 
     window.addEventListener("scroll", checkStuck, { passive: true });
     checkStuck();

@@ -151,6 +151,60 @@ html {
   margin-right:20px;
 }
 
+.sound-manager-header {
+  padding: var(--spacing-sm) 0;
+  margin-bottom: var(--spacing-md);
+}
+
+.title-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.main-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-primary);
+}
+
+.version-badge {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.subtitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-xs);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.tagline {
+  font-style: italic;
+}
+
+.copyright {
+  font-size: 0.8rem;
+}
+
+/* Adjust the control-group spacing */
+.sound-manager-intro {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Make sure the preload button aligns well with the new header */
+.sound-manager-intro .control-content {
+  margin-top: var(--spacing-md);
+}
+
 @media (max-width: 768px) {
   .sound-manager-demo {
     padding: var(--spacing-sm);

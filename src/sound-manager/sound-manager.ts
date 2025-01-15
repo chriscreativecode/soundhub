@@ -3,6 +3,7 @@ import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { DEFAULT_CONFIG, SoundManagerConfig } from "./sound-manager-config";
 import { SoundManagerInterface } from "./sound-manager.interface";
+import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "./sound-panner-config";
 import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { SoundState } from "./sound-state.interface";
@@ -197,7 +198,6 @@ export class SoundManager implements SoundManagerInterface {
 
     // Set up onended handler with looping logic
     source.onended = () => {
-      console.log("sound inside onended", sound);
       this.debugLog(`Sound ${sound.id} ended naturally`);
 
       if (sound.state === SoundState.Playing && sound.loop) {
@@ -219,7 +219,7 @@ export class SoundManager implements SoundManagerInterface {
     sound.currentLoopCount = (sound.currentLoopCount ?? 0) + 1;
 
     // Check if we've reached max loops (0 means infinite)
-    if (sound.maxLoops > 0 && sound.currentLoopCount >= sound.maxLoops) {
+    if (sound.maxLoops !== undefined && sound.maxLoops > 0 && sound.currentLoopCount >= sound.maxLoops) {
       sound.currentLoopCount = 0;
       this.stopSound(sound.id);
       return;
@@ -443,7 +443,6 @@ export class SoundManager implements SoundManagerInterface {
   // Playback control-----------------------------------------------------------------------------------------------------------
 
   public playSound(id: string, options: PlaySoundOptions = {}): void {
-    console.log(" play options inside playSound", options);
     try {
       const sound = this.getValidatedSound(id);
       sound.currentLoopCount = 0;
@@ -454,8 +453,6 @@ export class SoundManager implements SoundManagerInterface {
         sound.loop = options.loop || false;
         sound.maxLoops = options.maxLoops ?? 0;
       }
-
-      console.log("play sound in sound manager", sound);
 
       const source = this.setupAudioSource(sound);
 
@@ -811,6 +808,7 @@ export class SoundManager implements SoundManagerInterface {
             state: SoundState.Stopped,
             volume: this.config.defaultVolume!,
             originalVolume: this.config.defaultVolume!,
+            loop: this.config.loopSounds ?? false,
           });
 
           this.debugLog(`Sound ${id} loaded successfully`);
@@ -842,6 +840,34 @@ export class SoundManager implements SoundManagerInterface {
 
   public updateSoundUrl(id: string, newUrl: string): Promise<void> {
     return this.preloadSounds([{ id, url: newUrl }]);
+  }
+
+  public updateSoundOptions(soundId: string, options: Partial<PlaySoundOptions>): void {
+    const sound = this.sounds.get(soundId);
+    if (!sound) {
+      this.debugLog(`Sound ${soundId} not found for updating options`);
+      return;
+    }
+  
+    // Update sound properties
+    if (options.loop !== undefined) {
+      sound.loop = options.loop;
+    }
+    if (options.maxLoops !== undefined) {
+      sound.maxLoops = options.maxLoops;
+      // Reset loop count when changing max loops
+      sound.currentLoopCount = 0;
+    }
+  
+    this.debugLog(`Updated options for sound ${soundId}:`, options);
+    
+    // Dispatch event for UI updates
+    this.dispatchEvent({
+      type: SoundEventsEnum.OPTIONS_UPDATED,
+      soundId,
+      timestamp: this.context.currentTime,
+      options
+    });
   }
 
   public isSoundLoaded(id: string): boolean {
@@ -1141,7 +1167,13 @@ export class SoundManager implements SoundManagerInterface {
     return this.config.spatialAudio === true && this.isSpatialAudioSupported();
   }
 
-  public setSoundPosition(soundId: string, x: number, y: number, z: number): void {
+  public setSoundPosition(
+    soundId: string,
+    x: number,
+    y: number,
+    z: number,
+    soundPannerConfig?: SoundPannerConfig
+  ): void {
     if (!this.config.spatialAudio) {
       this.debugLog("Spatial audio is not enabled");
       return;
@@ -1164,19 +1196,36 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     try {
+      // Merge configurations in order of precedence
+      const mergedConfig: SoundPannerConfig = {
+        ...DEFAULT_PANNER_CONFIG, // Start with default config
+        ...(this.config.pannerNodeConfig || {}), // Override with sound manager config if exists
+        ...(soundPannerConfig || {}), // Override with specific config if provided
+      };
+
       // Create a panner node if it doesn't exist
       if (!sound.pannerNode) {
         sound.pannerNode = this.context.createPanner();
-        sound.pannerNode.panningModel = "HRTF";
-        sound.pannerNode.distanceModel = "inverse";
-        sound.pannerNode.refDistance = 1;
-        sound.pannerNode.maxDistance = 10000;
-        sound.pannerNode.rolloffFactor = 1;
+        sound.pannerNode.panningModel = mergedConfig.panningModel!;
+        sound.pannerNode.distanceModel = mergedConfig.distanceModel!;
+        sound.pannerNode.refDistance = mergedConfig.refDistance!;
+        sound.pannerNode.maxDistance = mergedConfig.maxDistance!;
+        sound.pannerNode.rolloffFactor = mergedConfig.rolloffFactor!;
+        sound.pannerNode.coneInnerAngle = mergedConfig.coneInnerAngle!;
+        sound.pannerNode.coneOuterAngle = mergedConfig.coneOuterAngle!;
+        sound.pannerNode.coneOuterGain = mergedConfig.coneOuterGain!;
 
         // Reconnect the audio nodes with the panner
         source?.disconnect();
         source?.connect(sound.pannerNode);
         sound.pannerNode.connect(sound.gainNode);
+      } else if (soundPannerConfig) {
+        // If panner exists and new config is provided, update only the provided values
+        Object.entries(soundPannerConfig).forEach(([key, value]) => {
+          if (value !== undefined) {
+            (sound.pannerNode as any)[key] = value;
+          }
+        });
       }
 
       // Update position
@@ -1189,6 +1238,7 @@ export class SoundManager implements SoundManagerInterface {
         soundId,
         timestamp: this.context.currentTime,
         position: { x, y, z },
+        pannerConfig: soundPannerConfig,
       });
 
       this.debugLog(`Set position for sound ${soundId}: x=${x}, y=${y}, z=${z}`);
@@ -1199,6 +1249,26 @@ export class SoundManager implements SoundManagerInterface {
 
   public resetSoundPosition(id: string): void {
     this.setSoundPosition(id, 0, 0, 0);
+  }
+
+  public updatePannerConfig(soundId: string, newConfig: Partial<SoundPannerConfig>): void {
+    const sound = this.sounds.get(soundId);
+    if (!sound?.pannerNode) {
+      this.debugLog(`No panner node found for sound ${soundId}`);
+      return;
+    }
+
+    try {
+      Object.entries(newConfig).forEach(([key, value]) => {
+        if (value !== undefined) {
+          (sound.pannerNode as any)[key] = value;
+        }
+      });
+
+      this.debugLog(`Updated panner config for sound ${soundId}`, newConfig);
+    } catch (error) {
+      this.handleError("updating panner configuration", error);
+    }
   }
 
   public removeSpatialEffect(id: string): void {
