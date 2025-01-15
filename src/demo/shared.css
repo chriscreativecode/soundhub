@@ -2,6 +2,9 @@
   /* Colors */
   --color-primary: #4caf50;
   --color-primary-hover: #45a049;
+  --color-master: #2196F3;  /* Blue color for master controls */
+  --color-master-hover: #1976D2;
+  --color-master-disabled:#a8c1d9;
   --color-warning: rgb(182, 104, 1);
   --color-disabled: #cccccc;
   --color-background: rgb(0, 18, 74);
@@ -32,7 +35,8 @@
   --panel-radius: 10px;
   --panel-gap: 10px;
   --panel-background: rgb(51 95 143 / 83%);
-  --panel-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --panel-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+  --controls-shadow: inset 0 2px 4px 0px rgb(170 170 170);
 }
 
 /* Range input styling */
@@ -140,11 +144,14 @@ input[type="range"]::-moz-range-thumb:active {
   flex-wrap: wrap;
 }
 
+
 .control-group {
   background: var(--color-surface);
   border-radius: var(--panel-radius);
   padding: var(--spacing-md);
   box-shadow: var(--panel-shadow);
+  margin-bottom: 0.5rem;
+  flex:1;
 }
 
 .control-group.sticky {
@@ -176,6 +183,49 @@ input[type="range"]::-moz-range-thumb:active {
   font-size: 1.05rem;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 400;
+}
+
+/* Master control specific styles */
+
+.control-group.sticky.master-controls {
+  background: rgb(200 222 237 / 94%);
+}
+
+.control-group.master-controls input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(
+      to right,
+      var(--color-master) var(--range-progress, 0%),
+      #ddd var(--range-progress, 0%)
+  );
+}
+
+.control-group.master-controls input[type="range"]::-webkit-slider-thumb {
+  background: var(--color-master);
+}
+
+.control-group.master-controls input[type="range"]::-moz-range-progress {
+  background: var(--color-master);
+}
+
+.control-group.master-controls input[type="range"]::-moz-range-thumb {
+  background: var(--color-master);
+}
+
+.control-group.master-controls .icon-button,
+.control-group.master-controls button {
+  background: var(--color-master);
+}
+
+.control-group.master-controls button:disabled {
+  background-color: var(--color-master-disabled);
+}
+
+.control-group.master-controls button:hover:not(:disabled) {
+  background: var(--color-master-hover);
+} 
+
+.control-group.master-controls button:focus {
+  outline-color: var(--color-master);
 }
 
 button {
@@ -245,4 +295,12 @@ input[type="range"] {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+
+/* ----------------------------media queries------------------------------ */
+
+@media (min-width: 769px) {
+  .control-group {
+    min-width: 250px;
+  }
 }

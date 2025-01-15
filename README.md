@@ -304,6 +304,8 @@ Options for playing a sound:
 interface PlaySoundOptions {
     fadeIn?: number;      // Fade-in duration in milliseconds
     fadeOut?: number;     // Fade-out duration in milliseconds
+    loop?: boolean;       // Loop a sound (infinite by default)
+    maxLoops?: number;    // -1 for infinte.   
     pan?: number;         // Stereo pan value (-1 left to 1 right)
     startTime?: number;   // Start time in seconds
     volume?: number;      // Initial volume (0-1)
@@ -339,6 +341,7 @@ enum SoundEventsEnum {
     FADE_OUT_COMPLETED,
     FADE_MASTER_IN_COMPLETED,
     FADE_MASTER_OUT_COMPLETED,
+    LOOP_COMPLETED,
     MASTER_VOLUME_CHANGED,
     MUTED,
     MUTE_GLOBAL,
@@ -403,6 +406,7 @@ The package includes a comprehensive demo showcasing all features:
 * Sound loading and preloading
   * Individual sound controls
   * Play/Pause/Stop buttons
+  * Loop controls
   * Volume slider
   * Pan control
   * Fade in/out controls
@@ -435,6 +439,18 @@ Features are automatically adapted based on browser support:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 2.4.0
+- 🔄 Added comprehensive loop control system
+  - Support for infinite and custom loop counts
+  - Added loop iteration tracking and completion events
+  - Implemented maxLoops configuration with -1 for infinite loops
+- ⏩ Enhanced seeking functionality
+  - Improved real-time scrubbing with debounced updates
+  - Optimized seek performance during playback
+  - Better handling of seeking during loop playback
+  - Added visual feedback during seek operations
+  - Fixed multiple audio instance issues during seeking
 
 ### 2.3.0
 - 🔧 Fixed type declarations to prevent duplicate exports with incremental suffixes (_2)

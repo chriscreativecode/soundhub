@@ -2,6 +2,7 @@ import { PlaySoundOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundManagerConfig } from "./sound-manager-config";
+import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { Sound } from "./sound.interface";
@@ -52,10 +53,11 @@ export interface SoundManagerInterface {
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
-  setSoundPosition(id: string, x: number, y: number, z: number): void;
+  setSoundPosition(id: string, x: number, y: number, z: number, soundPannerConfig?: SoundPannerConfig): void;
   resetSoundPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
+  updatePannerConfig(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
 
   // Pan control
   setPan(id: string, pan: number): void;
@@ -69,6 +71,7 @@ export interface SoundManagerInterface {
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
+  updateSoundOptions(soundId: string, options: Partial<PlaySoundOptions>): void;
   isStopped(id: string): boolean;
   destroy(): void;
 
