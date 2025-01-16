@@ -67,7 +67,7 @@ Transform your web audio experience with just a few lines of code!
 ## About me
 ### Chris Schardijn (Front-end Developer)
 
-My journey in web development spans back to the Flash era, where among various projects, I developed a sound manager using ActionScript 3.0. As technology evolved, so did I, embracing new challenges and opportunities to grow. This Sound Manager TypeScript project represents not just a modern reimagining of a concept I once built in Flash, but also my passion for continuous learning and adaptation in the ever-changing landscape of web development.
+My journey in web development spans back to the Flash era, where among various projects, I developed a sound manager using ActionScript 3.0. As technology evolved, so did I, embracing new challenges and opportunities to grow. This Sound Manager TypeScript project represents not just a modern reimagining of a concept I once built in Flash, but also my challange for continuous learning and adaptation in the ever-changing landscape of web development.
 
 I built this library in my spare time. What started as a personal study project has grown into a robust solution that I'm excited to share with the developer community.
 
@@ -302,13 +302,13 @@ Options for playing a sound:
 
 ```typescript
 interface PlaySoundOptions {
-    fadeIn?: number;      // Fade-in duration in milliseconds
-    fadeOut?: number;     // Fade-out duration in milliseconds
-    loop?: boolean;       // Loop a sound (infinite by default)
-    maxLoops?: number;    // -1 for infinte.   
-    pan?: number;         // Stereo pan value (-1 left to 1 right)
-    startTime?: number;   // Start time in seconds
-    volume?: number;      // Initial volume (0-1)
+    fadeIn?: number;
+    fadeOut?: number;
+    pan?: number; // -1 (left) to 1 (right)
+    startTime?: number; 
+    volume?: number;
+    loop?: boolean;
+    maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
 }
 ```
 
@@ -317,16 +317,17 @@ Event object dispatched by the sound manager:
 
 ```typescript
 interface SoundEvent {
-    currentTime?: number;  // Current playback time
-    error?: Error;         // Error details if applicable
-    soundId?: string;      // ID of the sound
-    timestamp?: number;    // When the event occurred
-    type: SoundEventsEnum; // Event type
-    volume?: number;       // Current volume
-    isMuted?: boolean;     // Mute state
-    pan?: number;          // Current pan value
-    position?: number;     // Current sound position for the spatial audio (3d Audio)
-    previousPan?: number;  // Previous pan value
+    autoMuteOnHidden: true, // When the page is hidden, all sounds are muted
+    autoResumeOnFocus: true, // when the page is focused again, all sounds are resumed
+    crossOrigin: null, // CORS setting for audio files
+    debug: true,  //  Enable debug logging
+    defaultPan: 0, //  Default pan for new sounds (0-1)
+    defaultVolume: 1, // Default volume for new sounds (0-1)
+    fadeInDuration: 1000, // Default fade-in duration in milliseconds
+    fadeOutDuration: 1000, // Default fade-out duration in milliseconds
+    spatialAudio: true, //  Enable spatial audio features
+    loopSounds: true, // Loop all sounds by default
+    pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Default panner settings
 }
 ```
 
@@ -345,6 +346,7 @@ enum SoundEventsEnum {
     MASTER_VOLUME_CHANGED,
     MUTED,
     MUTE_GLOBAL,
+    OPTIONS_UPDATED,
     UNMUTE_GLOBAL,
     MASTER_PAN_CHANGED,
     PAN_CHANGED,
@@ -441,16 +443,46 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 ## 📋 Version History
 
 ### 2.4.0
-- 🔄 Added comprehensive loop control system
+#### New Features
+- 🎮 Added comprehensive loop control system
   - Support for infinite and custom loop counts
   - Added loop iteration tracking and completion events
   - Implemented maxLoops configuration with -1 for infinite loops
-- ⏩ Enhanced seeking functionality
+  - Runtime loop configuration updates via UI controls
+
+- 🎯 Enhanced seeking functionality
   - Improved real-time scrubbing with debounced updates
   - Optimized seek performance during playback
   - Better handling of seeking during loop playback
   - Added visual feedback during seek operations
   - Fixed multiple audio instance issues during seeking
+
+- 🔊 Implemented 3D spatial audio support
+  - Added configurable panning and distance models
+  - Interactive 2D position grid for sound placement
+  - Configurable spatial parameters:
+    - Reference and max distance
+    - Rolloff factor
+    - Cone angles and outer gain
+  - Real-time spatial parameter updates
+
+#### Improvements
+- 🛠️ Enhanced configuration system
+  - Added separate configuration file for better organization
+  - Support for default spatial audio settings
+  - Configurable initial volume and panning
+  - Global loop settings configuration
+
+- 📊 Expanded event system
+  - Added OPTIONS_UPDATED event for runtime changes
+  - Improved event handling for spatial updates
+  - Better synchronization between UI and audio state
+
+- 🎨 UI/UX enhancements
+  - Collapsible control panels for better space management
+  - Improved master controls section
+  - Enhanced visual feedback for audio operations
+  - Better organization of spatial audio controls
 
 ### 2.3.0
 - 🔧 Fixed type declarations to prevent duplicate exports with incremental suffixes (_2)
@@ -540,6 +572,6 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 🚀 Upcoming Features
 📍 **Spatial Recording & Playback**
+- Adding sound sprites for efficient playback of multiple sounds from a single audio file
 - Add Spatial (3d) recording capability
 - Enable playback of recorded sound positions over time
-- Configure option for the Spatial audio in the setSoundPosition
