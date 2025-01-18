@@ -37,26 +37,35 @@
       "require": "./dist/sound-manager-ts.umd.js"
     }
   },
- "files": [
+  "files": [
     "dist/sound-manager-ts.umd.js",
     "dist/sound-manager-ts.es.js",
     "dist/types"
   ],
   "scripts": {
     "dev": "vite",
+    "dev:docs": "cross-env NODE_ENV=development node scripts/inject-readme.js && vite --mode documentation-dev --open /index-dev.html",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:lib && npm run build:demo",
+    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
     "build:lib": "tsc && vite build --mode lib",
     "build:demo": "vite build --mode demo && npm run copy-demo-assets && npm run rename-index",
+    "build:docs": "vite build --mode documentation-dev && node scripts/inject-readme.js",
     "rename-index": "node scripts/rename-index.js",
     "copy-demo-assets": "node scripts/copy-demo-assets.js",
+    "generate-docs": "node scripts/inject-readme.js",
     "preview": "vite preview"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "cross-env": "^7.0.3",
     "fs-extra": "^11.2.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.4",
-    "vite-plugin-dts": "^4.4.0"
+    "vite": "^6.0.4"
+  },
+  "dependencies": {
+    "github-markdown-css": "^5.8.1",
+    "highlight.js": "^11.11.1",
+    "marked": "^14.0.0",
+    "marked-gfm-heading-id": "^4.1.1"
   }
 }

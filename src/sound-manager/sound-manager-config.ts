@@ -5,7 +5,7 @@ export interface SoundManagerConfig {
   autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
   crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
   debug?: boolean; // Enable debug logging
-  defaultPan?: number;
+  defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
   defaultVolume?: number; // Default volume for new sounds (0-1)
   fadeInDuration?: number; // Default fade-in duration in milliseconds
   fadeOutDuration?: number; // Default fade-out duration in milliseconds
