@@ -1,6 +1,7 @@
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig, LibraryFormats } from "vite";
+import { readmePlugin } from "./scripts/vite-readme-plugin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,29 +61,21 @@ const demoConfig = {
   },
 };
 
-const documentationConfig = {
-  root: "dist/documentation", // Serve from the documentation folder
-  base: "./",
-  build: {
-    outDir: "dist/documentation",
-    emptyOutDir: false,
-  }
-};
-
+// Documentation development configuration
 const documentationDevConfig = {
+  plugins: [readmePlugin()],
   root: "src/documentation",
   base: "./",
   server: {
-    open: true,
     port: 5173,
+    open: '/index-dev.html',
     watch: {
-      usePolling: true,
-      include: ['src/documentation/**'],
+      usePolling: false,
     },
   },
   build: {
     outDir: "../../dist/documentation",
-    emptyOutDir: true, // Changed to true to clean the output directory
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'src/documentation/index.html')
@@ -96,6 +89,27 @@ const documentationDevConfig = {
   },
   optimizeDeps: {
     exclude: ['fs', 'path']
+  }
+};
+
+// Documentation production configuration
+const documentationConfig = {
+  plugins: [readmePlugin()],
+  root: "src/documentation",
+  base: "./",
+  build: {
+    outDir: "../dist/documentation",
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'src/documentation/index.html')
+      },
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]'
+      }
+    }
   }
 };
 

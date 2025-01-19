@@ -1,22 +1,114 @@
-<!-- index-prod.html -->
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Sound Manager TS - Interactive Audio Library Demo</title>
+    <meta name="title" content="Sound Manager TS - Interactive Audio Library Demo" />
+    <meta name="description" content="Experience the Sound Manager TS library in action. Test audio controls, sound sprites, volume management, and cross-browser compatibility in this interactive demo." />
+    <meta name="keywords" content="audio library demo, sound manager typescript, web audio api, sound sprites, audio management, typescript audio library, javascript audio control" />
+    <meta name="author" content="Chris Schardijn" />
+    <meta name="application-name" content="Sound Manager TS Demo" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://chriscreativecode.com/sound-manager-ts/demo/" />
+    <meta property="og:title" content="Sound Manager TS - Interactive Audio Library Demo" />
+    <meta property="og:description" content="Experience the Sound Manager TS library in action. Test audio controls, sound sprites, volume management, and cross-browser compatibility in this interactive demo." />
+    <meta property="og:image" content="https://chriscreativecode.com/sound-manager-ts/demo/preview-image.jpg" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://chriscreativecode.com/sound-manager-ts/demo/" />
+    <meta property="twitter:title" content="Sound Manager TS - Interactive Audio Library Demo" />
+    <meta property="twitter:description" content="Experience the Sound Manager TS library in action. Test audio controls, sound sprites, volume management, and cross-browser compatibility in this interactive demo." />
+    <meta property="twitter:image" content="https://chriscreativecode.com/sound-manager-ts/demo/preview-image.jpg" />
+
+    <!-- Favicon -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+    <link rel="preload" href="./lib/sound-manager-ts.umd.js?v=2.4.0" as="script" />
+    
+    <!-- Web App Manifest -->
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="keywords" content="audio, sound manager, web audio" />
-    <meta name="author" content="Chris Schardijn" />
-    <meta name="description" content="A demo for the Sound Manager project showcasing audio management features." />
-    <title>Sound Manager TS (Demo)</title>
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://chriscreativecode.com/sound-manager-ts/demo/" />
+
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="robots" content="index, follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   </head>
   <body>
     <div id="app"></div>
-    <!-- Only prod mode needs the UMD script -->
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Sound Manager TS Demo",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "description": "Interactive demonstration of the Sound Manager TS library for web audio management",
+        "softwareVersion": "2.4.0",
+        "url": "https://chriscreativecode.com/sound-manager-ts/demo/",
+        "author": {
+          "@type": "Person",
+          "name": "Chris Schardijn"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "applicationSuite": "Sound Manager TS",
+        "featureList": [
+          "Audio sprite support",
+          "Volume control",
+          "Cross-browser compatibility",
+          "Real-time audio manipulation"
+        ]
+      }
+    </script>
+
+    <!-- Breadcrumb Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [{
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://chriscreativecode.com"
+        },{
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Sound Manager TS",
+          "item": "https://chriscreativecode.com/sound-manager-ts"
+        },{
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Demo",
+          "item": "https://chriscreativecode.com/sound-manager-ts/demo"
+        }]
+      }
+    </script>
+
+    <!-- Library and Main Script -->
     <script src="./lib/sound-manager-ts.umd.js?v=2.4.0"></script>
     <script type="module" src="/src/demo/main-prod.ts"></script>
+
+    <!-- Fallback for No JavaScript -->
+    <noscript>
+      <p>This demo requires JavaScript to be enabled in your browser.</p>
+    </noscript>
   </body>
 </html>
