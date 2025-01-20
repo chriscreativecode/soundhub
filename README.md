@@ -1,6 +1,5 @@
 # 🎵 Modern Web Audio Manager build in TypeScript.
 
-
 [![npm version](https://img.shields.io/npm/v/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
@@ -76,7 +75,7 @@ Transform your web audio experience with just a few lines of code!
 - [Upcoming Features](#upcoming-features)
 
 
-## About me
+## About me v12
 ### Chris Schardijn (Front-end Developer)
 
 My journey in web development spans back to the Flash era, where among various projects, I developed a sound manager using ActionScript 3.0. As technology evolved, so did I, embracing new challenges and opportunities to grow. This Sound Manager TypeScript project represents not just a modern reimagining of a concept I once built in Flash, but also my challange for continuous learning and adaptation in the ever-changing landscape of web development.

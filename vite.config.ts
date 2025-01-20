@@ -68,6 +68,7 @@ const documentationDevConfig = {
   base: "./",
   server: {
     port: 5173,
+    //open: true,
     open: '/index-dev.html',
     watch: {
       usePolling: false,
@@ -78,7 +79,7 @@ const documentationDevConfig = {
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'src/documentation/index.html')
+        main: path.resolve(__dirname, 'src/documentation/index-dev.html')
       },
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
