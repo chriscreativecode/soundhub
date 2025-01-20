@@ -45,37 +45,25 @@ Supports all modern browsers including Chrome, Firefox, Safari, and Edge (98.5% 
 
 Transform your web audio experience with just a few lines of code!
 
-## Table of Contents
-- [Live Demo](#live-demo)
-- [Why Choose This Package](#why-choose-this-package)
-- [Features](#features)
-- [Browser Support](#browser-support)
-- [About Me](#about-me)
-- [Documentation](#documentation)
-  - [Installation / Implement in Your Project](#installation--implement-in-your-project)
-    - [Using the Sound Manager as TypeScript Module](#1-using-the-sound-manager-as-typescript-module)
-    - [Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
-  - [Basic Usage](#basic-usage)
-  - [Configuration](#configuration)
-    - [Sound Manager Config](#sound-manager-config)
-    - [Spatial Audio Config](#spatial-audio-config)
-  - [API Reference](#api-reference)
-  - [Interfaces](#interfaces)
-    - [PlaySoundOptions](#playsoundoptions)
-    - [SoundEvent](#soundevent)
-    - [SoundEventsEnum](#soundeventsenum)
-    - [Sound State Information](#sound-state-information)
-    - [Sound Reset Options](#sound-reset-options)
-    - [SoundState](#soundstate)
-    - [Sound](#sound)
+## Documentation
+- [Installation / Implement in Your Project](#installation--implement-in-your-project)
+  - [Using the Sound Manager as TypeScript Module](#1-using-the-sound-manager-as-typescript-module)
+  - [Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
+- [Usage](#usage)
+- [Interfaces](#interfaces)
+  - [SoundEvent](#soundevent)
+  - [SoundEventsEnum](#soundeventsenum)
+  - [SoundManagerConfig](#soundmanagerconfig)
+  - [Sound State Information](#sound-state-information)
+  - [SoundState](#soundstate)
 - [Demo Included](#demo-included)
 - [Running the Demo](#running-the-demo)
-- [License](#licence)
+- [Browser Support](#browser-support)
+- [Licence](#licence)
 - [Version History](#version-history)
 - [Upcoming Features](#upcoming-features)
 
-
-## About me v12
+## About me
 ### Chris Schardijn (Front-end Developer)
 
 My journey in web development spans back to the Flash era, where among various projects, I developed a sound manager using ActionScript 3.0. As technology evolved, so did I, embracing new challenges and opportunities to grow. This Sound Manager TypeScript project represents not just a modern reimagining of a concept I once built in Flash, but also my challange for continuous learning and adaptation in the ever-changing landscape of web development.
@@ -167,7 +155,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=2.4.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=2.3.0"></script>
     <script>
         // Initialize the Sound Manager
         const soundManager = new SoundManager({
@@ -204,7 +192,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 
 ```
 
-## Basic Usage
+## Usage
 
 ```typescript
 import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager-ts';
@@ -286,6 +274,20 @@ soundManager.toggleMute();
 // Spatial audio (if enabled in config)
 soundManager.setSoundPosition('background-music', 1, 0, -1);
 soundManager.resetSoundPosition('background-music');
+soundManager.removeSpatialEffect();
+soundManager.isSpatialAudioActive('background-music');
+soundManager.updatePannerConfig('background-music', 
+    <SoundPannerConfig>{
+        panningModel: PanningModel.HRTF,
+        distanceModel: DistanceModel.Inverse,
+        refDistance: 1,
+        maxDistance: 10000,
+        rolloffFactor: 0.2,
+        coneInnerAngle: 360,
+        coneOuterAngle: 360,
+        coneOuterGain: 0,
+    }
+);
 
 // State checks
 const isPlaying = soundManager.isPlaying('background-music');
@@ -308,175 +310,45 @@ soundManager.destroy();
 
 ```
 
-# Documentation
-
-## Configuration
-
-### Sound manager config
-Configuration options for the sound manager:
-
-```typescript
-interface SoundManagerConfig {
-  autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
-  autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
-  crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
-  debug?: boolean; // Enable debug logging
-  defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
-  defaultVolume?: number; // Default volume for new sounds (0-1)
-  fadeInDuration?: number; // Default fade-in duration in milliseconds
-  fadeOutDuration?: number; // Default fade-out duration in milliseconds
-  spatialAudio?: boolean; // Enable spatial audio features
-  loopSounds?: boolean // Loop all sounds by default
-  pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
-}
-```
-
-### Spatial audio config
-Configuration options for the 3D Sound / Spatial Audio:
-
-```typescript
- interface SoundPannerConfig {
-  panningModel?: PanningModel;  // Spatialisation algorithm: 'HRTF' (default) or 'equalpower'.
-  distanceModel?: DistanceModel;  // Volume reduction model: 'linear', 'inverse' (default), or 'exponential'.
-  refDistance?: number;  // Reference distance for volume reduction (default 1m). @min 0
-  maxDistance?: number;  // Max distance after which volume stops reducing (default 10000m). @min refDistance
-  rolloffFactor?: number;  // Speed of volume reduction: 'linear' [0,1], 'inverse' [0,∞], 'exponential' [0,∞]. Default 1.
-  coneInnerAngle?: number;  // Inner cone angle (no volume reduction). Default 360°. @range [0, 360]
-  coneOuterAngle?: number;  // Outer cone angle (constant reduction). Default 360°. @range [0, 360]
-  coneOuterGain?: number;  // Volume reduction outside the outer cone. Default 0. @range [0, 1]
- }
-```
-
-
-##  Api reference
-
-```typescript
-import { PlaySoundOptions } from "./play-sound-options.interface";
-import { SoundEvent } from "./sound-event.interface";
-import { SoundEventsEnum } from "./sound-events.enum";
-import { SoundManagerConfig } from "./sound-manager-config";
-import { SoundPannerConfig } from "./sound-panner-config";
-import { SoundResetOptions } from "./sound-reset-options.interface";
-import { SoundStateInfo } from "./sound-state-info.interface";
-import { Sound } from "./sound.interface";
-
-export interface SoundManagerInterface {
-  // Playback control
-  playSound(id: string, options?: PlaySoundOptions): void;
-  pauseSound(id: string): void;
-  resumeSound(id: string): void;
-  stopSound(id: string): void;
-  seekTo(id: string, time: number): void;
-
-  // Volume control
-  setVolumeById(id: string, volume: number): void;
-  getVolumeById(id: string): number;
-  setGlobalVolume(volume: number): void;
-  getGlobalVolume(): number;
-
-  // Mute control
-  muteAllSounds(): void;
-  unmuteAllSounds(): void;
-  muteSoundById(id: string): void;
-  unmuteSoundById(id: string): void;
-  toggleMute(): void;
-
-  // Sound loading and management
-  preloadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
-  updateSoundUrl(id: string, newUrl: string): Promise<void>;
-  isSoundLoaded(id: string): boolean;
-  hasSound(id: string): boolean;
-
-  // State checks
-  isPlaying(id: string): boolean;
-  isPaused(id: string): boolean;
-  getSoundState(id: string): SoundStateInfo;
-
-  // Batch operations
-  stopAllSounds(): void;
-  pauseAllSounds(): void;
-  resumeAllSounds(): void;
-  reset(options?: SoundResetOptions): void;
-
-  // Fading
-  fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void;
-  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number): void;
-  fadeMasterIn(duration?: number, startVolume?: number, endVolume?: number): void;
-  fadeMasterOut(duration?: number, startVolume?: number, endVolume?: number): void;
-
-  // Spatial audio
-  isSpatialAudioEnabled(): boolean;
-  setSoundPosition(id: string, x: number, y: number, z: number, soundPannerConfig?: SoundPannerConfig): void;
-  resetSoundPosition(id: string): void;
-  removeSpatialEffect(id: string): void;
-  isSpatialAudioActive(id: string): boolean;
-  updatePannerConfig(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
-
-  // Pan control
-  setPan(id: string, pan: number): void;
-  removePan(id: string): void;
-  setMasterPan(value: number): void;
-  getMasterPan(): number;
-  resetMasterPan(): void;
-  isStereoPanActive(id: string): boolean;
-
-  // Utility
-  getConfig(): Readonly<SoundManagerConfig>;
-  getSound(id: string): Sound | undefined;
-  getSoundIds(): string[];
-  updateSoundOptions(soundId: string, options: Partial<PlaySoundOptions>): void;
-  isStopped(id: string): boolean;
-  destroy(): void;
-
-  // listeners
-  addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
-  removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
-}
-
-```
-
-
 ## Interfaces
+Options for playing a sound:
 
-###  playsoundoptions
 ```typescript
 interface PlaySoundOptions {
-  fadeIn?: number;
-  fadeOut?: number;
-  pan?: number; // -1 (left) to 1 (right)
-  startTime?: number; 
-  volume?: number;
-  loop?: boolean;
-  maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
+    fadeIn?: number;
+    fadeOut?: number;
+    pan?: number; // -1 (left) to 1 (right)
+    startTime?: number; 
+    volume?: number;
+    loop?: boolean;
+    maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
 }
 ```
 
-### SoundEvent
+## SoundEvent
 Event object dispatched by the sound manager:
 
 ```typescript
 interface SoundEvent {
-  currentTime?: number;
-  error?: Error;
-  isMuted?: boolean;
-  options?: PlaySoundOptions;
-  pan?: number;
-  pannerConfig?: SoundPannerConfig;
-  position?: {x:number, y:number, z: number};
-  previousPan?: number;
-  resetOptions?: SoundResetOptions;
-  soundId?: string;
-  timestamp?: number;
-  type: SoundEventsEnum;
-  volume?: number;
+    autoMuteOnHidden: true, // When the page is hidden, all sounds are muted
+    autoResumeOnFocus: true, // when the page is focused again, all sounds are resumed
+    crossOrigin: null, // CORS setting for audio files
+    debug: true,  //  Enable debug logging
+    defaultPan: 0, //  Default pan for new sounds (0-1)
+    defaultVolume: 1, // Default volume for new sounds (0-1)
+    fadeInDuration: 1000, // Default fade-in duration in milliseconds
+    fadeOutDuration: 1000, // Default fade-out duration in milliseconds
+    spatialAudio: true, //  Enable spatial audio features
+    loopSounds: true, // Loop all sounds by default
+    pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Default panner settings
 }
 ```
 
-### SoundEventsEnum
+## SoundEventsEnum
 Available event types:
 
 ```typescript
-export enum SoundEventsEnum {
+enum SoundEventsEnum {
     ENDED,
     ERROR,
     FADE_IN_COMPLETED,
@@ -487,23 +359,39 @@ export enum SoundEventsEnum {
     MASTER_VOLUME_CHANGED,
     MUTED,
     MUTE_GLOBAL,
+    OPTIONS_UPDATED,
     UNMUTE_GLOBAL,
     MASTER_PAN_CHANGED,
-    OPTIONS_UPDATED,
     PAN_CHANGED,
     PAUSED,
-    RESET,
     RESUMED,
     SEEKED,
     SPATIAL_POSITION_CHANGED,
     STARTED,
     STOPPED,
     UNMUTED,
-    VOLUME_CHANGED,
+    VOLUME_CHANGED
 }
 ```
 
-### Sound State Information
+## SoundManagerConfig
+Configuration options:
+
+```typescript
+interface SoundManagerConfig {
+    autoMuteOnHidden?: boolean;    // Mute when tab hidden
+    autoResumeOnFocus?: boolean;   // Resume on tab focus
+    crossOrigin?: string;          // CORS setting
+    debug?: boolean;               // Enable debug logs
+    defaultPan?: number;           // Default pan value
+    defaultVolume?: number;        // Default volume
+    fadeInDuration?: number;       // Default fade-in time
+    fadeOutDuration?: number;      // Default fade-out time
+    spatialAudio?: boolean;        // Enable spatial audio
+}
+```
+
+## Sound State Information
 Information about a sound's current state:
 
 ```typescript
@@ -515,51 +403,14 @@ interface SoundStateInfo {
 }
 ```
 
-### Sound reset options
-These are the options you can use in the 
-```typescript
-soundManager.reset(options: SoundResetOptions);
-```
-
-```typescript
-interface SoundResetOptions {
-  keepVolumes?: boolean; // Keep current volume settings
-  keepPanning?: boolean; // Keep current panning settings
-  keepSpatial?: boolean; // Keep spatial audio settings
-  unloadSounds?: boolean; // Unload all sounds
-}
-```
-
-### SoundState
+## SoundState
 Possible states of a sound:
+
 ```typescript
 enum SoundState {
     Playing = "playing",
     Paused = "paused",
     Stopped = "stopped"
-}
-```
-
-### Sound
-The internal sound object
-
-```typescript
-interface Sound {
-  id: string;
-  buffer: AudioBuffer;
-  gainNode: GainNode;
-  stereoPanner?: StereoPannerNode; // just plain left to right panning
-  pannerNode?: PannerNode; // for 3D panning
-  startTime: number;
-  pausedAt: number;
-  volume: number;
-  loop?: boolean;
-  maxLoops?: number; // 0 means infinite
-  currentLoopCount?: number;
-  originalVolume?: number;
-  previousVolume?: number;
-  activeSource?: AudioBufferSourceNode;
-  state: SoundState;  
 }
 ```
 
@@ -599,7 +450,7 @@ Features are automatically adapted based on browser support:
 * Provides webkit prefix support for Safari
 
 
-## License
+## Licence
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
@@ -627,12 +478,6 @@ This project is developed by Chris Schardijn. It is free to use in your project.
     - Rolloff factor
     - Cone angles and outer gain
   - Real-time spatial parameter updates
-
-- 📚 **Documentation**
-  - Buid documentation page that uses the README.md file
-  - Updated README.MD documentation
-  - Updated table of contents
-  - Added more code examples and documentation for the API
 
 #### Improvements
 - 🛠️ Enhanced configuration system

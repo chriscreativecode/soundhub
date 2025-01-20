@@ -1,13 +1,13 @@
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { defineConfig, LibraryFormats } from "vite";
+import { defineConfig, UserConfig,LibraryFormats } from "vite";
 import { readmePlugin } from "./scripts/vite-readme-plugin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration for building the library
-const libConfig = {
+const libConfig : UserConfig = {
   build: {
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
@@ -26,7 +26,7 @@ const libConfig = {
   }
 };
 
-const devConfig = {
+const devConfig : UserConfig = {
   root: ".",
   base: "/",
   build: {
@@ -44,7 +44,7 @@ const devConfig = {
   },
 };
 
-const demoConfig = {
+const demoConfig: UserConfig= {
   base: "./",
   build: {
     outDir: "dist/demo",
@@ -62,14 +62,13 @@ const demoConfig = {
 };
 
 // Documentation development configuration
-const documentationDevConfig = {
+const documentationDevConfig: UserConfig = {
   plugins: [readmePlugin()],
   root: "src/documentation",
   base: "./",
   server: {
     port: 5173,
-    //open: true,
-    open: '/index-dev.html',
+    open: '/index.html',
     watch: {
       usePolling: false,
     },
@@ -79,7 +78,7 @@ const documentationDevConfig = {
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'src/documentation/index-dev.html')
+        main: path.resolve(__dirname, 'src/documentation/index.html')
       },
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
@@ -94,7 +93,7 @@ const documentationDevConfig = {
 };
 
 // Documentation production configuration
-const documentationConfig = {
+const documentationConfig: UserConfig = {
   plugins: [readmePlugin()],
   root: "src/documentation",
   base: "./",
@@ -138,7 +137,7 @@ export default defineConfig(({ command, mode }) => {
       build: {
         ...devConfig.build,
         rollupOptions: {
-          input: path.resolve(__dirname, "index-dev.html"),
+          input: path.resolve(__dirname, "index.html"),
         },
       },
     };
