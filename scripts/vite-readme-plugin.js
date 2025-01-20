@@ -1,4 +1,3 @@
-// scripts/vite-readme-plugin.js
 import fs from "fs";
 import path from "path";
 import { marked } from "marked";
@@ -7,108 +6,97 @@ import { gfmHeadingId } from "marked-gfm-heading-id";
 
 export function readmePlugin() {
   let isProcessing = false;
-  let generateDocumentation;
-  let isWatchingReadme = false;
+  
+  async function generateDocumentation() {
+    if (isProcessing) return;
+
+    try {
+      isProcessing = true;
+
+      const readmeFilePath = path.resolve("README.md");
+      const templateFilePath = path.resolve("src/documentation/template.html");
+      const outputFilePath = path.resolve("src/documentation/index.html");
+
+      console.log("\n📝 Updating README documentation...");
+
+      const markdownContent = fs.readFileSync(readmeFilePath, "utf-8");
+      const templateContent = fs.readFileSync(templateFilePath, "utf-8");
+
+      marked.use(gfmHeadingId());
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+        highlight(code, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
+          }
+          return hljs.highlightAuto(code).value;
+        },
+      });
+
+      const htmlContent = marked(markdownContent);
+      const wrappedContent = `<article class="markdown-body">${htmlContent}</article>`;
+      const finalHtml = templateContent.replace("{{MARKDOWN_CONTENT}}", wrappedContent);
+
+      fs.writeFileSync(outputFilePath, finalHtml, "utf-8");
+
+      return true;
+    } catch (error) {
+      console.error("\n❌ Error generating documentation:", error);
+      return false;
+    } finally {
+      isProcessing = false;
+    }
+  }
 
   return {
     name: "vite-plugin-readme",
 
     configureServer(server) {
-      const outputPath = path.resolve("src/documentation/index-dev.html");
-      const outputDir = path.dirname(outputPath);
+      const outputFilePath = path.resolve("src/documentation/index.html");
+      const outputDirectory = path.dirname(outputFilePath);
 
-      // Check directory permissions
       try {
-        if (!fs.existsSync(outputDir)) {
-          fs.mkdirSync(outputDir, { recursive: true });
+        if (!fs.existsSync(outputDirectory)) {
+          fs.mkdirSync(outputDirectory, { recursive: true });
         }
-        const testFile = path.join(outputDir, "test-write");
-        fs.writeFileSync(testFile, "test");
-        fs.unlinkSync(testFile);
-        console.log("Write access confirmed for output directory");
+        const testFilePath = path.join(outputDirectory, "test-file");
+        fs.writeFileSync(testFilePath, "test");
+        fs.unlinkSync(testFilePath);
+        console.log("Output directory write access confirmed.");
       } catch (error) {
-        console.error("Error checking write permissions:", error);
+        console.error("Error verifying write permissions:", error);
       }
 
-      const readmePath = path.resolve("README.md");
-      console.log("Watching README.md at:", readmePath);
+      const readmeFilePath = path.resolve("README.md");
+      console.log("Monitoring README.md at:", readmeFilePath);
 
-      generateDocumentation = async (isDev = true) => {
-        if (isProcessing) return;
-
-        try {
-          isProcessing = true;
-          isWatchingReadme = true;
-
-          const readmePath = path.resolve("README.md");
-          const templatePath = path.resolve("src/documentation/index.html"); // Using index.html as template
-          const outputPath = isDev
-            ? path.resolve("src/documentation/index-dev.html")
-            : path.resolve("dist/documentation/index.html");
-
-          console.log("\n📝 Processing README update...");
-          
-          const markdown = fs.readFileSync(readmePath, "utf-8");
-          const template = fs.readFileSync(templatePath, "utf-8");
-
-          marked.use(gfmHeadingId());
-          marked.setOptions({
-            gfm: true,
-            breaks: true,
-            highlight: function (code, lang) {
-              if (lang && hljs.getLanguage(lang)) {
-                return hljs.highlight(code, { language: lang }).value;
-              }
-              return hljs.highlightAuto(code).value;
-            },
-          });
-
-          const htmlContent = marked(markdown);
-          const wrappedContent = `<article class="markdown-body">${htmlContent}</article>`;
-          const finalHtml = template.replace("{{MARKDOWN_CONTENT}}", wrappedContent);
-
-          fs.writeFileSync(outputPath, finalHtml, { encoding: 'utf-8', flag: 'w' });
-          
-          return true;
-        } catch (error) {
-          console.error("\n❌ Error in documentation generation:", error);
-          return false;
-        } finally {
-          isProcessing = false;
-          setTimeout(() => {
-            isWatchingReadme = false;
-          }, 100);
-        }
-      };
-
-      // Initial generation
-      generateDocumentation(true);
+      // Initial documentation generation
+      generateDocumentation();
 
       // Watch for changes
       server.watcher.add([
         path.resolve("README.md"),
-        path.resolve("src/documentation/index.html")
+        path.resolve("src/documentation/template.html"),
       ]);
 
       server.watcher.on("change", async (filepath) => {
-        if (isWatchingReadme) return;
-
         const normalizedPath = path.normalize(filepath);
-        const readmePath = path.normalize(path.resolve("README.md"));
-        const templatePath = path.normalize(path.resolve("src/documentation/index.html"));
+        const readmeFilePath = path.normalize(path.resolve("README.md"));
+        const templateFilePath = path.normalize(path.resolve("src/documentation/template.html"));
 
-        if (normalizedPath === readmePath || normalizedPath === templatePath) {
-          await generateDocumentation(true);
+        if (normalizedPath === readmeFilePath || normalizedPath === templateFilePath) {
+          await generateDocumentation();
           server.ws.send({ type: 'full-reload' });
         }
       });
 
-      // Handle middleware
+      // Middleware handling
       return () => {
         server.middlewares.use((req, res, next) => {
-          if (req.url === "/index-dev.html") {
+          if (req.url === "/template.html") {
             try {
-              const content = fs.readFileSync(path.resolve("src/documentation/index-dev.html"), "utf-8");
+              const content = fs.readFileSync(path.resolve("src/documentation/template.html"), "utf-8");
               res.setHeader("Content-Type", "text/html");
               res.end(content);
             } catch (error) {
@@ -122,82 +110,20 @@ export function readmePlugin() {
     },
 
     buildStart() {
-        if (!generateDocumentation) {
-          // Define generateDocumentation for build if it's not already defined
-          generateDocumentation = async (isDev = false) => {
-            try {
-              const readmePath = path.resolve("README.md");
-              const templatePath = path.resolve("src/documentation/index.html");
-              const outputPath = isDev
-                ? path.resolve("src/documentation/index-dev.html")
-                : path.resolve("dist/documentation/index.html");
-      
-              console.log("\n📝 Processing documentation for build...");
-              
-              const markdown = fs.readFileSync(readmePath, "utf-8");
-              const template = fs.readFileSync(templatePath, "utf-8");
-      
-              marked.use(gfmHeadingId());
-              marked.setOptions({
-                gfm: true,
-                breaks: true,
-                highlight: function (code, lang) {
-                  if (lang && hljs.getLanguage(lang)) {
-                    return hljs.highlight(code, { language: lang }).value;
-                  }
-                  return hljs.highlightAuto(code).value;
-                },
-              });
-      
-              const htmlContent = marked(markdown);
-              const wrappedContent = `<article class="markdown-body">${htmlContent}</article>`;
-              const finalHtml = template.replace("{{MARKDOWN_CONTENT}}", wrappedContent);
-      
-              // Ensure output directory exists
-              const outputDir = path.dirname(outputPath);
-              if (!fs.existsSync(outputDir)) {
-                fs.mkdirSync(outputDir, { recursive: true });
-              }
-      
-              fs.writeFileSync(outputPath, finalHtml);
-              console.log(`✅ Documentation built successfully at: ${outputPath}`);
-              return true;
-            } catch (error) {
-              console.error("\n❌ Error in documentation build:", error);
-              return false;
-            }
-          };
-        }
-      
-        // Call generateDocumentation for build
-        return generateDocumentation(false);
-      },
-      
-      // Remove the existing buildEnd hook if you have one, and add these:
-      
-      closeBundle() {
-        // Ensure the documentation was generated
-        if (!fs.existsSync(path.resolve("dist/documentation/index.html"))) {
-          console.error("Documentation was not generated during build!");
-        }
-      },
-      
-      config(config) {
-        return {
-          build: {
-            rollupOptions: {
-              input: {
-                main: path.resolve(process.cwd(), "src/documentation/index.html"),
-              },
-            },
-          },
-        };
-      },
+      return generateDocumentation().then(() => {});
+    },
+
+    closeBundle() {
+      const outputFilePath = path.resolve("src/documentation/index.html");
+      if (!fs.existsSync(outputFilePath)) {
+        console.error("Documentation was not generated during the build!");
+      }
+    },
 
     handleHotUpdate({ file, server }) {
       if (file.endsWith("index.html") || file.endsWith("README.md")) {
         if (generateDocumentation) {
-          generateDocumentation(true).then((success) => {
+          generateDocumentation().then((success) => {
             if (success) {
               server.ws.send({ type: "full-reload" });
             }
