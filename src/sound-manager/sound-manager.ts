@@ -15,6 +15,7 @@ export class SoundManager implements SoundManagerInterface {
   private sounds: Map<string, Sound> = new Map();
   private masterGainNode!: GainNode;
   private masterStereoPanner!: StereoPannerNode;
+  private masterPannerNode!: PannerNode | null;
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
   private previousGlobalPan: number = 0;
@@ -411,6 +412,7 @@ export class SoundManager implements SoundManagerInterface {
       }
     });
     this.activeSources.clear();
+    this.cleanupMasterPan();
 
     // Clean up other audio nodes
     this.sounds.forEach((sound) => {
@@ -682,6 +684,7 @@ export class SoundManager implements SoundManagerInterface {
       type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
       timestamp: this.context.currentTime,
       volume: this.previousGlobalVolume,
+      isMaster: true,
     });
   }
 
@@ -848,7 +851,7 @@ export class SoundManager implements SoundManagerInterface {
       this.debugLog(`Sound ${soundId} not found for updating options`);
       return;
     }
-  
+
     // Update sound properties
     if (options.loop !== undefined) {
       sound.loop = options.loop;
@@ -858,15 +861,15 @@ export class SoundManager implements SoundManagerInterface {
       // Reset loop count when changing max loops
       sound.currentLoopCount = 0;
     }
-  
+
     this.debugLog(`Updated options for sound ${soundId}:`, options);
-    
+
     // Dispatch event for UI updates
     this.dispatchEvent({
       type: SoundEventsEnum.OPTIONS_UPDATED,
       soundId,
       timestamp: this.context.currentTime,
-      options
+      options,
     });
   }
 
@@ -1168,10 +1171,10 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public setSoundPosition(
-    soundId: string,
     x: number,
     y: number,
     z: number,
+    soundId?: string,
     soundPannerConfig?: SoundPannerConfig
   ): void {
     if (!this.config.spatialAudio) {
@@ -1179,13 +1182,20 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    const sound = this.sounds.get(soundId);
-    const source = this.activeSources.get(soundId);
+    if (!soundId) {
+      this.debugLog(`Sound ${soundId} not found, global sound position will be used`);
+      this.setMasterSpatialPosition(x, y, z);
+      return;
+    }
 
+    // Handle individual sound positioning
+    const sound = this.sounds.get(soundId);
     if (!sound) {
       this.debugLog(`Sound ${soundId} not found for position setting`);
       return;
     }
+
+    const source = this.activeSources.get(soundId);
 
     // If stereo panning is active, warn and return
     if (sound.stereoPanner) {
@@ -1247,11 +1257,184 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public resetSoundPosition(id: string): void {
-    this.setSoundPosition(id, 0, 0, 0);
+  private createPannerNode(config: SoundPannerConfig): PannerNode {
+    const panner = this.context.createPanner();
+    this.updatePannerConfig(panner, config);
+    return panner;
   }
 
-  public updatePannerConfig(soundId: string, newConfig: Partial<SoundPannerConfig>): void {
+  private updatePannerConfig(panner: PannerNode, config: Partial<SoundPannerConfig>): void {
+    Object.entries(config).forEach(([key, value]) => {
+      if (value !== undefined) {
+        (panner as any)[key] = value;
+      }
+    });
+  }
+
+  private reconnectAudioNodes(sound: Sound, soundId: string): void {
+    const source = this.activeSources.get(soundId);
+    if (source && sound.pannerNode) {
+      source.disconnect();
+      source.connect(sound.pannerNode);
+      sound.pannerNode.connect(sound.gainNode);
+    }
+  }
+
+  private updateSoundPosition(
+    sound: Sound,
+    soundId: string,
+    x: number,
+    y: number,
+    z: number,
+    soundPannerConfig?: SoundPannerConfig
+  ): void {
+    try {
+      // If stereo panning is active, remove it
+      if (sound.stereoPanner && this.isStereoPanActive(soundId)) {
+        this.removePan(soundId);
+        this.debugLog(`Removed stereo panner for spatial panning on sound ${soundId}`);
+      }
+
+      // Merge configurations
+      const mergedConfig: SoundPannerConfig = {
+        ...DEFAULT_PANNER_CONFIG,
+        ...(this.config.pannerNodeConfig || {}),
+        ...(soundPannerConfig || {}),
+      };
+
+      // Create or update panner node
+      if (!sound.pannerNode) {
+        sound.pannerNode = this.createPannerNode(mergedConfig);
+        this.reconnectAudioNodes(sound, soundId);
+      } else if (soundPannerConfig) {
+        this.updatePannerConfig(sound.pannerNode, soundPannerConfig);
+      }
+
+      // Update position
+      sound.pannerNode.positionX.setValueAtTime(x, this.context.currentTime);
+      sound.pannerNode.positionY.setValueAtTime(y, this.context.currentTime);
+      sound.pannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
+        soundId,
+        timestamp: this.context.currentTime,
+        position: { x, y, z },
+        pannerConfig: soundPannerConfig,
+      });
+
+      this.debugLog(`Set position for sound ${soundId}: x=${x}, y=${y}, z=${z}`);
+    } catch (error) {
+      this.handleError("setting sound position", error);
+    }
+  }
+
+  public resetSoundPosition(id?: string): void {
+    if (!this.config.spatialAudio) {
+      this.debugLog("Spatial audio is not enabled");
+      return;
+    }
+  
+    // Reset master spatial position
+    if (!id) {
+      this.debugLog("Resetting master spatial position");
+      this.setMasterSpatialPosition(0, 0, 0);
+      
+      this.dispatchEvent({
+        type: SoundEventsEnum.SPATIAL_POSITION_RESET,
+        timestamp: this.context.currentTime,
+        isMaster: true
+      });
+      return;
+    }
+  
+    // Reset individual sound position
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for position reset`);
+      return;
+    }
+  
+    if (sound.pannerNode) {
+      this.setSoundPosition(0, 0, 0, id);
+      this.debugLog(`Reset position for sound ${id}`);
+      
+      this.dispatchEvent({
+        type: SoundEventsEnum.SPATIAL_POSITION_RESET,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        isMaster: false
+      });
+    }
+  }
+
+  private setMasterSpatialPosition(x: number, y: number, z: number): void {
+    try {
+      // Reset any existing stereo panning
+      this.resetMasterPan();
+
+      // Create or update master panner node
+      if (!this.masterPannerNode) {
+        this.masterPannerNode = this.context.createPanner();
+        // Disconnect and reconnect the nodes in the chain
+        this.masterGainNode.disconnect();
+        this.masterPannerNode.connect(this.context.destination);
+        this.masterGainNode.connect(this.masterPannerNode);
+      }
+
+      // Update master panner position
+      this.masterPannerNode.positionX.setValueAtTime(x, this.context.currentTime);
+      this.masterPannerNode.positionY.setValueAtTime(y, this.context.currentTime);
+      this.masterPannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
+
+      // Update all individual sound positions relative to master position
+      this.sounds.forEach((sound, id) => {
+        if (sound.pannerNode) {
+          const relativePos = this.calculateRelativePosition(sound, { x, y, z });
+          this.updateSoundPosition(sound, id, relativePos.x, relativePos.y, relativePos.z);
+        }
+      });
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.GLOBAL_SPATIAL_POSITION_CHANGED,
+        timestamp: this.context.currentTime,
+        position: { x, y, z },
+      });
+
+      this.debugLog(`Set master spatial position: x=${x}, y=${y}, z=${z}`);
+    } catch (error) {
+      this.handleError("setting master spatial position", error);
+    }
+  }
+
+  private calculateRelativePosition(
+    sound: Sound,
+    masterPosition: { x: number; y: number; z: number }
+  ): { x: number; y: number; z: number } {
+    // If sound has no current position, use master position
+    if (!sound.pannerNode) {
+      return masterPosition;
+    }
+
+    // Calculate relative position based on current sound position and master position
+    return {
+      x: sound.pannerNode.positionX.value - masterPosition.x,
+      y: sound.pannerNode.positionY.value - masterPosition.y,
+      z: sound.pannerNode.positionZ.value - masterPosition.z,
+    };
+  }
+
+  // Add cleanup method for master panner
+  public cleanupMasterPan(): void {
+    if (this.masterPannerNode) {
+      this.masterPannerNode.disconnect();
+      this.masterGainNode.disconnect();
+      this.masterGainNode.connect(this.context.destination);
+      this.masterPannerNode = null;
+    }
+  }
+
+  public updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void {
     const sound = this.sounds.get(soundId);
     if (!sound?.pannerNode) {
       this.debugLog(`No panner node found for sound ${soundId}`);
@@ -1375,6 +1558,7 @@ export class SoundManager implements SoundManagerInterface {
         timestamp: this.context?.currentTime ?? 0,
         pan: pannedValue,
         previousPan: this.previousGlobalPan,
+        isMaster: true,
       });
 
       this.debugLog(`Master pan set to: ${pannedValue}`);

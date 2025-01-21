@@ -6,6 +6,7 @@ import { SoundResetOptions } from "./sound-reset-options.interface";
 export interface SoundEvent {
     currentTime?: number;
     error?: Error;
+    isMaster?: boolean;
     isMuted?: boolean;
     options?: PlaySoundOptions;
     pan?: number;

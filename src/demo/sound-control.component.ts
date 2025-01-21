@@ -761,10 +761,10 @@ export class SoundControl {
     // Update sound position
     if (!visualOnly) {
       this.soundManager.setSoundPosition(
-        this.id,
         x / 50 - 1, // X: -1 (left) to 1 (right)
         -(y / 50 - 1), // Y: -1 (down) to 1 (up)
-        z // Z: -1 (down) to 1 (up)
+        z, // Z: -1 (down) to 1 (up)
+        this.id
       );
     }
 
@@ -840,11 +840,11 @@ export class SoundControl {
 
       // Update the sound's spatial settings
       this.soundManager.setSoundPosition(
-        this.id,
         parseFloat(this.circle.style.left) / 50 - 1,
         -(parseFloat(this.circle.style.top) / 50 - 1),
         0,
-        newConfig
+        this.id,
+        newConfig,
       );
     };
   
