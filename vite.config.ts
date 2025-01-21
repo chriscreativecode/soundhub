@@ -53,6 +53,7 @@ const demoConfig: UserConfig= {
         index: path.resolve(__dirname, "index-prod.html"), // This will output as index.html
       },
       output: {
+        dir: "dist/demo",
         entryFileNames: "assets/[name].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
@@ -81,6 +82,7 @@ const documentationDevConfig: UserConfig = {
         main: path.resolve(__dirname, 'src/documentation/index.html')
       },
       output: {
+        dir: "../../dist/documentation",
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]'

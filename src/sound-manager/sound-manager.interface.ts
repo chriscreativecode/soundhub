@@ -53,11 +53,11 @@ export interface SoundManagerInterface {
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
-  setSoundPosition(id: string, x: number, y: number, z: number, soundPannerConfig?: SoundPannerConfig): void;
+  setSoundPosition(x: number, y: number, z: number, id: string, soundPannerConfig?: SoundPannerConfig): void;
   resetSoundPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
-  updatePannerConfig(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
+  updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
 
   // Pan control
   setPan(id: string, pan: number): void;
@@ -65,6 +65,7 @@ export interface SoundManagerInterface {
   setMasterPan(value: number): void;
   getMasterPan(): number;
   resetMasterPan(): void;
+  cleanupMasterPan(): void;
   isStereoPanActive(id: string): boolean;
 
   // Utility
