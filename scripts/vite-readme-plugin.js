@@ -1,12 +1,47 @@
 import fs from "fs";
 import path from "path";
-import { marked } from "marked";
 import hljs from "highlight.js";
-import { gfmHeadingId } from "marked-gfm-heading-id";
+import markdownit from "markdown-it";
+import markdownItAnchor from "markdown-it-anchor"
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import xml from "highlight.js/lib/languages/xml";
+import bash from "highlight.js/lib/languages/bash";
+
+// Register only the languages you need
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("xml", xml);
+hljs.registerLanguage("bash", bash);
+
+// enable everything
+const md = markdownit({
+  html: true,
+  linkify: true,
+  typographer: true,
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value;
+      } catch (__) {}
+    }
+    // Fallback: Auto-detect from registered languages
+    return hljs.highlightAuto(str, ["javascript", "typescript", "xml", "bash"]).value;
+  },
+});
+
+md.use(markdownItAnchor, {
+  level: [1, 2, 3, 4], // Add IDs to h1, h2, h3, and h4 headings
+  slugify: (s) =>
+    s
+      .toLowerCase()
+      .replace(/[^\w\u4e00-\u9fa5]+/g, "-") // Replace spaces and special characters with hyphens
+      .replace(/^-+|-+$/g, ""), // Remove leading/trailing hyphens
+});
 
 export function readmePlugin() {
   let isProcessing = false;
-  
+
   async function generateDocumentation() {
     if (isProcessing) return;
 
@@ -22,19 +57,7 @@ export function readmePlugin() {
       const markdownContent = fs.readFileSync(readmeFilePath, "utf-8");
       const templateContent = fs.readFileSync(templateFilePath, "utf-8");
 
-      marked.use(gfmHeadingId());
-      marked.setOptions({
-        gfm: true,
-        breaks: true,
-        highlight(code, lang) {
-          if (lang && hljs.getLanguage(lang)) {
-            return hljs.highlight(code, { language: lang }).value;
-          }
-          return hljs.highlightAuto(code).value;
-        },
-      });
-
-      const htmlContent = marked(markdownContent);
+      const htmlContent = md.render(markdownContent);
       const wrappedContent = `<article class="markdown-body">${htmlContent}</article>`;
       const finalHtml = templateContent.replace("{{MARKDOWN_CONTENT}}", wrappedContent);
 
@@ -75,10 +98,7 @@ export function readmePlugin() {
       generateDocumentation();
 
       // Watch for changes
-      server.watcher.add([
-        path.resolve("README.md"),
-        path.resolve("src/documentation/template.html"),
-      ]);
+      server.watcher.add([path.resolve("README.md"), path.resolve("src/documentation/template.html")]);
 
       server.watcher.on("change", async (filepath) => {
         const normalizedPath = path.normalize(filepath);
@@ -87,7 +107,7 @@ export function readmePlugin() {
 
         if (normalizedPath === readmeFilePath || normalizedPath === templateFilePath) {
           await generateDocumentation();
-          server.ws.send({ type: 'full-reload' });
+          server.ws.send({ type: "full-reload" });
         }
       });
 

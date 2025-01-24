@@ -2,6 +2,8 @@ import { SoundState } from "./sound-state.interface";
 
 export interface Sound {
   id: string;
+  isFadingIn?: boolean;
+  isFadingOut?: boolean;
   buffer: AudioBuffer;
   gainNode: GainNode;
   stereoPanner?: StereoPannerNode; // just plain left to right panning

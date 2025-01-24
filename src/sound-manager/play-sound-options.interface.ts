@@ -1,4 +1,4 @@
-export interface PlaySoundOptions {
+export interface playOptions {
   fadeIn?: number;
   fadeOut?: number;
   pan?: number; // -1 (left) to 1 (right)

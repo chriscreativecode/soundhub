@@ -1,4 +1,4 @@
-import { PlaySoundOptions } from "./play-sound-options.interface";
+import { playOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundManagerConfig } from "./sound-manager-config";
@@ -9,24 +9,25 @@ import { Sound } from "./sound.interface";
 
 export interface SoundManagerInterface {
   // Playback control
-  playSound(id: string, options?: PlaySoundOptions): void;
-  pauseSound(id: string): void;
-  resumeSound(id: string): void;
-  stopSound(id: string): void;
-  seekTo(id: string, time: number): void;
+  play(id: string, options?: playOptions): void;
+  pause(id: string): void;
+  resume(id: string): void;
+  stop(id: string): void;
+  seek(id: string, time: number): void;
 
   // Volume control
-  setVolumeById(id: string, volume: number): void;
-  getVolumeById(id: string): number;
+  setSoundVolume(id: string, volume: number): void;
+  getSoundVolume(id: string): number;
   setGlobalVolume(volume: number): void;
   getGlobalVolume(): number;
 
   // Mute control
   muteAllSounds(): void;
   unmuteAllSounds(): void;
-  muteSoundById(id: string): void;
-  unmuteSoundById(id: string): void;
-  toggleMute(): void;
+  mute(id: string): void;
+  unmute(id: string): void;
+  toggleGlobalMute(): void;
+  toggleMute(id: string): void;
 
   // Sound loading and management
   preloadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
@@ -37,6 +38,7 @@ export interface SoundManagerInterface {
   // State checks
   isPlaying(id: string): boolean;
   isPaused(id: string): boolean;
+  isStopped(id: string): boolean;
   getSoundState(id: string): SoundStateInfo;
 
   // Batch operations
@@ -47,9 +49,9 @@ export interface SoundManagerInterface {
 
   // Fading
   fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void;
-  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number): void;
-  fadeMasterIn(duration?: number, startVolume?: number, endVolume?: number): void;
-  fadeMasterOut(duration?: number, startVolume?: number, endVolume?: number): void;
+  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number, stopAfterFade?: boolean): void;
+  fadeGlobalIn(duration?: number, startVolume?: number, endVolume?: number): void;
+  fadeGlobalOut(duration?: number, startVolume?: number, endVolume?: number): void;
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
@@ -62,18 +64,17 @@ export interface SoundManagerInterface {
   // Pan control
   setPan(id: string, pan: number): void;
   removePan(id: string): void;
-  setMasterPan(value: number): void;
-  getMasterPan(): number;
-  resetMasterPan(): void;
-  cleanupMasterPan(): void;
+  setGlobalPan(value: number): void;
+  getGlobalPan(): number;
+  resetGlobalPan(): void;
+  cleanupGlobalPan(): void;
   isStereoPanActive(id: string): boolean;
 
   // Utility
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
-  updateSoundOptions(soundId: string, options: Partial<PlaySoundOptions>): void;
-  isStopped(id: string): boolean;
+  updateSoundOptions(soundId: string, options: Partial<playOptions>): void;
   destroy(): void;
 
   // listeners

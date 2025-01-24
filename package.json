@@ -58,6 +58,8 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/highlight.js": "^10.1.0",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.10.2",
     "cross-env": "^7.0.3",
     "fs-extra": "^11.2.0",
@@ -67,7 +69,8 @@
   "dependencies": {
     "github-markdown-css": "^5.8.1",
     "highlight.js": "^11.11.1",
-    "marked": "^14.0.0",
-    "marked-gfm-heading-id": "^4.1.1"
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "marked-highlight": "^2.2.1"
   }
 }
