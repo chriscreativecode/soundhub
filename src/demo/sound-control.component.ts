@@ -4,7 +4,7 @@ import "./sound-control.component.css";
 import { SoundManager } from "../sound-manager/sound-manager";
 import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
 import { SoundEvent } from "../sound-manager/sound-event.interface";
-import { PlaySoundOptions } from "../sound-manager/play-sound-options.interface";
+import { playOptions } from "../sound-manager/play-sound-options.interface";
 import { SoundState } from "../sound-manager/sound-state.interface";
 import { SoundManagerConfig } from "./../sound-manager/sound-manager-config";
 import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../sound-manager/sound-panner-config";
@@ -30,7 +30,7 @@ export class SoundControl {
   private element: HTMLElement;
   private progressSlider: HTMLInputElement;
   private progressInterval!: number;
-  private currentOptions: PlaySoundOptions = {};
+  private currentOptions: playOptions = {};
   private panSlider: HTMLInputElement;
   private volumeSlider: HTMLInputElement;
   private isDragging = false;
@@ -109,6 +109,7 @@ export class SoundControl {
       if (typeof event.volume === "number") {
         this.updateVolumeDisplay(event.volume);
         this.volumeSlider.value = event.volume.toString();
+        this.handleRangeInput(this.volumeSlider);
       }
     },
     [SoundEventsEnum.ERROR]: (event) => console.error("Sound error:", event.error),
@@ -221,7 +222,7 @@ export class SoundControl {
       // Debounce the actual seeking
       window.clearTimeout(this.debounceTimer);
       this.debounceTimer = window.setTimeout(() => {
-        this.seekToPosition(newTime);
+        this.seekPosition(newTime);
       }, 16); // Approximately one frame at 60fps
     },
 
@@ -272,8 +273,8 @@ export class SoundControl {
     document.addEventListener("mouseup", this.boundHandlers.clearDragging);
   }
 
-  private seekToPosition(time: number): void {
-    this.soundManager.seekTo(this.id, time);
+  private seekPosition(time: number): void {
+    this.soundManager.seek(this.id, time);
   }
 
   private initializeEventListeners(): void {
@@ -377,7 +378,7 @@ export class SoundControl {
   private handleVolumeInput = (e: Event): void => {
     const value = parseFloat((e.target as HTMLInputElement).value);
     this.updateVolumeDisplay(value);
-    this.soundManager.setVolumeById(this.id, value);
+    this.soundManager.setSoundVolume(this.id, value);
   };
 
   private initializeVolumeControl(): void {
@@ -468,7 +469,7 @@ export class SoundControl {
     }
   }
 
-  private getCurrentOptions(newOptions: Partial<PlaySoundOptions> = {}): PlaySoundOptions {
+  private getCurrentOptions(newOptions: Partial<playOptions> = {}): playOptions {
     return {
       ...this.currentOptions,
       ...newOptions,
@@ -482,7 +483,7 @@ export class SoundControl {
 
       if (isPaused) {
         // If the sound is paused, resume it
-        this.soundManager.resumeSound(this.id);
+        this.soundManager.resume(this.id);
       } else {
         // If the sound is stopped or hasn't been played yet, start from beginning
         const progress = parseFloat(this.progressSlider.value);
@@ -498,7 +499,7 @@ export class SoundControl {
 
         this.currentOptions = options;
 
-        this.soundManager.playSound(this.id, options);
+        this.soundManager.play(this.id, options);
       }
     } catch (error) {
       console.error("Error playing sound:", error);
@@ -506,11 +507,11 @@ export class SoundControl {
   }
 
   private pause(): void {
-    this.soundManager.pauseSound(this.id);
+    this.soundManager.pause(this.id);
   }
 
   private stop(): void {
-    this.soundManager.stopSound(this.id);
+    this.soundManager.stop(this.id);
   }
 
   private toggleMute(): void {
@@ -519,12 +520,12 @@ export class SoundControl {
 
     if (state.volume === 0) {
       // Unmuting - restore previous volume
-      this.soundManager.setVolumeById(this.id, this.previousVolume);
-      this.soundManager.unmuteSoundById(this.id);
+      this.soundManager.setSoundVolume(this.id, this.previousVolume);
+      this.soundManager.unmute(this.id);
     } else {
       // Muting - store current volume
       this.previousVolume = state.volume;
-      this.soundManager.muteSoundById(this.id);
+      this.soundManager.mute(this.id);
       // Update volume slider to 0
       this.volumeSlider.value = "0";
       this.handleRangeInput(this.volumeSlider);
@@ -550,9 +551,9 @@ export class SoundControl {
         this.soundManager.fadeIn(this.id, 2000);
       } else {
         // If not playing, start from beginning with fade
-        this.soundManager.playSound(this.id, {
+        this.soundManager.play(this.id, {
           fadeIn: 2000,
-          volume: this.soundManager.getVolumeById(this.id),
+          volume: this.soundManager.getSoundVolume(this.id),
         });
       }
     } catch (error) {
@@ -971,7 +972,7 @@ export class SoundControl {
         // Stop sound if playing
         () => {
           if (this.state.isPlaying) {
-            this.soundManager.stopSound(this.id);
+            this.soundManager.stop(this.id);
           }
         },
 

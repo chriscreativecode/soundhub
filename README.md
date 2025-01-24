@@ -5,7 +5,7 @@
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
 [![npm downloads](https://img.shields.io/npm/dt/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 
-A powerful yet lightweight (5KB gzipped) sound management system built on the modern Web Audio API. Perfect for web applications, games, and interactive experiences that demand precise audio control.
+A powerful yet lightweight (7KB gzipped) sound management system built on the modern Web Audio API. Perfect for web applications, games, and interactive experiences that demand precise audio control.
 
 ## Live demo
 [Click here to visit the demo page](https://chriscreativecode.com/sound-manager-ts/demo/ 'A demo showcase of my Sound Manager')
@@ -14,7 +14,7 @@ A powerful yet lightweight (5KB gzipped) sound management system built on the mo
 
 🚀 **Modern & Efficient**
 - Built on the latest Web Audio API
-- Tiny footprint: only 5KB gzipped
+- Tiny footprint: only 7KB gzipped
 - Zero dependencies
 - High performance with low latency
 
@@ -39,6 +39,13 @@ A powerful yet lightweight (5KB gzipped) sound management system built on the mo
 - 🎛️ Pan and balance adjustment
 - ⚡ Event-driven architecture
 - 📱 Mobile-friendly
+
+## Note
+- Development Status: This sound manager is currently under active development and is not yet finalized. While it is functional, some features may still be refined or added in future updates.
+
+- Availability: Once completed, the sound manager will be published on GitHub. In the meantime, feel free to use it in its current state and provide feedback or suggestions for improvement.
+
+- Contribution: If you encounter any issues or have ideas for enhancements, please don't hesitate to share them. Your input is valuable and will help shape the final version!
 
 ## Browser Support
 Supports all modern browsers including Chrome, Firefox, Safari, and Edge (98.5% global coverage).
@@ -86,7 +93,7 @@ const soundManager = new SoundManager();
 await soundManager.preloadSounds([
     { id: 'music', url: '/sounds/music.mp3' }
 ]);
-soundManager.playSound('music');
+soundManager.play('music');
 
 ```
 
@@ -133,7 +140,7 @@ soundManager.preloadSounds(soundsToLoad).then(() => {
 });
 
 // Play a sound
-soundManager.playSound('background-music', {
+soundManager.play('background-music', {
     volume: 0.7,
     fadeIn: 2000
 });
@@ -155,7 +162,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=2.3.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=2.4.0"></script>
     <script>
         // Initialize the Sound Manager
         const soundManager = new SoundManager({
@@ -179,13 +186,13 @@ If you prefer to include Sound Manager directly as a library file in your projec
         });
 
         // Play a sound
-        soundManager.playSound('background-music', {
+        soundManager.play('background-music', {
             volume: 0.7,
             fadeIn: 2000
         });
 
         // Control individual sounds
-        soundManager.stopSound('background-music');
+        soundManager.stop('background-music');
     </script>
 </body>
 </html>
@@ -237,7 +244,7 @@ soundManager.addEventListener(SoundEventsEnum.ENDED, (event) => {
 });
 
 // Play a sound with options
-soundManager.playSound('background-music', {
+soundManager.play('background-music', {
     volume: 0.7,
     fadeIn: 2000,
     fadeOut: 1000,
@@ -247,29 +254,31 @@ soundManager.playSound('background-music', {
 
 // Control individual sounds
 soundManager.pauseSound('background-music');
-soundManager.resumeSound('background-music');
-soundManager.stopSound('background-music');
-soundManager.seekTo('background-music', 30); // Seek to 30 seconds
+soundManager.resume('background-music');
+soundManager.stop('background-music');
+soundManager.seek('background-music', 30); // Seek to 30 seconds
 
 // Volume control
-soundManager.setVolumeById('background-music', 0.5);
+soundManager.setSoundVolume('background-music', 0.5);
 soundManager.setGlobalVolume(0.8);
 
 // Pan control
 soundManager.setPan('background-music', -0.5); // Pan left
-soundManager.setMasterPan(0.3); // Slight right pan for all sounds
+soundManager.setGlobalPan(0.3); // Slight right pan for all sounds
 
 // Fade effects
 soundManager.fadeIn('background-music', 2000); // Fade in over 2 seconds
 soundManager.fadeOut('background-music', 1000); // Fade out over 1 second
-soundManager.fadeMasterIn(1500); // Fade in all sounds
-soundManager.fadeMasterOut(1500); // Fade out all sounds
+soundManager.fadeGlobalIn(1500); // Fade in all sounds
+soundManager.fadeGlobalOut(1500); // Fade out all sounds
 
 // Mute controls
 soundManager.muteAllSounds();
 soundManager.unmuteAllSounds();
-soundManager.muteSoundById('background-music');
-soundManager.toggleMute();
+soundManager.mute('background-music');
+soundManager.unmute('background-music');
+soundManager.toggleMute('background-music');
+soundManager.toggleGlobalMute();
 
 // Spatial audio (if enabled in config)
 soundManager.setSoundPosition('background-music', 1, 0, -1);
@@ -292,6 +301,7 @@ soundManager.updatePannerConfig('background-music',
 // State checks
 const isPlaying = soundManager.isPlaying('background-music');
 const isPaused = soundManager.isPaused('background-music');
+const isStopped = soundManager.isStopped('background-music');
 const state = soundManager.getSoundState('background-music');
 
 // Reset all sound settings to default values
@@ -311,10 +321,89 @@ soundManager.destroy();
 ```
 
 ## Interfaces
-Options for playing a sound:
 
+## Public methods on the SoundManager
 ```typescript
-interface PlaySoundOptions {
+export interface SoundManagerInterface {
+  // Playback control
+  play(id: string, options?: playOptions): void;
+  pause(id: string): void;
+  resume(id: string): void;
+  stop(id: string): void;
+  seek(id: string, time: number): void;
+
+  // Volume control
+  setSoundVolume(id: string, volume: number): void;
+  getSoundVolume(id: string): number;
+  setGlobalVolume(volume: number): void;
+  getGlobalVolume(): number;
+
+  // Mute control
+  muteAllSounds(): void;
+  unmuteAllSounds(): void;
+  mute(id: string): void;
+  unmute(id: string): void;
+  toggleGlobalMute(): void;
+  toggleMute(id: string): void;
+
+  // Sound loading and management
+  preloadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
+  updateSoundUrl(id: string, newUrl: string): Promise<void>;
+  isSoundLoaded(id: string): boolean;
+  hasSound(id: string): boolean;
+
+  // State checks
+  isPlaying(id: string): boolean;
+  isPaused(id: string): boolean;
+  isStopped(id: string): boolean;
+  getSoundState(id: string): SoundStateInfo;
+
+  // Batch operations
+  stopAllSounds(): void;
+  pauseAllSounds(): void;
+  resumeAllSounds(): void;
+  reset(options?: SoundResetOptions): void;
+
+  // Fading
+  fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void;
+  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number, stopAfterFade?: boolean): void;
+  fadeGlobalIn(duration?: number, startVolume?: number, endVolume?: number): void;
+  fadeGlobalOut(duration?: number, startVolume?: number, endVolume?: number): void;
+
+  // Spatial audio
+  isSpatialAudioEnabled(): boolean;
+  setSoundPosition(x: number, y: number, z: number, id: string, soundPannerConfig?: SoundPannerConfig): void;
+  resetSoundPosition(id: string): void;
+  removeSpatialEffect(id: string): void;
+  isSpatialAudioActive(id: string): boolean;
+  updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
+
+  // Pan control
+  setPan(id: string, pan: number): void;
+  removePan(id: string): void;
+  setGlobalPan(value: number): void;
+  getGlobalPan(): number;
+  resetGlobalPan(): void;
+  cleanupGlobalPan(): void;
+  isStereoPanActive(id: string): boolean;
+
+  // Utility
+  getConfig(): Readonly<SoundManagerConfig>;
+  getSound(id: string): Sound | undefined;
+  getSoundIds(): string[];
+  updateSoundOptions(soundId: string, options: Partial<playOptions>): void;
+  destroy(): void;
+
+  // listeners
+  addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
+  removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
+}
+```
+
+## PlayOptions
+Options for playing a sound
+```typescript
+interface playOptions {
     fadeIn?: number;
     fadeOut?: number;
     pan?: number; // -1 (left) to 1 (right)
@@ -458,7 +547,52 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 ## 📋 Version History
 
 ### 2.4.0
-#### New Features
+#### 🚨Breaking changes and new Features
+
+#### Improvements
+
+- API Improvements
+  - 🎯 Refactored method names for improved clarity and consistency.
+  - Added new utility methods for better sound state management and control.
+
+| Old Method                             | New Method                          |
+|----------------------------------------|-------------------------------------|
+| ```soundManager.playSound(id)```       | ```soundManager.play(id)```         |
+| ```soundManager.stopSound(id)```       | ```soundManager.stop(id)```         |
+| ```soundManager.pauseSound(id)```      | ```soundManager.pause(id)```        |
+| ```soundManager.resumeSound(id)```     | ```soundManager.resume(id)```       |
+| ```soundManager.seekTo(id, time)```    | ```soundManager.seek(id, time)```   |
+| ```soundManager.setVolumeById(id, volume)``` | ```soundManager.setSoundVolume(id, volume)``` |
+| ```soundManager.getVolumeById(id)```   | ```soundManager.getSoundVolume(id)``` |
+| ```soundManager.setGlobalVolume(volume)``` | ```soundManager.setGlobalVolume(volume)``` |
+| ```soundManager.getGlobalVolume()```   | ```soundManager.getGlobalVolume()``` |
+| ```soundManager.muteAllSounds()```     | ```soundManager.muteAll()```        |
+| ```soundManager.unmuteAllSounds()```   | ```soundManager.unmuteAll()```      |
+| ```soundManager.muteSoundById(id)```   | ```soundManager.mute(id)```         |
+| ```soundManager.unmuteSoundById(id)``` | ```soundManager.unmute(id)```       |
+| ```soundManager.toggleMute()```        | ```soundManager.toggleGlobalMute()``` |
+| ```soundManager.fadeMasterIn(...)```   | ```soundManager.fadeGlobalIn(...)``` |
+| ```soundManager.fadeMasterOut(...)```  | ```soundManager.fadeGlobalOut(...)``` |
+| ```soundManager.setMasterPan(value)``` | ```soundManager.setGlobalPan(value)``` |
+| ```soundManager.getMasterPan()```      | ```soundManager.getGlobalPan()```   |
+| ```soundManager.resetMasterPan()```    | ```soundManager.resetGlobalPan()``` |
+| ```soundManager.cleanupMasterPan()```  | ```soundManager.cleanupGlobalPan()``` |
+
+- 🛠️ Enhanced configuration system
+  - Added separate configuration file for better organization
+  - Support for default spatial audio settings
+  - Configurable initial volume and panning
+  - Global loop settings configuration
+
+- 📊 Expanded event system
+  - Added OPTIONS_UPDATED event for runtime changes
+  - Improved event handling for spatial updates
+  - Better synchronization between UI and audio state
+
+- 🎨 UI/UX enhancements
+
+#### Added features 
+
 - 🎮 Added comprehensive loop control system
   - Support for infinite and custom loop counts
   - Added loop iteration tracking and completion events
@@ -480,20 +614,6 @@ This project is developed by Chris Schardijn. It is free to use in your project.
     - Rolloff factor
     - Cone angles and outer gain
   - Real-time spatial parameter updates
-
-#### Improvements
-- 🛠️ Enhanced configuration system
-  - Added separate configuration file for better organization
-  - Support for default spatial audio settings
-  - Configurable initial volume and panning
-  - Global loop settings configuration
-
-- 📊 Expanded event system
-  - Added OPTIONS_UPDATED event for runtime changes
-  - Improved event handling for spatial updates
-  - Better synchronization between UI and audio state
-
-- 🎨 UI/UX enhancements
   - Collapsible control panels for better space management
   - Improved master controls section
   - Enhanced visual feedback for audio operations
@@ -587,6 +707,8 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 🚀 Upcoming Features
 📍 **Spatial Recording & Playback**
+- Improvements on various sound logic
+- Adding playback rate
 - Adding sound sprites for efficient playback of multiple sounds from a single audio file
 - Add Spatial (3d) recording capability
 - Enable playback of recorded sound positions over time

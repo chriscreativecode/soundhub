@@ -43,9 +43,9 @@ export class SoundManagerDemo {
     pauseAllBtn: () => this.soundManager.pauseAllSounds(),
     resumeAllBtn: () => this.soundManager.resumeAllSounds(),
     stopAllBtn: () => this.soundManager.stopAllSounds(),
-    toggleMuteBtn: () => this.soundManager.toggleMute(),
-    fadeInBtn: () => this.soundManager.fadeMasterIn(),
-    fadeOutBtn: () => this.soundManager.fadeMasterOut(),
+    toggleMuteBtn: () => this.soundManager.toggleGlobalMute(),
+    fadeInBtn: () => this.soundManager.fadeGlobalIn(),
+    fadeOutBtn: () => this.soundManager.fadeGlobalOut(),
     resetBtn: () => this.soundManager.reset(),
   } as const;
 
@@ -160,7 +160,7 @@ export class SoundManagerDemo {
     if (masterPanningInput) {
       masterPanningInput.addEventListener("input", (e) => {
         const pan = parseFloat((e.target as HTMLInputElement).value);
-        this.setMasterPan(pan);
+        this.setGlobalPan(pan);
       });
     }
 
@@ -204,10 +204,10 @@ export class SoundManagerDemo {
     });
   }
 
-  private setMasterPan(pan: number): void {
+  private setGlobalPan(pan: number): void {
     // Convert from 0-1 range to -1 to 1 range
     const normalizedPan = pan * 2 - 1;
-    this.soundManager.setMasterPan(normalizedPan);
+    this.soundManager.setGlobalPan(normalizedPan);
     this.updateMasterPan(normalizedPan);
   }
 
@@ -234,6 +234,7 @@ export class SoundManagerDemo {
         break;
 
       case SoundEventsEnum.MASTER_VOLUME_CHANGED:
+        console.log('master volume changed?');
         this.updateMasterVolume(event);
         break;
 

@@ -22,6 +22,7 @@ export enum SoundEventsEnum {
     SPATIAL_POSITION_RESET = 'spatial_position_reset',
     STARTED = 'started',
     STOPPED = 'stopped',
+    UPDATED_URL = 'updated_url',
     UNMUTED = 'unmuted',
     VOLUME_CHANGED = 'volume_changed',
   }
