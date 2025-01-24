@@ -75,14 +75,14 @@ const documentationDevConfig: UserConfig = {
     },
   },
   build: {
-    outDir: "../../dist/documentation",
+    outDir: path.resolve(__dirname, "dist/documentation"), // Adjusted path
     emptyOutDir: true,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'src/documentation/index.html')
       },
       output: {
-        dir: "../../dist/documentation",
+        dir: path.resolve(__dirname, "dist/documentation"), // Adjusted path
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]'
@@ -100,7 +100,7 @@ const documentationConfig: UserConfig = {
   root: "src/documentation",
   base: "./",
   build: {
-    outDir: "../dist/documentation",
+    outDir: path.resolve(__dirname, "dist/documentation"), // Adjusted path
     emptyOutDir: true,
     rollupOptions: {
       input: {
