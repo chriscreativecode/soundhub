@@ -46,7 +46,7 @@
     "dev": "vite",
     "dev:docs": "vite --mode documentation-dev",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:types && npm run build:lib && npm run build:demo && npm run build:docs",
+    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
     "build:types": "tsc --emitDeclarationOnly",
     "build:lib": "vite build --mode lib",
     "build:demo": "vite build --mode demo && npm run copy-demo-assets && npm run rename-index",
@@ -63,7 +63,8 @@
     "cross-env": "^7.0.3",
     "fs-extra": "^11.2.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.4"
+    "vite": "^6.0.4",
+    "vite-plugin-dts": "^4.5.0"
   },
   "dependencies": {
     "github-markdown-css": "^5.8.1",

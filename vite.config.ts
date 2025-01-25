@@ -2,6 +2,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig, UserConfig,LibraryFormats } from "vite";
 import { readmePlugin } from "./scripts/vite-readme-plugin";
+import dts from 'vite-plugin-dts'; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +23,13 @@ const libConfig : UserConfig = {
       },
     },
     outDir: "dist",
-  }
+  },
+  plugins: [
+    dts({
+      outputDir: './dist/types', 
+      include: ['./src'], 
+    } as any)
+  ]
 };
 
 const devConfig : UserConfig = {
