@@ -162,7 +162,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=2.4.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=3.0.0"></script>
     <script>
         // Initialize the Sound Manager
         const soundManager = new SoundManager({
@@ -546,7 +546,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 2.4.0
+### 3.0.0
 #### 🚨Breaking changes and new Features
 
 #### Improvements
@@ -583,6 +583,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
   - Support for default spatial audio settings
   - Configurable initial volume and panning
   - Global loop settings configuration
+  - TypeScript declaration maps was missing in build process
 
 - 📊 Expanded event system
   - Added OPTIONS_UPDATED event for runtime changes

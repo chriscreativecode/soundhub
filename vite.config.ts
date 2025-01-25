@@ -16,7 +16,6 @@ const libConfig : UserConfig = {
       formats: ["es", "umd"] as LibraryFormats[],
     },
     rollupOptions: {
-      external: [],
       output: {
         globals: {},
         dir: "dist",

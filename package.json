@@ -1,6 +1,6 @@
 {
   "name": "sound-manager-ts",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -44,13 +44,12 @@
   ],
   "scripts": {
     "dev": "vite",
-    "dev:docs-old": "cross-env NODE_ENV=development node scripts/inject-readme.js && vite --mode documentation-dev --open /index-dev.html",
     "dev:docs": "vite --mode documentation-dev",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
-    "build:lib": "tsc && vite build --mode lib",
+    "build": "npm run clean && npm run build:types && npm run build:lib && npm run build:demo && npm run build:docs",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:lib": "vite build --mode lib",
     "build:demo": "vite build --mode demo && npm run copy-demo-assets && npm run rename-index",
-    "build:docs-old": "vite build --mode documentation-dev && node scripts/inject-readme.js",
     "build:docs": "vite build --mode documentation-dev",
     "rename-index": "node scripts/rename-index.js",
     "copy-demo-assets": "node scripts/copy-demo-assets.js",
