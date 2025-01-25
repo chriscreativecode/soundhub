@@ -5,5 +5,6 @@ export * from './../sound-manager/sound-manager-config';
 export * from './../sound-manager/sound-manager.interface';
 export * from './../sound-manager/sound-reset-options.interface';
 export * from './../sound-manager/sound-state-info.interface';
+export * from './../sound-manager/sound-panner-config';
 export * from './../sound-manager/sound-state.interface';
 export * from './../sound-manager/sound.interface';
