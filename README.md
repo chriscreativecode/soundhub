@@ -162,7 +162,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
 <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=3.0.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=3.1.0"></script>
     <script>
         // Initialize the Sound Manager
         const soundManager = new SoundManager({
@@ -546,7 +546,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 3.0.0
+### 3.1.0
 #### 🚨Breaking changes and new Features
 
 #### Improvements
