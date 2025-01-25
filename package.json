@@ -1,6 +1,6 @@
 {
   "name": "sound-manager-ts",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -46,7 +46,7 @@
     "dev": "vite",
     "dev:docs": "vite --mode documentation-dev",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs && run build:types",
+    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs && npm run build:types",
     "build:types": "tsc --emitDeclarationOnly",
     "build:lib": "vite build --mode lib",
     "build:demo": "vite build --mode demo && npm run copy-demo-assets && npm run rename-index",
