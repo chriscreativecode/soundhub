@@ -180,14 +180,11 @@
 <h2 id="quick-start" tabindex="-1">🚀 Quick Start</h2>
 <pre><code class="language-bash">npm install sound-manager-ts
 </code></pre>
-<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;sound-manager-ts&#x27;</span>;
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;sound-manager-ts&quot;</span>;
 
 <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>();
-<span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">preloadSounds</span>([
-    { <span class="hljs-attr">id</span>: <span class="hljs-string">&#x27;music&#x27;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;/sounds/music.mp3&#x27;</span> }
-]);
-soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&#x27;music&#x27;</span>);
-
+<span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">preloadSounds</span>([{ <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/sounds/music.mp3&quot;</span> }]);
+soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;music&quot;</span>);
 </code></pre>
 <h2 id="installation-imlement-in-your-project" tabindex="-1">Installation / imlement in your project</h2>
 <h2 id="implement-in-your-project" tabindex="-1">Implement in your project</h2>
@@ -196,15 +193,15 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 <h4 id="install-the-package" tabindex="-1">Install the package</h4>
 <pre><code class="language-bash">npm install sound-manager-ts
 </code></pre>
+<p>After the installation a folder</p>
 <p>In your TypeScript file, you can import and use the Sound Manager like this:</p>
-<pre><code class="language-typescript">
-<span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span>, <span class="hljs-title class_">SoundManagerConfig</span>, <span class="hljs-title class_">SoundEventsEnum</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;sound-manager-ts&#x27;</span>;
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span>, <span class="hljs-title class_">SoundManagerConfig</span>, <span class="hljs-title class_">SoundEventsEnum</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;sound-manager-ts&quot;</span>;
 
 <span class="hljs-comment">// Optional configuration</span>
 <span class="hljs-keyword">const</span> <span class="hljs-attr">config</span>: <span class="hljs-title class_">SoundManagerConfig</span> = {
-    <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>,      <span class="hljs-comment">// Mute when tab is hidden</span>
-    <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>,     <span class="hljs-comment">// Resume on tab focus</span>
-    <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">0.8</span>,          <span class="hljs-comment">// Default volume (0-1)</span>
+  <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Mute when tab is hidden</span>
+  <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Resume on tab focus</span>
+  <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">0.8</span>, <span class="hljs-comment">// Default volume (0-1)</span>
 };
 
 <span class="hljs-comment">// Initialize sound manager with config</span>
@@ -212,72 +209,76 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 
 <span class="hljs-comment">// Define sounds to preload</span>
 <span class="hljs-keyword">const</span> soundsToLoad = [
-    { <span class="hljs-attr">id</span>: <span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;/assets/sounds/background.mp3&#x27;</span> },
-    { <span class="hljs-attr">id</span>: <span class="hljs-string">&#x27;click-effect&#x27;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;/assets/sounds/click.wav&#x27;</span> }
+  { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;background-music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/background.mp3&quot;</span> },
+  { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;click-effect&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/click.wav&quot;</span> },
 ];
 
 <span class="hljs-comment">// Preload sounds</span>
-soundManager.<span class="hljs-title function_">preloadSounds</span>(soundsToLoad).<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
-    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;All sounds loaded successfully&#x27;</span>);
-}).<span class="hljs-title function_">catch</span>(<span class="hljs-function"><span class="hljs-params">error</span> =&gt;</span> {
-    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;Error loading sounds:&#x27;</span>, error);
-});
+soundManager
+  .<span class="hljs-title function_">preloadSounds</span>(soundsToLoad)
+  .<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
+  })
+  .<span class="hljs-title function_">catch</span>(<span class="hljs-function">(<span class="hljs-params">error</span>) =&gt;</span> {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;Error loading sounds:&quot;</span>, error);
+  });
 
 <span class="hljs-comment">// Play a sound</span>
-soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, {
-    <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
-    <span class="hljs-attr">fadeIn</span>: <span class="hljs-number">2000</span>
+soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;background-music&quot;</span>, {
+  <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
+  <span class="hljs-attr">fadeIn</span>: <span class="hljs-number">2000</span>,
 });
-
 </code></pre>
 <h3 id="2-using-sound-manager-as-a-library-file" tabindex="-1">2. Using Sound Manager as a Library File</h3>
 <p>If you prefer to include Sound Manager directly as a library file in your project, you can use the UMD (Universal Module Definition) version. This approach allows you to integrate the sound manager without package managers or build tools - simply include the JavaScript file in your HTML.</p>
 <pre><code class="language-html"><span class="hljs-meta">&lt;!DOCTYPE <span class="hljs-keyword">html</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">html</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">&quot;en&quot;</span>&gt;</span>
-<span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">charset</span>=<span class="hljs-string">&quot;UTF-8&quot;</span> /&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;viewport&quot;</span> <span class="hljs-attr">content</span>=<span class="hljs-string">&quot;width=device-width, initial-scale=1.0&quot;</span> /&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">link</span> <span class="hljs-attr">rel</span>=<span class="hljs-string">&quot;icon&quot;</span> <span class="hljs-attr">href</span>=<span class="hljs-string">&quot;/favicon.ico&quot;</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;image/x-icon&quot;</span> /&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Sound Manager Implementation<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
-<span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
-<span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;app&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
     <span class="hljs-comment">&lt;!-- Include the UMD version of the Sound Manager --&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;./lib/sound-manager-ts.umd.js?v=3.1.0&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;./lib/sound-manager-ts.umd.js?v=3.2.0&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
     <span class="hljs-tag">&lt;<span class="hljs-name">script</span>&gt;</span><span class="language-javascript">
-        <span class="hljs-comment">// Initialize the Sound Manager</span>
-        <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>({
-            <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>,      <span class="hljs-comment">// Mute when tab is hidden</span>
-            <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>,     <span class="hljs-comment">// Resume on tab focus</span>
-            <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">0.8</span>,          <span class="hljs-comment">// Default volume (0-1)</span>
-            <span class="hljs-attr">spatialAudio</span>: <span class="hljs-literal">false</span>          <span class="hljs-comment">// Enable spatial audio</span>
+      <span class="hljs-comment">// Initialize the Sound Manager</span>
+      <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>({
+        <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Mute when tab is hidden</span>
+        <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Resume on tab focus</span>
+        <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">0.8</span>, <span class="hljs-comment">// Default volume (0-1)</span>
+        <span class="hljs-attr">spatialAudio</span>: <span class="hljs-literal">false</span>, <span class="hljs-comment">// Enable spatial audio</span>
+      });
+
+      <span class="hljs-comment">// Define sounds to preload</span>
+      <span class="hljs-keyword">const</span> soundsToLoad = [
+        { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;background-music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/background.mp3&quot;</span> },
+        { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;click-effect&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/click.wav&quot;</span> },
+      ];
+
+      <span class="hljs-comment">// Preload sounds</span>
+      soundManager
+        .<span class="hljs-title function_">preloadSounds</span>(soundsToLoad)
+        .<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
+          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
+        })
+        .<span class="hljs-title function_">catch</span>(<span class="hljs-function">(<span class="hljs-params">error</span>) =&gt;</span> {
+          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;Error loading sounds:&quot;</span>, error);
         });
 
-        <span class="hljs-comment">// Define sounds to preload</span>
-        <span class="hljs-keyword">const</span> soundsToLoad = [
-            { <span class="hljs-attr">id</span>: <span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;/assets/sounds/background.mp3&#x27;</span> },
-            { <span class="hljs-attr">id</span>: <span class="hljs-string">&#x27;click-effect&#x27;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&#x27;/assets/sounds/click.wav&#x27;</span> }
-        ];
+      <span class="hljs-comment">// Play a sound</span>
+      soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;background-music&quot;</span>, {
+        <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
+        <span class="hljs-attr">fadeIn</span>: <span class="hljs-number">2000</span>,
+      });
 
-        <span class="hljs-comment">// Preload sounds</span>
-        soundManager.<span class="hljs-title function_">preloadSounds</span>(soundsToLoad).<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
-            <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;All sounds loaded successfully&#x27;</span>);
-        }).<span class="hljs-title function_">catch</span>(<span class="hljs-function"><span class="hljs-params">error</span> =&gt;</span> {
-            <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;Error loading sounds:&#x27;</span>, error);
-        });
-
-        <span class="hljs-comment">// Play a sound</span>
-        soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, {
-            <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
-            <span class="hljs-attr">fadeIn</span>: <span class="hljs-number">2000</span>
-        });
-
-        <span class="hljs-comment">// Control individual sounds</span>
-        soundManager.<span class="hljs-title function_">stop</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+      <span class="hljs-comment">// Control individual sounds</span>
+      soundManager.<span class="hljs-title function_">stop</span>(<span class="hljs-string">&quot;background-music&quot;</span>);
     </span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
-<span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">html</span>&gt;</span>
-
 </code></pre>
 <h2 id="usage" tabindex="-1">Usage</h2>
 <pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span>, <span class="hljs-title class_">SoundManagerConfig</span>, <span class="hljs-title class_">SoundEventsEnum</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;sound-manager-ts&#x27;</span>;
@@ -350,6 +351,17 @@ soundManager.<span class="hljs-title function_">fadeOut</span>(<span class="hljs
 soundManager.<span class="hljs-title function_">fadeGlobalIn</span>(<span class="hljs-number">1500</span>); <span class="hljs-comment">// Fade in all sounds</span>
 soundManager.<span class="hljs-title function_">fadeGlobalOut</span>(<span class="hljs-number">1500</span>); <span class="hljs-comment">// Fade out all sounds</span>
 
+<span class="hljs-comment">// Playback rate</span>
+soundManager.<span class="hljs-title function_">setPlaybackRate</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">1.5</span>);
+
+<span class="hljs-comment">// 3D Spatial Audio</span>
+
+<span class="hljs-comment">// Set on a specific sound the 3d / spatial audio positioni</span>
+soundManager.<span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-number">5</span>, <span class="hljs-number">3</span>, -<span class="hljs-number">2</span>, <span class="hljs-string">&#x27;background-music&#x27;</span>);
+
+<span class="hljs-comment">// Set the master spatial position (x, y, z)</span>
+soundManager.<span class="hljs-title function_">setMasterSpatialPosition</span>(<span class="hljs-number">10</span>, <span class="hljs-number">5</span>, -<span class="hljs-number">3</span>);
+
 <span class="hljs-comment">// Mute controls</span>
 soundManager.<span class="hljs-title function_">muteAllSounds</span>();
 soundManager.<span class="hljs-title function_">unmuteAllSounds</span>();
@@ -363,7 +375,7 @@ soundManager.<span class="hljs-title function_">setSoundPosition</span>(<span cl
 soundManager.<span class="hljs-title function_">resetSoundPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">removeSpatialEffect</span>();
 soundManager.<span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
-soundManager.<span class="hljs-title function_">updatePannerConfig</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, 
+soundManager.<span class="hljs-title function_">updatePannerConfig</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>,
     &lt;<span class="hljs-title class_">SoundPannerConfig</span>&gt;{
         <span class="hljs-attr">panningModel</span>: <span class="hljs-title class_">PanningModel</span>.<span class="hljs-property">HRTF</span>,
         <span class="hljs-attr">distanceModel</span>: <span class="hljs-title class_">DistanceModel</span>.<span class="hljs-property">Inverse</span>,
@@ -402,6 +414,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerInterface</span> {
   <span class="hljs-comment">// Playback control</span>
   <span class="hljs-title function_">play</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>?: playOptions): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">playSprite</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">spriteKey</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: playOptions): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">pause</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">resume</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">stop</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
@@ -447,11 +460,12 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 
   <span class="hljs-comment">// Spatial audio</span>
   <span class="hljs-title function_">isSpatialAudioEnabled</span>(): <span class="hljs-built_in">boolean</span>;
-  <span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">soundPannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">id</span>?: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>, <span class="hljs-attr">soundPannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setMasterSpatialPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">config</span>?: <span class="hljs-title class_">SoundPannerConfig</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">resetSoundPosition</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">removeSpatialEffect</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">boolean</span>;
-  <span class="hljs-title function_">updatePannerConfigById</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">newConfig</span>: <span class="hljs-title class_">Partial</span>&lt;<span class="hljs-title class_">SoundPannerConfig</span>&gt;): <span class="hljs-built_in">void</span> 
+  <span class="hljs-title function_">updatePannerConfigById</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">newConfig</span>: <span class="hljs-title class_">Partial</span>&lt;<span class="hljs-title class_">SoundPannerConfig</span>&gt;): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Pan control</span>
   <span class="hljs-title function_">setPan</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">pan</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
@@ -467,6 +481,8 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">getSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">Sound</span> | <span class="hljs-literal">undefined</span>;
   <span class="hljs-title function_">getSoundIds</span>(): <span class="hljs-built_in">string</span>[];
   <span class="hljs-title function_">updateSoundOptions</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: <span class="hljs-title class_">Partial</span>&lt;playOptions&gt;): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setPlaybackRate</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">rate</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setSoundSprite</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">sprite</span>: { [<span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>]: [<span class="hljs-built_in">number</span>, <span class="hljs-built_in">number</span>] }): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">destroy</span>(): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// listeners</span>
@@ -477,89 +493,98 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="playoptions" tabindex="-1">PlayOptions</h2>
 <p>Options for playing a sound</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">interface</span> playOptions {
-    <span class="hljs-attr">fadeIn</span>?: <span class="hljs-built_in">number</span>;
-    <span class="hljs-attr">fadeOut</span>?: <span class="hljs-built_in">number</span>;
-    <span class="hljs-attr">pan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// -1 (left) to 1 (right)</span>
-    <span class="hljs-attr">startTime</span>?: <span class="hljs-built_in">number</span>; 
-    <span class="hljs-attr">volume</span>?: <span class="hljs-built_in">number</span>;
-    <span class="hljs-attr">loop</span>?: <span class="hljs-built_in">boolean</span>;
-    <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// -1 for infinte, number &gt; 0 for specific number of loops</span>
+  <span class="hljs-attr">fadeIn</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">fadeOut</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">pan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// -1 (left) to 1 (right)</span>
+  <span class="hljs-attr">startTime</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">volume</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">loop</span>?: <span class="hljs-built_in">boolean</span>;
+  <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// -1 for infinte, number &gt; 0 for specific number of loops</span>
 }
 </code></pre>
 <h2 id="soundevent" tabindex="-1">SoundEvent</h2>
 <p>Event object dispatched by the sound manager:</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundEvent</span> {
-    <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// When the page is hidden, all sounds are muted</span>
-    <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// when the page is focused again, all sounds are resumed</span>
-    <span class="hljs-attr">crossOrigin</span>: <span class="hljs-literal">null</span>, <span class="hljs-comment">// CORS setting for audio files</span>
-    <span class="hljs-attr">debug</span>: <span class="hljs-literal">true</span>,  <span class="hljs-comment">//  Enable debug logging</span>
-    <span class="hljs-attr">defaultPan</span>: <span class="hljs-number">0</span>, <span class="hljs-comment">//  Default pan for new sounds (0-1)</span>
-    <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Default volume for new sounds (0-1)</span>
-    <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">1000</span>, <span class="hljs-comment">// Default fade-in duration in milliseconds</span>
-    <span class="hljs-attr">fadeOutDuration</span>: <span class="hljs-number">1000</span>, <span class="hljs-comment">// Default fade-out duration in milliseconds</span>
-    <span class="hljs-attr">spatialAudio</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">//  Enable spatial audio features</span>
-    <span class="hljs-attr">loopSounds</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Loop all sounds by default</span>
-    <span class="hljs-attr">pannerNodeConfig</span>: <span class="hljs-variable constant_">DEFAULT_PANNER_CONFIG</span>, <span class="hljs-comment">// Default panner settings</span>
+  <span class="hljs-attr">currentTime</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">error</span>?: <span class="hljs-title class_">Error</span>;
+  <span class="hljs-attr">isMaster</span>?: <span class="hljs-built_in">boolean</span>;
+  <span class="hljs-attr">isMuted</span>?: <span class="hljs-built_in">boolean</span>;
+  <span class="hljs-attr">options</span>?: playOptions;
+  <span class="hljs-attr">pan</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">pannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>;
+  <span class="hljs-attr">position</span>?: { <span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span> };
+  <span class="hljs-attr">previousPan</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">resetOptions</span>?: <span class="hljs-title class_">SoundResetOptions</span>;
+  <span class="hljs-attr">soundId</span>?: <span class="hljs-built_in">string</span>;
+  <span class="hljs-attr">timestamp</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">playbackRate</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">sprite</span>?: { [<span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>]: [<span class="hljs-built_in">number</span>, <span class="hljs-built_in">number</span>] };
+  <span class="hljs-attr">type</span>: <span class="hljs-title class_">SoundEventsEnum</span>;
+  <span class="hljs-attr">volume</span>?: <span class="hljs-built_in">number</span>;
 }
 </code></pre>
 <h2 id="soundeventsenum" tabindex="-1">SoundEventsEnum</h2>
 <p>Available event types:</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">enum</span> <span class="hljs-title class_">SoundEventsEnum</span> {
-    <span class="hljs-variable constant_">ENDED</span>,
-    <span class="hljs-variable constant_">ERROR</span>,
-    <span class="hljs-variable constant_">FADE_IN_COMPLETED</span>,
-    <span class="hljs-variable constant_">FADE_OUT_COMPLETED</span>,
-    <span class="hljs-variable constant_">FADE_MASTER_IN_COMPLETED</span>,
-    <span class="hljs-variable constant_">FADE_MASTER_OUT_COMPLETED</span>,
-    <span class="hljs-variable constant_">GLOBAL_SPATIAL_POSITION_CHANGED</span>,
-    <span class="hljs-variable constant_">LOOP_COMPLETED</span>,
-    <span class="hljs-variable constant_">MASTER_VOLUME_CHANGED</span>,
-    <span class="hljs-variable constant_">MUTED</span>,
-    <span class="hljs-variable constant_">MUTE_GLOBAL</span>,
-    <span class="hljs-variable constant_">OPTIONS_UPDATED</span>,
-    <span class="hljs-variable constant_">UNMUTE_GLOBAL</span>,
-    <span class="hljs-variable constant_">MASTER_PAN_CHANGED</span>,
-    <span class="hljs-variable constant_">PAN_CHANGED</span>,
-    <span class="hljs-variable constant_">PAUSED</span>,
-    <span class="hljs-variable constant_">RESUMED</span>,
-    <span class="hljs-variable constant_">SEEKED</span>,
-    <span class="hljs-variable constant_">SPATIAL_POSITION_CHANGED</span>,
-    <span class="hljs-variable constant_">SPATIAL_POSITION_RESET</span>,
-    <span class="hljs-variable constant_">STARTED</span>,
-    <span class="hljs-variable constant_">STOPPED</span>,
-    <span class="hljs-variable constant_">UNMUTED</span>,
-    <span class="hljs-variable constant_">VOLUME_CHANGED</span>
+  <span class="hljs-variable constant_">ENDED</span> = <span class="hljs-string">&#x27;ended&#x27;</span>,
+  <span class="hljs-variable constant_">ERROR</span> = <span class="hljs-string">&#x27;error&#x27;</span>,
+  <span class="hljs-variable constant_">FADE_IN_COMPLETED</span> = <span class="hljs-string">&#x27;fade_in_completed&#x27;</span>,
+  <span class="hljs-variable constant_">FADE_OUT_COMPLETED</span> = <span class="hljs-string">&#x27;fade_out_completed&#x27;</span>,
+  <span class="hljs-variable constant_">FADE_MASTER_IN_COMPLETED</span> = <span class="hljs-string">&#x27;fade_master_in_completed&#x27;</span>,
+  <span class="hljs-variable constant_">FADE_MASTER_OUT_COMPLETED</span> = <span class="hljs-string">&#x27;fade_master_out_completed&#x27;</span>,
+  <span class="hljs-variable constant_">GLOBAL_SPATIAL_POSITION_CHANGED</span> = <span class="hljs-string">&#x27;global_spatial_position_changed&#x27;</span>,
+  <span class="hljs-variable constant_">LOOP_COMPLETED</span> = <span class="hljs-string">&#x27;loop_completed&#x27;</span>,
+  <span class="hljs-variable constant_">MASTER_VOLUME_CHANGED</span> = <span class="hljs-string">&#x27;master_volume_changed&#x27;</span>,
+  <span class="hljs-variable constant_">MUTED</span> = <span class="hljs-string">&#x27;muted&#x27;</span>,
+  <span class="hljs-variable constant_">MUTE_GLOBAL</span> = <span class="hljs-string">&#x27;mute_global&#x27;</span>,
+  <span class="hljs-variable constant_">UNMUTE_GLOBAL</span> = <span class="hljs-string">&#x27;unmute_global&#x27;</span>,
+  <span class="hljs-variable constant_">MASTER_PAN_CHANGED</span> = <span class="hljs-string">&#x27;master_pan_changed&#x27;</span>,
+  <span class="hljs-variable constant_">OPTIONS_UPDATED</span> = <span class="hljs-string">&#x27;options_updated&#x27;</span>,
+  <span class="hljs-variable constant_">PAN_CHANGED</span> = <span class="hljs-string">&#x27;pan_changed&#x27;</span>,
+  <span class="hljs-variable constant_">PAUSED</span> = <span class="hljs-string">&#x27;paused&#x27;</span>,
+  <span class="hljs-variable constant_">PLAYBACK_RATE_CHANGED</span> = <span class="hljs-string">&#x27;playback_rate_changed&#x27;</span>,
+  <span class="hljs-variable constant_">RESET</span> = <span class="hljs-string">&#x27;reset&#x27;</span>,
+  <span class="hljs-variable constant_">RESUMED</span> = <span class="hljs-string">&#x27;resumed&#x27;</span>,
+  <span class="hljs-variable constant_">SEEKED</span> = <span class="hljs-string">&#x27;seeked&#x27;</span>,
+  <span class="hljs-variable constant_">SPATIAL_POSITION_CHANGED</span> = <span class="hljs-string">&#x27;spatial_position_changed&#x27;</span>,
+  <span class="hljs-variable constant_">SPATIAL_POSITION_RESET</span> = <span class="hljs-string">&#x27;spatial_position_reset&#x27;</span>,
+  <span class="hljs-variable constant_">SPRITE_SET</span> = <span class="hljs-string">&#x27;sprite_set&#x27;</span>,
+  <span class="hljs-variable constant_">STARTED</span> = <span class="hljs-string">&#x27;started&#x27;</span>,
+  <span class="hljs-variable constant_">STOPPED</span> = <span class="hljs-string">&#x27;stopped&#x27;</span>,
+  <span class="hljs-variable constant_">UPDATED_URL</span> = <span class="hljs-string">&#x27;updated_url&#x27;</span>,
+  <span class="hljs-variable constant_">UNMUTED</span> = <span class="hljs-string">&#x27;unmuted&#x27;</span>,
+  <span class="hljs-variable constant_">VOLUME_CHANGED</span> = <span class="hljs-string">&#x27;volume_changed&#x27;</span>,
 }
 </code></pre>
 <h2 id="soundmanagerconfig" tabindex="-1">SoundManagerConfig</h2>
 <p>Configuration options:</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerConfig</span> {
-    <span class="hljs-attr">autoMuteOnHidden</span>?: <span class="hljs-built_in">boolean</span>;    <span class="hljs-comment">// Mute when tab hidden</span>
-    <span class="hljs-attr">autoResumeOnFocus</span>?: <span class="hljs-built_in">boolean</span>;   <span class="hljs-comment">// Resume on tab focus</span>
-    <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-built_in">string</span>;          <span class="hljs-comment">// CORS setting</span>
-    <span class="hljs-attr">debug</span>?: <span class="hljs-built_in">boolean</span>;               <span class="hljs-comment">// Enable debug logs</span>
-    <span class="hljs-attr">defaultPan</span>?: <span class="hljs-built_in">number</span>;           <span class="hljs-comment">// Default pan value</span>
-    <span class="hljs-attr">defaultVolume</span>?: <span class="hljs-built_in">number</span>;        <span class="hljs-comment">// Default volume</span>
-    <span class="hljs-attr">fadeInDuration</span>?: <span class="hljs-built_in">number</span>;       <span class="hljs-comment">// Default fade-in time</span>
-    <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>;      <span class="hljs-comment">// Default fade-out time</span>
-    <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>;        <span class="hljs-comment">// Enable spatial audio</span>
+  <span class="hljs-attr">autoMuteOnHidden</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Mute when tab hidden</span>
+  <span class="hljs-attr">autoResumeOnFocus</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Resume on tab focus</span>
+  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-built_in">string</span>; <span class="hljs-comment">// CORS setting</span>
+  <span class="hljs-attr">debug</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable debug logs</span>
+  <span class="hljs-attr">defaultPan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default pan value</span>
+  <span class="hljs-attr">defaultVolume</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default volume</span>
+  <span class="hljs-attr">fadeInDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default fade-in time</span>
+  <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default fade-out time</span>
+  <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable spatial audio</span>
 }
 </code></pre>
 <h2 id="sound-state-information" tabindex="-1">Sound State Information</h2>
 <p>Information about a sound’s current state:</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundStateInfo</span> {
-    <span class="hljs-attr">currentTime</span>: <span class="hljs-built_in">number</span>;      <span class="hljs-comment">// Current playback position in seconds</span>
-    <span class="hljs-attr">duration</span>: <span class="hljs-built_in">number</span> | <span class="hljs-literal">null</span>;  <span class="hljs-comment">// Total duration of the sound</span>
-    <span class="hljs-attr">state</span>: <span class="hljs-title class_">SoundState</span>;       <span class="hljs-comment">// Current state (playing/paused/stopped)</span>
-    <span class="hljs-attr">volume</span>: <span class="hljs-built_in">number</span>;          <span class="hljs-comment">// Current volume level</span>
+  <span class="hljs-attr">currentTime</span>: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Current playback position in seconds</span>
+  <span class="hljs-attr">duration</span>: <span class="hljs-built_in">number</span> | <span class="hljs-literal">null</span>; <span class="hljs-comment">// Total duration of the sound</span>
+  <span class="hljs-attr">state</span>: <span class="hljs-title class_">SoundState</span>; <span class="hljs-comment">// Current state (playing/paused/stopped)</span>
+  <span class="hljs-attr">volume</span>: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Current volume level</span>
 }
 </code></pre>
 <h2 id="soundstate" tabindex="-1">SoundState</h2>
 <p>Possible states of a sound:</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">enum</span> <span class="hljs-title class_">SoundState</span> {
-    <span class="hljs-title class_">Playing</span> = <span class="hljs-string">&quot;playing&quot;</span>,
-    <span class="hljs-title class_">Paused</span> = <span class="hljs-string">&quot;paused&quot;</span>,
-    <span class="hljs-title class_">Stopped</span> = <span class="hljs-string">&quot;stopped&quot;</span>
+  <span class="hljs-title class_">Playing</span> = <span class="hljs-string">&quot;playing&quot;</span>,
+  <span class="hljs-title class_">Paused</span> = <span class="hljs-string">&quot;paused&quot;</span>,
+  <span class="hljs-title class_">Stopped</span> = <span class="hljs-string">&quot;stopped&quot;</span>,
 }
 </code></pre>
 <h2 id="demo-included" tabindex="-1">Demo included</h2>
@@ -605,7 +630,25 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="version-history" tabindex="-1">📋 Version History</h2>
+<h3 id="3-2-0" tabindex="-1">3.2.0</h3>
+<ul>
+<li>Fixed issues with typescript declaration maps in build process</li>
+</ul>
+<h4 id="added-features" tabindex="-1">🎉 Added features</h4>
+<ul>
+<li>Added support for playback rate adjustment via the setPlaybackRate method</li>
+<li>New event: PLAYBACK_RATE_CHANGED is dispatched when the playback rate is updated.</li>
+<li>Added support for sound sprites, allowing you to define and play specific segments of a sound file</li>
+<li>Added event: SPRITE_SET</li>
+<li>Added a setMasterSpatialPosition method to control the 3D spatial position of all sounds globall</li>
+<li>Improved handling of spatial audio (3D audio) with fixes for issues related to positioning and listener configuration.</li>
+<li>Added a demo panel to visualize and control the master spatial position</li>
+</ul>
 <h3 id="3-1-0" tabindex="-1">3.1.0</h3>
+<ul>
+<li>TypeScript declaration maps was missing in build process</li>
+</ul>
+<h3 id="3-0-0" tabindex="-1">3.0.0</h3>
 <h4 id="breaking-changes-and-new-features" tabindex="-1">🚨Breaking changes and new Features</h4>
 <h4 id="improvements" tabindex="-1">Improvements</h4>
 <ul>
@@ -714,7 +757,6 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <li>Support for default spatial audio settings</li>
 <li>Configurable initial volume and panning</li>
 <li>Global loop settings configuration</li>
-<li>TypeScript declaration maps was missing in build process</li>
 </ul>
 </li>
 <li>
@@ -729,7 +771,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <p>🎨 UI/UX enhancements</p>
 </li>
 </ul>
-<h4 id="added-features" tabindex="-1">Added features</h4>
+<h4 id="added-features-1" tabindex="-1">Added features</h4>
 <ul>
 <li>
 <p>🎮 Added comprehensive loop control system</p>
@@ -878,9 +920,9 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="upcoming-features" tabindex="-1">🚀 Upcoming Features</h2>
 <p>📍 <strong>Spatial Recording &amp; Playback</strong></p>
 <ul>
+<li>Add setPlaybackRate to the demo for adjustable audio speed</li>
+<li>Add showcase of the sound sprite to play multiple effects from a single file</li>
 <li>Improvements on various sound logic</li>
-<li>Adding playback rate</li>
-<li>Adding sound sprites for efficient playback of multiple sounds from a single audio file</li>
 <li>Add Spatial (3d) recording capability</li>
 <li>Enable playback of recorded sound positions over time</li>
 </ul>
@@ -940,7 +982,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
           "name": "Sound Manager TS",
           "applicationCategory": "DeveloperApplication",
           "operatingSystem": "Any",
-          "softwareVersion": "3.1.0"
+          "softwareVersion": "3.2.0"
         }
       }
     </script>

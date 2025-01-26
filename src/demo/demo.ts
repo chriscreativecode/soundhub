@@ -1,15 +1,25 @@
 import "./shared.css";
 import "./demo.css";
 
+// @ts-ignore
 import song from "../sounds/we-are-dreaming-song.mp3";
+console.log("song url", song);
+// @ts-ignore
 import song2 from "../sounds/little-wonders-song.mp3";
+// @ts-ignore
 import birds from "../sounds/birds-forest.mp3";
+// @ts-ignore
 import rain from "../sounds/rain.mp3";
-import crickets from "../sounds/crickets.mp3";
+// @ts-ignore
 import brook from "../sounds/brook.mp3";
+// @ts-ignore
 import magma from "../sounds/under-sea-magma.mp3";
+// @ts-ignore
 import laserSound from "../sounds/laser-sound.mp3";
+// @ts-ignore
+import crickets from "../sounds/crickets.mp3";
 
+// @ts-ignore
 import demoTemplate from "./demo.html?raw";
 import { SoundControl } from "./sound-control.component";
 import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
@@ -17,10 +27,23 @@ import { SoundEvent } from "../sound-manager/sound-event.interface";
 import type { SoundManager } from "../sound-manager/sound-manager";
 import { SoundManagerConfig } from "../sound-manager/sound-manager-config";
 import { DEMO_CONFIG } from "./demo.config";
+import { SoundPannerConfig } from "../types";
 
 interface SoundManagerLibrary {
   SoundManager: new (config?: SoundManagerConfig) => SoundManager;
 }
+
+
+const SPATIAL_SETTINGS_MAPPING: { [key: string]: keyof SoundPannerConfig } = {
+  'panning-model-select': 'panningModel',
+  'distance-model-select': 'distanceModel',
+  'ref-distance-input': 'refDistance',
+  'max-distance-input': 'maxDistance',
+  'rolloff-factor-input': 'rolloffFactor',
+  'cone-inner-angle-input': 'coneInnerAngle',
+  'cone-outer-angle-input': 'coneOuterAngle',
+  'cone-outer-gain-input': 'coneOuterGain',
+};
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
@@ -101,32 +124,34 @@ export class SoundManagerDemo {
   private initialize(): void {
     try {
       this.render();
-      requestAnimationFrame(() => {
-        // Initialize master panning
-        const masterPanningInput = document.getElementById("masterPanning") as HTMLInputElement;
-        const defaultPan = this.soundManagerConfig.defaultPan ?? 0;
-        if (masterPanningInput) {
-          masterPanningInput.value = ((defaultPan + 1) / 2).toString(); // Convert from -1,1 to 0,1
-          masterPanningInput.min = "0";
-          masterPanningInput.max = "1";
-          masterPanningInput.step = "0.01";
-          this.updateMasterPan(defaultPan);
-        }
 
-        // Initialize master volume
-        const masterVolumeInput = document.getElementById("masterVolume") as HTMLInputElement;
-        const defaultVolume = this.soundManagerConfig.defaultVolume ?? 1;
-        if (masterVolumeInput) {
-          masterVolumeInput.value = defaultVolume.toString();
-          this.updateMasterVolume(defaultVolume);
-        }
+      // Initialize master panning
+      const masterPanningInput = document.getElementById("masterPanning") as HTMLInputElement;
+      const defaultPan = this.soundManagerConfig.defaultPan ?? 0;
+      if (masterPanningInput) {
+        masterPanningInput.value = ((defaultPan + 1) / 2).toString(); // Convert from -1,1 to 0,1
+        masterPanningInput.min = "0";
+        masterPanningInput.max = "1";
+        masterPanningInput.step = "0.01";
+        this.updateMasterPan(defaultPan);
+      }
 
-        this.initializeEventListeners();
-        this.initializeGlobalControls();
+      // Initialize master volume
+      const masterVolumeInput = document.getElementById("masterVolume") as HTMLInputElement;
+      const defaultVolume = this.soundManagerConfig.defaultVolume ?? 1;
+      if (masterVolumeInput) {
+        masterVolumeInput.value = defaultVolume.toString();
+        this.updateMasterVolume(defaultVolume);
+      }
 
-        document.querySelectorAll(".control-group.sticky").forEach((element) => {
-          this.createStickyObserver(element as HTMLElement);
-        });
+      this.initializeEventListeners();
+      this.initializeGlobalControls();
+      this.initializeMasterSpatialControls();
+      this.initializeSpatialSettings();
+      this.initializeSpatialControls();
+
+      document.querySelectorAll(".control-group.sticky").forEach((element) => {
+        this.createStickyObserver(element as HTMLElement);
       });
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
@@ -210,6 +235,151 @@ export class SoundManagerDemo {
     this.soundManager.setGlobalPan(normalizedPan);
     this.updateMasterPan(normalizedPan);
   }
+  private initializeSpatialSettings(): void {
+    const spatialSettings = document.querySelector(".master-spatial-controls .spatial-settings");
+    if (spatialSettings) {
+      const handleSettingChange = (e: Event) => {
+        const target = e.target as HTMLInputElement | HTMLSelectElement;
+        console.log('target', target);
+        const value = target.type === "number" ? parseFloat(target.value) : target.value;
+        const property = SPATIAL_SETTINGS_MAPPING[target.className];
+
+        const newConfig = {
+          [property]: value,
+        };
+
+        console.log('newConfig', newConfig);	
+       //this.soundManager.setMasterSpatialPosition(0, 0, 0, newConfig);
+        this.soundManager.setMasterSpatialPosition(
+          parseFloat(
+            (document.querySelector(".master-spatial-controls .spatial-position-circle") as HTMLElement).style.left
+          ) /
+            50 -
+            1,
+          -(
+            parseFloat(
+              (document.querySelector(".master-spatial-controls .spatial-position-circle") as HTMLElement).style.top
+            ) /
+              50 -
+            1
+          ),
+          0,
+          newConfig
+        );
+      };
+
+      spatialSettings.querySelectorAll("select, input").forEach((element) => {
+        element.addEventListener("change", handleSettingChange);
+      });
+    }
+  }
+
+  private initializeSpatialControls(): void {
+    const collapsePanelBar = document.querySelector(".master-spatial-controls > .control-header");
+    const spatialContent = document.querySelector(".master-spatial-controls .spatial-content");
+
+    if (collapsePanelBar && spatialContent) {
+      collapsePanelBar.addEventListener("click", () => {
+        spatialContent.classList.toggle("collapsed");
+        // Optionally rotate the collapse button icon
+        const icon = collapsePanelBar.querySelector("svg");
+        if (icon) {
+          icon.style.transform = spatialContent.classList.contains("collapsed") ? "rotate(0deg)" : "rotate(180deg)";
+        }
+      });
+    }
+  }
+
+  private initializeMasterSpatialControls(): void {
+    const masterSpatialGrid = document.querySelector(".master-spatial-controls .spatial-grid");
+    const masterSpatialCircle = document.querySelector(".master-spatial-controls .spatial-position-circle");
+    const masterSpatialCoords = document.querySelector(".master-spatial-controls .spatial-coordinates");
+
+    if (masterSpatialGrid && masterSpatialCircle && masterSpatialCoords) {
+      let isDragging = false;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
+        const rect = masterSpatialGrid.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        const normalizedZ = (y / 50 - 1) * -1;
+        this.updateMasterSpatialPosition(x, y, normalizedZ);
+      };
+
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!isDragging) return;
+        const rect = masterSpatialGrid.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((e.touches[0].clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((e.touches[0].clientY - rect.top) / rect.height) * 100));
+        const normalizedZ = (y / 50 - 1) * -1;
+        this.updateMasterSpatialPosition(x, y, normalizedZ);
+      };
+
+      const handleMouseDown = () => {
+        isDragging = true;
+      };
+
+      const handleMouseUp = () => {
+        isDragging = false;
+      };
+
+      const handleTouchStart = (e: TouchEvent) => {
+        isDragging = true;
+        e.preventDefault();
+      };
+
+      const handleTouchEnd = () => {
+        isDragging = false;
+      };
+
+      const handleGridClick = (e: MouseEvent) => {
+        const rect = masterSpatialGrid.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        const normalizedZ = (y / 50 - 1) * -1;
+        this.updateMasterSpatialPosition(x, y, normalizedZ);
+      };
+
+      // Add event listeners
+      masterSpatialCircle.addEventListener("mousedown", handleMouseDown);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      masterSpatialCircle.addEventListener("touchstart", handleTouchStart as EventListener);
+      document.addEventListener("touchend", handleTouchEnd as EventListener);
+      document.addEventListener("touchmove", handleTouchMove as EventListener);
+      masterSpatialGrid.addEventListener("click", handleGridClick as EventListener);
+
+      // Initialize position at center
+      const centerX = 50;
+      const centerY = 50;
+      (masterSpatialCircle as HTMLElement).style.left = `${centerX}%`;
+      (masterSpatialCircle as HTMLElement).style.top = `${centerY}%`;
+    }
+  }
+
+  private updateMasterSpatialPosition(x: number, y: number, z: number, config: SoundPannerConfig = {}): void {
+    const masterSpatialCircle = document.querySelector(
+      ".master-spatial-controls .spatial-position-circle"
+    ) as HTMLElement;
+    const masterSpatialCoords = document.querySelector(".master-spatial-controls .spatial-coordinates");
+
+    if (masterSpatialCircle && masterSpatialCoords) {
+      masterSpatialCircle.style.left = `${x}%`;
+      masterSpatialCircle.style.top = `${y}%`;
+
+      // Update master spatial position using setSoundPosition without an id
+ //     this.soundManager.setSoundPosition(x / 50 - 1, -(y / 50 - 1), z, null, config);
+
+      this.soundManager.setMasterSpatialPosition(x / 50 - 1, -(y / 50 - 1), z, config);
+
+      // Update coordinates display
+      masterSpatialCoords.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${(-(
+        y / 50 -
+        1
+      )).toFixed(2)},<br/>Z: ${z.toFixed(2)}`;
+    }
+  }
 
   private handleSoundEvent = (event: SoundEvent): void => {
     switch (event.type) {
@@ -234,7 +404,7 @@ export class SoundManagerDemo {
         break;
 
       case SoundEventsEnum.MASTER_VOLUME_CHANGED:
-        console.log('master volume changed?');
+        console.log("master volume changed?");
         this.updateMasterVolume(event);
         break;
 
@@ -258,6 +428,7 @@ export class SoundManagerDemo {
       case SoundEventsEnum.RESET:
         if (!event.resetOptions?.keepPanning) {
           this.updateMasterPan(0);
+          this.updateMasterSpatialPosition(50, 50, 0);
         }
         break;
     }
@@ -364,7 +535,7 @@ export class SoundManagerDemo {
         { id: "brook", url: brook },
         { id: "magma", url: magma },
         { id: "we-are-dreaming-song", url: song },
-        { id: "little-wonders-song", url: song2} ,
+        { id: "little-wonders-song", url: song2 },
       ];
 
       await this.soundManager.preloadSounds(soundsToLoad);
