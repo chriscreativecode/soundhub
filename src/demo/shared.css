@@ -139,7 +139,6 @@ input[type="range"]::-moz-range-thumb:active {
   display: flex;
   gap: var(--spacing-sm);
   padding: var(--spacing-md) 0 0 0;
-  border-top: 1px solid var(--color-border);
   justify-content: space-between;
   flex-wrap: wrap;
 }

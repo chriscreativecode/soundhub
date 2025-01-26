@@ -4,18 +4,20 @@ import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundResetOptions } from "./sound-reset-options.interface";
 
 export interface SoundEvent {
-    currentTime?: number;
-    error?: Error;
-    isMaster?: boolean;
-    isMuted?: boolean;
-    options?: playOptions;
-    pan?: number;
-    pannerConfig?: SoundPannerConfig;
-    position?: {x:number, y:number, z: number};
-    previousPan?: number;
-    resetOptions?: SoundResetOptions;
-    soundId?: string;
-    timestamp?: number;
-    type: SoundEventsEnum;
-    volume?: number;
-  }
+  currentTime?: number;
+  error?: Error;
+  isMaster?: boolean;
+  isMuted?: boolean;
+  options?: playOptions;
+  pan?: number;
+  pannerConfig?: SoundPannerConfig;
+  position?: { x: number; y: number; z: number };
+  previousPan?: number;
+  resetOptions?: SoundResetOptions;
+  soundId?: string;
+  timestamp?: number;
+  playbackRate?: number;
+  sprite?: { [key: string]: [number, number] };
+  type: SoundEventsEnum;
+  volume?: number;
+}

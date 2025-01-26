@@ -1,21 +1,23 @@
 import { SoundState } from "./sound-state.interface";
 
 export interface Sound {
+  activeSource?: AudioBufferSourceNode;
+  buffer: AudioBuffer;
+  currentLoopCount?: number;
+  gainNode: GainNode;
   id: string;
   isFadingIn?: boolean;
   isFadingOut?: boolean;
-  buffer: AudioBuffer;
-  gainNode: GainNode;
-  stereoPanner?: StereoPannerNode; // just plain left to right panning
-  pannerNode?: PannerNode; // for 3D panning
-  startTime: number;
-  pausedAt: number;
-  volume: number;
   loop?: boolean;
   maxLoops?: number; // 0 means infinite
-  currentLoopCount?: number;
   originalVolume?: number;
+  pannerNode?: PannerNode; // for 3D panning
+  playbackRate?: number;
+  pausedAt: number;
   previousVolume?: number;
-  activeSource?: AudioBufferSourceNode;
+  sprite?: { [key: string]: [number, number] }; // Sprite support
+  startTime: number;
   state: SoundState;  
+  stereoPanner?: StereoPannerNode; // just plain left to right panning
+  volume: number;
 }

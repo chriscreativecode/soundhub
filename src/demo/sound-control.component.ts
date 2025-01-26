@@ -726,7 +726,6 @@ export class SoundControl {
     const centerY = 50;
     this.circle.style.left = `${centerX}%`;
     this.circle.style.top = `${centerY}%`;
-
   }
 
   private isSpatialPositionCentered(): boolean {
@@ -772,35 +771,35 @@ export class SoundControl {
     // Update coordinates display
     const coordsDisplay = this.element.querySelector(".spatial-coordinates") as HTMLElement;
     if (coordsDisplay) {
-      coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${(-(y / 50 - 1)).toFixed(
-        2
-      )},<br/>Z: ${z.toFixed(2)}`;
+      coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${(-(
+        y / 50 -
+        1
+      )).toFixed(2)},<br/>Z: ${z.toFixed(2)}`;
     }
   }
 
-
   private initializeSpatialSettings(): void {
-    const container = this.element.querySelector('.spatial-settings');
+    const container = this.element.querySelector(".spatial-settings");
     if (!container) return;
-  
+
     // Get initial config
     const config = {
       ...DEFAULT_PANNER_CONFIG,
       ...(this.soundManagerConfig.pannerNodeConfig || {}),
     };
-  
+
     // Initialize all inputs with current values
     const elements = {
-      panningModel: container.querySelector('.panning-model-select') as HTMLSelectElement,
-      distanceModel: container.querySelector('.distance-model-select') as HTMLSelectElement,
-      refDistance: container.querySelector('.ref-distance-input') as HTMLInputElement,
-      maxDistance: container.querySelector('.max-distance-input') as HTMLInputElement,
-      rolloffFactor: container.querySelector('.rolloff-factor-input') as HTMLInputElement,
-      coneInnerAngle: container.querySelector('.cone-inner-angle-input') as HTMLInputElement,
-      coneOuterAngle: container.querySelector('.cone-outer-angle-input') as HTMLInputElement,
-      coneOuterGain: container.querySelector('.cone-outer-gain-input') as HTMLInputElement,
+      panningModel: container.querySelector(".panning-model-select") as HTMLSelectElement,
+      distanceModel: container.querySelector(".distance-model-select") as HTMLSelectElement,
+      refDistance: container.querySelector(".ref-distance-input") as HTMLInputElement,
+      maxDistance: container.querySelector(".max-distance-input") as HTMLInputElement,
+      rolloffFactor: container.querySelector(".rolloff-factor-input") as HTMLInputElement,
+      coneInnerAngle: container.querySelector(".cone-inner-angle-input") as HTMLInputElement,
+      coneOuterAngle: container.querySelector(".cone-outer-angle-input") as HTMLInputElement,
+      coneOuterGain: container.querySelector(".cone-outer-gain-input") as HTMLInputElement,
     };
-  
+
     // Set initial values
     elements.panningModel.value = config.panningModel!;
     elements.distanceModel.value = config.distanceModel!;
@@ -810,34 +809,31 @@ export class SoundControl {
     elements.coneInnerAngle.value = config.coneInnerAngle!.toString();
     elements.coneOuterAngle.value = config.coneOuterAngle!.toString();
     elements.coneOuterGain.value = config.coneOuterGain!.toString();
-  
+
     // Add change handlers
     const handleChange = (e: Event) => {
       const target = e.target as HTMLInputElement | HTMLSelectElement;
-      const value = target.type === 'number' ? parseFloat(target.value) : target.value;
-      
+      const value = target.type === "number" ? parseFloat(target.value) : target.value;
+
       // Map class names to property names
       const propertyMap: Record<string, keyof SoundPannerConfig> = {
-        'panning-model-select': 'panningModel',
-        'distance-model-select': 'distanceModel',
-        'ref-distance-input': 'refDistance',
-        'max-distance-input': 'maxDistance',
-        'rolloff-factor-input': 'rolloffFactor',
-        'cone-inner-angle-input': 'coneInnerAngle',
-        'cone-outer-angle-input': 'coneOuterAngle',
-        'cone-outer-gain-input': 'coneOuterGain'
+        "panning-model-select": "panningModel",
+        "distance-model-select": "distanceModel",
+        "ref-distance-input": "refDistance",
+        "max-distance-input": "maxDistance",
+        "rolloff-factor-input": "rolloffFactor",
+        "cone-inner-angle-input": "coneInnerAngle",
+        "cone-outer-angle-input": "coneOuterAngle",
+        "cone-outer-gain-input": "coneOuterGain",
       };
-  
+
       const property = propertyMap[target.className];
       if (!property) return;
-  
+
       // Update the panner node configuration
       const newConfig: Partial<SoundPannerConfig> = {
-        [property]: value
+        [property]: value,
       };
-  
-
-      console.log('new Config', newConfig);
 
       // Update the sound's spatial settings
       this.soundManager.setSoundPosition(
@@ -845,46 +841,45 @@ export class SoundControl {
         -(parseFloat(this.circle.style.top) / 50 - 1),
         0,
         this.id,
-        newConfig,
+        newConfig
       );
     };
-  
+
     // Add event listeners
-    Object.values(elements).forEach(element => {
-      element.addEventListener('change', handleChange);
+    Object.values(elements).forEach((element) => {
+      element.addEventListener("change", handleChange);
     });
   }
 
-
   private initializeCollapsiblePanel(): void {
-    const header = this.element.querySelector('.control-header') as HTMLElement;
-    const content = this.element.querySelector('.spatial-content') as HTMLElement;
-    const button = header.querySelector('.collapse-btn') as HTMLButtonElement;
-    
+    const header = this.element.querySelector(".control-header") as HTMLElement;
+    const content = this.element.querySelector(".spatial-content") as HTMLElement;
+    const button = header.querySelector(".collapse-btn") as HTMLButtonElement;
+
     // Set initial state (collapsed)
-    content.classList.add('collapsed');
-    
+    content.classList.add("collapsed");
+
     const toggleCollapse = () => {
-      const isCollapsed = content.classList.contains('collapsed');
-      content.classList.toggle('collapsed');
-      button.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-      
+      const isCollapsed = content.classList.contains("collapsed");
+      content.classList.toggle("collapsed");
+      button.style.transform = isCollapsed ? "rotate(180deg)" : "rotate(0deg)";
+
       // Store the state in localStorage (optional)
       localStorage.setItem(`spatial-panel-${this.id}-collapsed`, (!isCollapsed).toString());
     };
-  
+
     // Add click handler to both header and button
-    header.addEventListener('click', toggleCollapse);
-    
+    header.addEventListener("click", toggleCollapse);
+
     // Prevent double-triggering when clicking the button
-    button.addEventListener('click', (e) => {
+    button.addEventListener("click", (e) => {
       e.stopPropagation();
       toggleCollapse();
     });
-  
+
     // Restore state from localStorage (optional)
     const savedState = localStorage.getItem(`spatial-panel-${this.id}-collapsed`);
-    if (savedState === 'false') {
+    if (savedState === "false") {
       toggleCollapse();
     }
   }

@@ -10,6 +10,7 @@ import { Sound } from "./sound.interface";
 export interface SoundManagerInterface {
   // Playback control
   play(id: string, options?: playOptions): void;
+  playSprite(id: string, spriteKey: string, options: playOptions): void
   pause(id: string): void;
   resume(id: string): void;
   stop(id: string): void;
@@ -55,7 +56,8 @@ export interface SoundManagerInterface {
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
-  setSoundPosition(x: number, y: number, z: number, id: string, soundPannerConfig?: SoundPannerConfig): void;
+  setSoundPosition(x: number, y: number, z: number, id?: string | null, soundPannerConfig?: SoundPannerConfig): void;
+  setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig): void;
   resetSoundPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
@@ -75,6 +77,8 @@ export interface SoundManagerInterface {
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
   updateSoundOptions(soundId: string, options: Partial<playOptions>): void;
+  setPlaybackRate(id: string, rate: number): void;
+  setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void;
   destroy(): void;
 
   // listeners

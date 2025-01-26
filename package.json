@@ -1,6 +1,6 @@
 {
   "name": "sound-manager-ts",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -59,10 +59,9 @@
   "devDependencies": {
     "@types/highlight.js": "^10.1.0",
     "@types/markdown-it": "^14.1.2",
-    "@types/node": "^22.10.2",
+    "@types/node": "^22.10.10",
     "cross-env": "^7.0.3",
     "fs-extra": "^11.2.0",
-    "typescript": "^5.7.2",
     "vite": "^6.0.4",
     "vite-plugin-dts": "^4.5.0"
   },
@@ -71,6 +70,7 @@
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0",
-    "marked-highlight": "^2.2.1"
+    "marked-highlight": "^2.2.1",
+    "typescript": "^5.7.3"
   }
 }
