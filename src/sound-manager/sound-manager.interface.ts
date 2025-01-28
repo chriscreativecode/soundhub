@@ -73,6 +73,7 @@ export interface SoundManagerInterface {
   isStereoPanActive(id: string): boolean;
 
   // Utility
+  setDebugMode(debug: boolean): void;
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];

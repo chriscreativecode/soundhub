@@ -499,8 +499,40 @@ export class SoundControl {
 
         this.currentOptions = options;
 
-        this.soundManager.play(this.id, options);
+      // this.soundManager.play(this.id, options);
+
+       let sprite: any = {
+          intro: [0, 2000],
+          levelup: [2400, 4000],
+          jump: [4000, 5000],
+          fail: [5000, 7000],
+          test: [8000, 10000]
+        }
+
+        // Log sprite details
+        Object.entries(sprite).forEach(([key, value]) => {
+          const [start, end] = value as [number, number];
+          console.log(`Sprite ${key}: Start=${start}ms, End=${end}ms, Duration=${end-start}ms`);
+        });
+
+       this.soundManager.setDebugMode(true);
+
+       this.soundManager.setSoundSprite(this.id, sprite);
+
+      // this.soundManager.playSprite(this.id, "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
+
+       this.soundManager.playSprite(this.id, "levelup", { fadeOut: 1000});
+ 
+      // this.soundManager.playSprite(this.id, "fail", { fadeIn: 1000, volume: 0.5, pan: -0.8});
+
+       //  this.soundManager.playSprite(this.id, "jump", { loop: true});
+        // setTimeout( ()=> {
+        //   this.soundManager.playSprite(this.id, "fail", { pan: 0.8});
+        // }, 500)
+
+        // this.soundManager.playSprite(this.id, "jump", { loop: true});
       }
+
     } catch (error) {
       console.error("Error playing sound:", error);
     }
