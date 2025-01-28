@@ -17,6 +17,8 @@ import magma from "../sounds/under-sea-magma.mp3";
 // @ts-ignore
 import laserSound from "../sounds/laser-sound.mp3";
 // @ts-ignore
+import gameSounds from "../sounds/8-bit-game-sounds.mp3";
+// @ts-ignore
 import crickets from "../sounds/crickets.mp3";
 
 // @ts-ignore
@@ -528,6 +530,7 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
+        { id: "game-sound", url: gameSounds },
         { id: "laser-sound", url: laserSound },
         { id: "birds", url: birds },
         { id: "rain", url: rain },

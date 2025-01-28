@@ -590,6 +590,11 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
+### 3.3.0
+ - Fixed issues in playSound (config value, fadeOut and volume was not working)
+ - Rebuild logic to play sound sprites. (not finsihed)
+ - Added method ```setDebugMode(debug: boolean): void;```
+
 ### 3.2.0
 
 - Fixed issues with typescript declaration maps in build process
