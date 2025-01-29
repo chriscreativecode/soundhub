@@ -18,6 +18,6 @@ export interface Sound {
   state: SoundState;
   stereoPanner?: StereoPannerNode; // just plain left to right panning
   volume: number;
-  startOffset?: number;  // For sprites: start time in seconds
-  duration?: number;     // For sprites: duration in seconds
+  duration?: number;
+  currentTime?:number;
 }

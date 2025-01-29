@@ -591,6 +591,18 @@ export class SoundManagerDemo {
     }
   }
 
+  // private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
+  //   this.soundControls.clear();
+  //   const container = document.getElementById("soundControlsContainer")!;
+  //   container.innerHTML = "";
+
+  //   // Create controls in the same order as soundsToLoad
+  //   soundsToLoad.forEach(({ id }) => {
+  //     const control = new SoundControl(id, this.soundManager, container);
+  //     this.soundControls.set(id, control);
+  //   });
+  // }
+
   private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
     this.soundControls.clear();
     const container = document.getElementById("soundControlsContainer")!;
@@ -598,10 +610,32 @@ export class SoundManagerDemo {
 
     // Create controls in the same order as soundsToLoad
     soundsToLoad.forEach(({ id }) => {
-      const control = new SoundControl(id, this.soundManager, container);
-      this.soundControls.set(id, control);
+        if (id === "game-sound") {
+            // Define sprites
+            const sprites: { [key: string]: [number, number] } = {
+              intro: [0, 2000],
+              levelup: [2400, 4000],
+              jump: [4000, 5000],
+              fail: [5000, 7000],
+            };
+               
+            // Set sprites in sound manager
+            this.soundManager.setSoundSprite(id, sprites);
+
+            // Create a control for each sprite
+            Object.entries(sprites).forEach(([spriteName]) => {
+                const spriteId = `${id}_${spriteName}`; // e.g., "game-sound_intro"
+                const control = new SoundControl(spriteId, this.soundManager, container, true);
+                this.soundControls.set(spriteId, control);
+            });
+        } else {
+            // Create regular sound control for non-sprite sounds
+            const control = new SoundControl(id, this.soundManager, container);
+            this.soundControls.set(id, control);
+        }
     });
-  }
+}
+
   private setGlobalVolume(volume: number): void {
     this.soundManager.setGlobalVolume(volume);
     document.getElementById("masterVolumeValue")!.textContent = `${Math.round(volume * 100)}%`;
