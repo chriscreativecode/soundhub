@@ -20,6 +20,8 @@ export class SoundManager implements SoundManagerInterface {
   private isMuted: boolean = false;
   private previousGlobalPan: number = 0;
 
+  private progressIntervals: Map<string, number> = new Map();
+  private PROGRESS_UPDATE_INTERVAL = 100; // 100ms default, could be configurable
   private eventListeners: Map<SoundEventsEnum, Set<(event: SoundEvent) => void>> = new Map();
   private readonly activeSources: Map<string, AudioBufferSourceNode> = new Map();
 
@@ -248,6 +250,7 @@ export class SoundManager implements SoundManagerInterface {
       type: SoundEventsEnum.LOOP_COMPLETED,
       soundId: sound.id,
       timestamp: this.context.currentTime,
+      sound
     });
   }
 
@@ -256,7 +259,6 @@ export class SoundManager implements SoundManagerInterface {
     sound.startTime = 0;
     sound.pausedAt = 0;
 
-    console.log("handle sound ended", sound.id);
     this.cleanupExistingSource(sound.id);
     this.cleanupSound(sound.id);
 
@@ -264,7 +266,55 @@ export class SoundManager implements SoundManagerInterface {
       type: SoundEventsEnum.ENDED,
       soundId: sound.id,
       timestamp: this.context.currentTime,
+      sound
     });
+  }
+
+  // Optional: Method to configure update interval
+  public setProgressUpdateInterval(interval: number): void {
+    this.PROGRESS_UPDATE_INTERVAL = Math.max(50, interval); // Minimum 50ms
+  }
+
+  private startProgressTracking(id: string): void {
+    // Clear any existing interval for this sound
+    this.stopProgressTracking(id);
+
+    const intervalId = window.setInterval(() => {
+      const sound = this.sounds.get(id);
+      if (!sound || sound.state !== SoundState.Playing) {
+        this.stopProgressTracking(id);
+        return;
+      }
+
+      const { currentTime, duration } = this.getSoundState(id);
+      const progress = duration ? currentTime / duration : 0;
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.PROGRESS,
+        soundId: id,
+        currentTime,
+        duration: duration || 0,
+        progress,
+        progressInfo: {
+          soundId: id,
+          currentTime,
+          duration: duration || 0,
+          progress,
+        },
+        timestamp: this.context.currentTime,
+        sound
+      });
+    }, this.PROGRESS_UPDATE_INTERVAL);
+
+    this.progressIntervals.set(id, intervalId);
+  }
+
+  private stopProgressTracking(id: string): void {
+    const intervalId = this.progressIntervals.get(id);
+    if (intervalId) {
+      window.clearInterval(intervalId);
+      this.progressIntervals.delete(id);
+    }
   }
 
   private monitorVolumeChanges(params: {
@@ -274,7 +324,6 @@ export class SoundManager implements SoundManagerInterface {
     isMaster?: boolean;
     onComplete?: () => void;
   }): void {
-    console.log("monitor volume changes", params);
     const { gainNode, duration, soundId, isMaster = false, onComplete } = params;
     const startTime = this.context.currentTime;
     const endTime = startTime + duration;
@@ -292,13 +341,6 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     const monitorVolume = () => {
-      console.log(
-        "monitor volume, id, time, end, gain",
-        soundId,
-        this.context.currentTime,
-        endTime,
-        gainNode.gain.value
-      );
       const currentTime = this.context.currentTime;
 
       if (currentTime < endTime) {
@@ -473,6 +515,8 @@ export class SoundManager implements SoundManagerInterface {
 
       sound.playOptions = { ...sound.playOptions, ...options };
       sound.currentLoopCount = 0;
+
+      // Handle Loop options
       if (options.maxLoops === -1) {
         sound.playOptions.loop = true;
         sound.playOptions.maxLoops = 0; // Infinite loops
@@ -481,16 +525,12 @@ export class SoundManager implements SoundManagerInterface {
         sound.playOptions.maxLoops = options.maxLoops ?? 0;
       }
 
+      // Setup volume
       const validatedVolume = this.setValidatedVolume(sound.playOptions?.volume ?? sound.volume);
       sound.volume = validatedVolume;
       sound.originalVolume = validatedVolume;
-      sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
-
-      // Initialize gain value before setting up source
-      sound.gainNode.gain.setValueAtTime(sound.volume, this.context.currentTime);
 
       const source = this.setupAudioSource(sound);
-
       if (!source) {
         this.debugLog(`Failed to create audio source for sound ${id}`);
         return;
@@ -502,10 +542,8 @@ export class SoundManager implements SoundManagerInterface {
         source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
       }
 
-      // Calculate timing
-      const currentTime = this.context.currentTime;
-      const startTime = sound.pausedAt || options.startTime || sound.startOffset || 0;
-      const duration = options.duration ?? sound.duration;
+      const startTime = sound.pausedAt || options.startTime || 0;
+      sound.currentTime = startTime; // Store the current time position
 
       // Handle fade in
       if (options.fadeIn) {
@@ -514,7 +552,7 @@ export class SoundManager implements SoundManagerInterface {
         // Set normal volume if no fade
         this.fadeOut(id, options.fadeOut);
       } else {
-        sound.gainNode.gain.setValueAtTime(sound.volume, currentTime);
+        sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
       }
 
       // Apply pan if needed
@@ -523,117 +561,35 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       // Start playback
-      source.start(0, startTime, duration);
+      source.start(0, startTime);
       sound.state = SoundState.Playing;
-      sound.startTime = currentTime;
+      sound.startTime = this.context.currentTime;
+
+      this.startProgressTracking(id);
 
       this.debugLog(`Playing sound ${id}:
-          Start time: ${startTime}s
-          Duration: ${duration}s
-          Current time: ${currentTime}s
-          Total length: ${sound.buffer.duration}s
-          Is sprite: ${!!sound.startOffset}
-      `);
+        Sound duration: ${sound.buffer.duration}s
+        Start offset: ${startTime}s
+        Volume: ${validatedVolume}
+        Loop: ${sound.playOptions.loop}
+        Fade in: ${options.fadeIn ? options.fadeIn + "ms" : "no"}
+    `);
 
       this.dispatchEvent({
         type: SoundEventsEnum.STARTED,
         soundId: id,
         timestamp: this.context.currentTime,
+        sound
       });
     } catch (error) {
       this.handleError("playing sound", error, id);
     }
   }
 
-  // public playSprite(id: string, spriteKey: string, options: playOptions = {}): void {
-  //   this.play(id, options, spriteKey);
-  // }
-
-  // public playSprite(id: string, spriteKey: string, options: playOptions = {}): void {
-  //   const sound = this.getValidatedSound(id);
-
-  //   if (!sound.sprite || !sound.sprite[spriteKey]) {
-  //     this.debugLog(`Sprite ${spriteKey} not found for sound ${id}`);
-  //     return;
-  //   }
-
-  //   const [start, duration] = sound.sprite[spriteKey];
-
-  //   // Convert milliseconds to seconds
-  //   const startTime = start / 1000;
-  //   const endTime = (start + duration) / 1000;
-
-  //   // Merge options with sprite-specific settings
-  //   const spriteOptions: playOptions = {
-  //     ...options,
-  //     startTime: startTime,
-  //     // Ensure the sound stops at sprite end if not looping
-  //     maxLoops: options.loop ? options.maxLoops || -1 : 0,
-  //   };
-
-  //   // Play the sprite
-  //   this.play(id, spriteOptions);
-
-  //   // Store sprite info for later use
-  //   sound.currentSprite = {
-  //     key: spriteKey,
-  //     startTime: startTime,
-  //     endTime: endTime,
-  //   };
-  // }
-
-  public playSprite(id: string, spriteKey: string, options: playOptions = {}): void {
+  public playSprite(id: string, spriteKey: string, options: playOptions): void {
     const spriteId = `${id}_${spriteKey}`;
-    const spriteSound = this.sounds.get(spriteId);
-
-    if (!spriteSound) {
-      this.debugLog(`Sprite ${spriteKey} not found for sound ${id}`);
-      return;
-    }
-
-    // Play using the regular play method with sprite timing
-    this.play(spriteId, {
-      ...options,
-      startTime: spriteSound.startOffset,
-      duration: spriteSound.duration, // Always pass duration for sprites
-    });
+    this.play(spriteId, options);
   }
-
-  // public getCurrentSprite(id: string): { key: string; startTime: number; endTime: number } | null {
-  //   const sound = this.getValidatedSound(id);
-  //   return sound.currentSprite || null;
-  // }
-
-  // // Seek within current sprite
-  // public seekSprite(id: string, time: number): void {
-  //   const sound = this.getValidatedSound(id);
-  //   if (!sound.currentSprite) {
-  //     this.debugLog(`No active sprite for sound ${id}`);
-  //     return;
-  //   }
-
-  //   const { startTime, endTime } = sound.currentSprite;
-  //   const spriteLength = endTime - startTime;
-
-  //   // Clamp time within sprite bounds
-  //   const clampedTime = Math.max(0, Math.min(time, spriteLength));
-  //   const absoluteTime = startTime + clampedTime;
-
-  //   this.seek(id, absoluteTime);
-  // }
-
-  // // Get sprite progress
-  // public getSpriteProgress(id: string): number {
-  //   const sound = this.getValidatedSound(id);
-  //   if (!sound.currentSprite) return 0;
-
-  //   const { startTime, endTime } = sound.currentSprite;
-  //   const currentTime = this.getSoundState(id).currentTime;
-  //   const spriteLength = endTime - startTime;
-  //   const spriteProgress = (currentTime - startTime) / spriteLength;
-
-  //   return Math.max(0, Math.min(1, spriteProgress));
-  // }
 
   public pause(id: string): void {
     try {
@@ -655,10 +611,13 @@ export class SoundManager implements SoundManagerInterface {
         this.activeSources.delete(id);
       }
 
+      this.stopProgressTracking(id);
+
       this.dispatchEvent({
         type: SoundEventsEnum.PAUSED,
         soundId: id,
         timestamp: this.context.currentTime,
+        sound
       });
 
       this.debugLog("Pause state:", {
@@ -685,11 +644,13 @@ export class SoundManager implements SoundManagerInterface {
       // Update state
       sound.startTime = this.context.currentTime - offset;
       sound.state = SoundState.Playing;
+      this.startProgressTracking(id);
 
       this.dispatchEvent({
         type: SoundEventsEnum.RESUMED,
         soundId: id,
         timestamp: this.context.currentTime,
+        sound
       });
     } catch (error) {
       this.handleError("resuming sound", error, id);
@@ -711,10 +672,13 @@ export class SoundManager implements SoundManagerInterface {
       // Pass true to preserve spatial audio
       this.clearAudioProcessing(id, true);
 
+      this.stopProgressTracking(id);
+
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
         soundId: id,
         timestamp: this.context.currentTime,
+        sound
       });
     } catch (error) {
       this.handleError("stopping sound", error, id);
@@ -757,8 +721,6 @@ export class SoundManager implements SoundManagerInterface {
         playbackRate: rate,
       };
 
-      // sound.playbackRate = rate;
-
       // Update the playback rate
       source.playbackRate.setValueAtTime(rate, this.context.currentTime);
 
@@ -768,6 +730,7 @@ export class SoundManager implements SoundManagerInterface {
         soundId: id,
         timestamp: this.context.currentTime,
         playbackRate: rate,
+        sound
       });
 
       this.debugLog(`Playback rate set for sound ${id}: ${rate}`);
@@ -806,6 +769,7 @@ export class SoundManager implements SoundManagerInterface {
         soundId: id,
         currentTime: clampedTime,
         timestamp: this.context.currentTime,
+        sound
       });
     } catch (error) {
       this.handleError("seeking sound", error, id);
@@ -824,6 +788,7 @@ export class SoundManager implements SoundManagerInterface {
         type: SoundEventsEnum.LOOP_COMPLETED,
         soundId: sound.id,
         timestamp: this.context.currentTime,
+        sound
       });
     } else {
       this.handleSoundEnded(sound);
@@ -853,6 +818,7 @@ export class SoundManager implements SoundManagerInterface {
         soundId: id,
         timestamp: this.context.currentTime,
         volume: sound.volume,
+        sound
       });
     } catch (error) {
       this.handleError("setting volume", error, id);
@@ -939,6 +905,7 @@ export class SoundManager implements SoundManagerInterface {
         timestamp: this.context.currentTime,
         volume: 0,
         isMuted: true,
+        sound
       });
     } catch (error) {
       this.handleError("muting sound", error, id);
@@ -959,6 +926,7 @@ export class SoundManager implements SoundManagerInterface {
         timestamp: this.context.currentTime,
         volume: volumeToRestore,
         isMuted: false,
+        sound
       });
     } catch (error) {
       this.handleError("unmuting sound", error, id);
@@ -1011,6 +979,7 @@ export class SoundManager implements SoundManagerInterface {
             buffer: audioBuffer,
             gainNode,
             startTime: 0,
+            currentTime: 0,
             pausedAt: 0,
             state: SoundState.Stopped,
             volume: this.config.defaultVolume!,
@@ -1063,6 +1032,7 @@ export class SoundManager implements SoundManagerInterface {
         type: SoundEventsEnum.UPDATED_URL,
         soundId: id,
         timestamp: this.context.currentTime,
+        sound
       });
 
       this.debugLog(`Sound ${id} URL updated to ${newUrl}`);
@@ -1101,72 +1071,83 @@ export class SoundManager implements SoundManagerInterface {
     });
   }
 
-  // public setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void {
-  //   try {
-  //     const sound = this.getValidatedSound(id);
-
-  //     // Validate the sprite configuration
-  //     for (const [key, [start, duration]] of Object.entries(sprite)) {
-  //       if (typeof start !== "number" || typeof duration !== "number" || start < 0 || duration < 0) {
-  //         throw new Error(
-  //           `Invalid sprite configuration for key "${key}". Start and duration must be non-negative numbers.`
-  //         );
-  //       }
-  //     }
-
-  //     // Set the sprite configuration
-  //     sound.sprite = sprite;
-
-  //     this.dispatchEvent({
-  //       type: SoundEventsEnum.SPRITE_SET,
-  //       soundId: id,
-  //       timestamp: this.context.currentTime,
-  //       sprite,
-  //     });
-
-  //     this.debugLog(`Sprite configured for sound ${id}:`, sprite);
-  //   } catch (error) {
-  //     this.handleError("setting sound sprite", error, id);
-  //   }
-  // }
-
   public setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void {
     try {
-      const sound = this.getValidatedSound(id);
-      sound.sprite = sprite;
+      const originalSound = this.getValidatedSound(id);
+      if (!originalSound || !originalSound.buffer) {
+        throw new Error(`Sound ${id} not found or buffer not loaded`);
+      }
 
-      // Create separate sound objects for each sprite
       Object.entries(sprite).forEach(([key, [start, end]]) => {
         const spriteId = `${id}_${key}`;
+        this.debugLog(
+          `Creating sprite ${spriteId} for sound ${id}: Start=${start}ms, End=${end}ms, Duration=${end - start}ms`
+        );
 
-        // Calculate actual duration (end - start)
-        const duration = (end - start) / 1000; // Convert to seconds
-        const startOffset = start / 1000; // Convert to seconds
+        // Convert milliseconds to samples
+        const sampleRate = originalSound.buffer.sampleRate;
+        const startSample = Math.floor((start / 1000) * sampleRate);
+        const endSample = Math.floor((end / 1000) * sampleRate);
+        const duration = (end - start) / 1000;
 
-        // Create new sound object for sprite
-        this.sounds.set(spriteId, {
-          ...sound,
+        // Create a new buffer for the sprite
+        const numberOfChannels = originalSound.buffer.numberOfChannels;
+        const spriteBuffer = this.context.createBuffer(numberOfChannels, endSample - startSample, sampleRate);
+
+        // Copy the data from the original buffer to the sprite buffer
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+          const originalData = originalSound.buffer.getChannelData(channel);
+          const spriteData = spriteBuffer.getChannelData(channel);
+
+          for (let i = 0; i < spriteData.length; i++) {
+            spriteData[i] = originalData[i + startSample];
+          }
+        }
+
+        // Create audio nodes for the sprite
+        const gainNode = this.context.createGain();
+        gainNode.gain.value = originalSound.volume;
+        gainNode.connect(this.masterGainNode);
+
+        // Create the sprite sound object
+        const spriteSound: Sound = {
           id: spriteId,
-          buffer: sound.buffer,
-          sprite: undefined,
-          startOffset: startOffset,
-          duration: duration, // This is now the actual duration
+          buffer: spriteBuffer,
+          volume: originalSound.volume,
+          originalVolume: originalSound.volume,
           state: SoundState.Stopped,
-          volume: sound.volume,
-          gainNode: this.context.createGain(),
+          gainNode: gainNode,
+          duration: duration,
+          playOptions: { ...originalSound.playOptions },
+          currentLoopCount: 0,
+          pausedAt: 0, //this.context.currentTime
+          startTime: 0,
+        };
+
+        // Add stereoPanner if needed
+        if (originalSound.stereoPanner) {
+          const stereoPanner = this.context.createStereoPanner();
+          stereoPanner.connect(gainNode);
+          spriteSound.stereoPanner = stereoPanner;
+        }
+
+        // Store the new sprite sound
+        this.sounds.set(spriteId, spriteSound);
+
+        this.debugLog(`Created sprite sound ${spriteId}:
+                Duration: ${duration}s
+                Sample rate: ${sampleRate}
+                Channels: ${numberOfChannels}
+                Buffer length: ${spriteBuffer.length} samples
+            `);
+
+        // Dispatch event to notify that sprites have been created
+        this.dispatchEvent({
+          type: SoundEventsEnum.SPRITE_SET,
+          soundId: spriteId,
+          timestamp: this.context.currentTime,
+          sound: spriteSound
         });
-
-        this.debugLog(`Created sprite ${spriteId} - Start: ${startOffset}s, Duration: ${duration}s`);
-
-        // Connect the gain node
-        this.sounds.get(spriteId)!.gainNode.connect(this.masterGainNode);
-      });
-
-      this.dispatchEvent({
-        type: SoundEventsEnum.SPRITE_SET,
-        soundId: id,
-        timestamp: this.context.currentTime,
-        sprite,
       });
     } catch (error) {
       this.handleError("setting sound sprite", error, id);
@@ -1205,21 +1186,54 @@ export class SoundManager implements SoundManagerInterface {
     let currentTime = 0;
 
     if (sound.state === SoundState.Playing) {
-      currentTime = this.context.currentTime - sound.startTime;
+      const elapsedTime = this.context.currentTime - sound.startTime;
+      currentTime = (sound.currentTime || 0) + elapsedTime;
+
+      // Handle looping
+      if (sound.playOptions?.loop) {
+        currentTime = currentTime % sound.buffer.duration;
+      }
     } else if (sound.state === SoundState.Paused) {
-      currentTime = sound.pausedAt;
+      currentTime = sound.pausedAt || 0;
     }
 
+    // Ensure currentTime doesn't exceed buffer duration
     if (sound.buffer) {
       currentTime = Math.min(currentTime, sound.buffer.duration);
     }
 
+    this.debugLog(`Sound state for ${id}:
+      State: ${sound.state}
+      Initial offset: ${sound.currentTime}s
+      Elapsed time: ${sound.state === SoundState.Playing ? this.context.currentTime - sound.startTime : 0}s
+      Current time: ${currentTime}s
+      Duration: ${sound.buffer?.duration || 0}s
+      Volume: ${sound.volume}
+  `);
     return {
       currentTime,
       duration: sound.buffer?.duration || null,
       state: sound.state,
       volume: sound.volume,
     };
+  }
+
+  // Returns the current playback time in seconds
+  public getCurrentTime(id: string): number {
+    const { currentTime } = this.getSoundState(id);
+    return currentTime;
+  }
+
+  // Returns the progress as a ratio (0-1)
+  public getProgress(id: string): number {
+    const { currentTime, duration } = this.getSoundState(id);
+    if (!duration) return 0;
+    return currentTime / duration;
+  }
+
+  // Returns the progress as a percentage (0-100)
+  public getProgressPercentage(id: string): number {
+    return this.getProgress(id) * 100;
   }
 
   // End State checks---------------------------------------------------------------------------------------------------------------
@@ -1376,8 +1390,6 @@ export class SoundManager implements SoundManagerInterface {
     startVolume = startVolume ?? 0;
     const targetVolume = endVolume ?? sound.originalVolume ?? sound.volume ?? 1;
 
-    // Don't pass startOffset here
-    console.log("fade to:::, id, start, targetVolume, duration", id, startVolume, targetVolume, duration);
     this.fadeSound(id, startVolume, targetVolume, duration);
   }
 
@@ -1587,6 +1599,7 @@ export class SoundManager implements SoundManagerInterface {
         timestamp: this.context.currentTime,
         position: { x, y, z },
         pannerConfig: soundPannerConfig,
+        sound
       });
 
       this.debugLog(`Set position for sound ${soundId}: x=${x}, y=${y}, z=${z}`);
@@ -1630,6 +1643,7 @@ export class SoundManager implements SoundManagerInterface {
         soundId: id,
         timestamp: this.context.currentTime,
         isMaster: false,
+        sound
       });
     }
   }
@@ -1814,6 +1828,7 @@ export class SoundManager implements SoundManagerInterface {
         timestamp: this.context?.currentTime ?? 0,
         pan: pannedValue,
         previousPan: this.previousGlobalPan,
+        sound
       });
 
       this.debugLog(`Pan set for sound ${sound.id}: ${pannedValue}`);

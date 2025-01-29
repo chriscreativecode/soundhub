@@ -42,7 +42,13 @@ export interface SoundManagerInterface {
   isStopped(id: string): boolean;
   getSoundState(id: string): SoundStateInfo;
 
-  // Batch operations
+  // Progress tracking
+  
+  getCurrentTime(id: string): number;
+  getProgress(id: string): number; // Returns the progress as a ratio (0-1)
+  getProgressPercentage(id: string): number;
+
+   // Batch operations
   stopAllSounds(): void;
   pauseAllSounds(): void;
   resumeAllSounds(): void;

@@ -1,6 +1,11 @@
 <div class="control-group sound-control" data-sound-id="${this.id}">
-  <header class="sound-control-header">
-    <h4>Sound: ${this.id}</h4>
+  <header class="sound-control-header ${hasSpriteHeader}">
+    <div class="header-content">
+      <div class="sound-title">
+        ${isSprite}
+        <h4>Sound: ${this.id}</h4>
+      </div>
+    </div>
     <button class="icon-button close-btn" title="Close panel">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
         <path
@@ -11,6 +16,7 @@
       </svg>
     </button>
   </header>
+
   <div class="control-content">
     <div class="control-group">
       <h4>Play Conrol</h4>

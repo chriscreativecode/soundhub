@@ -1,13 +1,15 @@
-import soundControlComponentHtml from "./sound-control.component.html?raw";
-import "./shared.css";
-import "./sound-control.component.css";
-import { SoundManager } from "../sound-manager/sound-manager";
-import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
-import { SoundEvent } from "../sound-manager/sound-event.interface";
 import { playOptions } from "../sound-manager/play-sound-options.interface";
+import { SoundEvent } from "../sound-manager/sound-event.interface";
+import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
+import { SoundManager } from "../sound-manager/sound-manager";
+import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../sound-manager/sound-panner-config";
 import { SoundState } from "../sound-manager/sound-state.interface";
 import { SoundManagerConfig } from "./../sound-manager/sound-manager-config";
-import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../sound-manager/sound-panner-config";
+import "./shared.css";
+import "./sound-control.component.css";
+/* @ts-ignore */
+import soundControlComponentHtml from "./sound-control.component.html?raw";
+import { SoundProgressStateInfo } from "../sound-manager/sound-progress-state-info";
 
 interface SoundControlState {
   isPlaying: boolean;
@@ -51,7 +53,12 @@ export class SoundControl {
     progress: 0,
   };
 
-  constructor(private id: string, private soundManager: SoundManager, private container: HTMLElement) {
+  constructor(
+    private id: string,
+    private soundManager: SoundManager,
+    private container: HTMLElement,
+    private isSprite: boolean = false
+  ) {
     this.element = this.createControl();
     this.soundManagerConfig = this.soundManager.getConfig();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
@@ -64,14 +71,35 @@ export class SoundControl {
   }
 
   private initializeSoundEventListeners(): void {
-    // Listen to all sound events
     Object.values(SoundEventsEnum).forEach((eventType) => {
       this.soundManager.addEventListener(eventType, this.handleSoundEvent.bind(this));
     });
   }
 
   private createControl(): HTMLElement {
-    const template = soundControlComponentHtml.replace(/\${this\.id}/g, this.id);
+    // First create the sprite badge HTML if needed
+    const spriteBadgeHtml = this.isSprite
+      ? `
+        <div class="sprite-badge">
+         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12h2" />
+          <path d="M7 9v6" />
+          <path d="M11 6v12" />
+          <path d="M15 9v6" />
+          <path d="M19 12h2" />
+          <rect x="4" y="4" width="16" height="16" rx="2" ry="2" stroke-dasharray="2 2" />
+        </svg>
+        <span>Sprite</span>
+        </div>
+    `
+      : "";
+
+    // Replace the template variables
+    const template = soundControlComponentHtml
+      .replace(/\${this\.id}/g, this.id)
+      .replace("${hasSpriteHeader}", this.isSprite ? "sprite-header" : "")
+      .replace(/\${isSprite}/g, this.isSprite ? spriteBadgeHtml: "");
+
     const wrapper = document.createElement("div");
     wrapper.innerHTML = template;
     return wrapper.firstElementChild as HTMLElement;
@@ -94,22 +122,27 @@ export class SoundControl {
   }
 
   private readonly eventHandlers: Partial<Record<SoundEventsEnum, (event: SoundEvent) => void>> = {
-    [SoundEventsEnum.STARTED]: () => this.startProgressUpdates(),
+    // [SoundEventsEnum.STARTED]: () =>  {},
     [SoundEventsEnum.STOPPED]: () => {
-      this.stopProgressUpdates();
       this.resetProgress();
     },
     [SoundEventsEnum.ENDED]: () => {
-      this.stopProgressUpdates();
       this.resetProgress();
     },
-    [SoundEventsEnum.PAUSED]: () => this.stopProgressUpdates(),
-    [SoundEventsEnum.RESUMED]: () => this.startProgressUpdates(),
+    [SoundEventsEnum.PAUSED]: (e: SoundEvent) => {
+      console.log("paused", e);
+    },
+    // [SoundEventsEnum.RESUMED]: () => {},
     [SoundEventsEnum.VOLUME_CHANGED]: (event) => {
       if (typeof event.volume === "number") {
         this.updateVolumeDisplay(event.volume);
         this.volumeSlider.value = event.volume.toString();
         this.handleRangeInput(this.volumeSlider);
+      }
+    },
+    [SoundEventsEnum.PROGRESS]: (event: SoundEvent) => {
+      if (event.progressInfo) {
+        this.updateProgress(event.progressInfo);
       }
     },
     [SoundEventsEnum.ERROR]: (event) => console.error("Sound error:", event.error),
@@ -130,12 +163,9 @@ export class SoundControl {
     [SoundEventsEnum.FADE_OUT_COMPLETED]: () => {
       // Handle fade out completion if needed
     },
-    [SoundEventsEnum.SEEKED]: () => {
-      // Handle seek completion if needed
-      this.updateProgress();
-      // If the sound is playing, ensure progress updates continue
-      if (this.soundManager.isPlaying(this.id)) {
-        this.startProgressUpdates();
+    [SoundEventsEnum.SEEKED]: (e: SoundEvent) => {
+      if (e.progressInfo) {
+        console.log("is seeking?", e);
       }
     },
     [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
@@ -289,8 +319,6 @@ export class SoundControl {
   }
 
   private reset(resetOptions?: { keepVolumes?: boolean; keepPanning?: boolean }): void {
-    this.stopProgressUpdates();
-
     this.resetProgress();
 
     // Reset volume if not keeping volumes
@@ -324,20 +352,6 @@ export class SoundControl {
     this.updateUIFromState();
   }
 
-  private startProgressUpdates(): void {
-    // Clear any existing interval
-    if (this.progressInterval) {
-      window.clearInterval(this.progressInterval);
-    }
-
-    // Update progress every 100ms
-    this.progressInterval = window.setInterval(() => {
-      if (!this.isDragging) {
-        this.updateProgress();
-      }
-    }, 100);
-  }
-
   private resetProgress(): void {
     this.progressSlider.value = "0";
     this.handleRangeInput(this.progressSlider);
@@ -354,8 +368,13 @@ export class SoundControl {
     }
   }
 
-  private updateProgress(): void {
+  private updateProgress(progressInfo: SoundProgressStateInfo | undefined): void {
+    if (this.isDragging) {
+      return;
+    }
+
     const state = this.soundManager.getSoundState(this.id);
+    if (!progressInfo?.duration) return;
     if (!state?.duration) return;
 
     if (state.state !== SoundState.Playing) {
@@ -418,13 +437,6 @@ export class SoundControl {
     const handler = this.eventHandlers[event.type];
     if (handler) {
       handler(event);
-    }
-  }
-
-  private stopProgressUpdates(): void {
-    if (this.progressInterval) {
-      window.clearInterval(this.progressInterval);
-      this.progressInterval = 0;
     }
   }
 
@@ -499,40 +511,34 @@ export class SoundControl {
 
         this.currentOptions = options;
 
-      // this.soundManager.play(this.id, options);
+        this.soundManager.play(this.id, options);
+        // this.soundManager.play(this.id, <playOptions>{ startTime: 10 });
 
-       let sprite: any = {
-          intro: [0, 2000],
-          levelup: [2400, 4000],
-          jump: [4000, 5000],
-          fail: [5000, 7000],
-          test: [8000, 10000]
-        }
+        // let sprite: any = {
+        //   intro: [0, 2000],
+        //   levelup: [2400, 4000],
+        //   jump: [4000, 5000],
+        //   fail: [5000, 7000],
+        //   test: [8000, 10000],
+        // };
 
-        // Log sprite details
-        Object.entries(sprite).forEach(([key, value]) => {
-          const [start, end] = value as [number, number];
-          console.log(`Sprite ${key}: Start=${start}ms, End=${end}ms, Duration=${end-start}ms`);
-        });
+        // this.soundManager.setDebugMode(true);
 
-       this.soundManager.setDebugMode(true);
+        // this.soundManager.setSoundSprite(this.id, sprite);
 
-       this.soundManager.setSoundSprite(this.id, sprite);
+        // this.soundManager.playSprite(this.id, "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
 
-      // this.soundManager.playSprite(this.id, "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
+        // this.soundManager.playSprite(this.id, "levelup", { fadeOut: 1000, pan: -0.8});
 
-       this.soundManager.playSprite(this.id, "levelup", { fadeOut: 1000});
- 
-      // this.soundManager.playSprite(this.id, "fail", { fadeIn: 1000, volume: 0.5, pan: -0.8});
+        // this.soundManager.playSprite(this.id, "fail", { fadeIn: 1000, volume: 0.5, pan: -0.8});
 
-       //  this.soundManager.playSprite(this.id, "jump", { loop: true});
+        //  this.soundManager.playSprite(this.id, "jump", { loop: true});
         // setTimeout( ()=> {
         //   this.soundManager.playSprite(this.id, "fail", { pan: 0.8});
-        // }, 500)
+        // }, 500);
 
-        // this.soundManager.playSprite(this.id, "jump", { loop: true});
+        //this.soundManager.playSprite(this.id, "jump", { loop: true});
       }
-
     } catch (error) {
       console.error("Error playing sound:", error);
     }

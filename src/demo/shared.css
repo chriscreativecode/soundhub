@@ -1,6 +1,7 @@
 :root {
   /* Colors */
   --color-primary: #4caf50;
+  --color-primary-rgb: 76, 175, 80;
   --color-primary-hover: #45a049;
   --color-master: #2196F3;  /* Blue color for master controls */
   --color-master-hover: #1976D2;
