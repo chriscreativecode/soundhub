@@ -1,35 +1,35 @@
-import "./shared.css";
+import "./../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import song from "../sounds/we-are-dreaming-song.mp3";
+import song from "../../../sounds/we-are-dreaming-song.mp3";
 console.log("song url", song);
 // @ts-ignore
-import song2 from "../sounds/little-wonders-song.mp3";
+import song2 from "../../../sounds/little-wonders-song.mp3";
 // @ts-ignore
-import birds from "../sounds/birds-forest.mp3";
+import birds from "../../../sounds/birds-forest.mp3";
 // @ts-ignore
-import rain from "../sounds/rain.mp3";
+import rain from "../../../sounds/rain.mp3";
 // @ts-ignore
-import brook from "../sounds/brook.mp3";
+import brook from "../../../sounds/brook.mp3";
 // @ts-ignore
-import magma from "../sounds/under-sea-magma.mp3";
+import magma from "../../../sounds/under-sea-magma.mp3";
 // @ts-ignore
-import laserSound from "../sounds/laser-sound.mp3";
+import laserSound from "../../../sounds/laser-sound.mp3";
 // @ts-ignore
-import gameSounds from "../sounds/8-bit-game-sounds.mp3";
+import gameSounds from "../../../sounds/8-bit-game-sounds.mp3";
 // @ts-ignore
-import crickets from "../sounds/crickets.mp3";
+import crickets from "../../../sounds/crickets.mp3";
 
 // @ts-ignore
-import demoTemplate from "./demo.html?raw";
-import { SoundControl } from "./sound-control.component";
-import { SoundEventsEnum } from "../sound-manager/sound-events.enum";
-import { SoundEvent } from "../sound-manager/sound-event.interface";
-import type { SoundManager } from "../sound-manager/sound-manager";
-import { SoundManagerConfig } from "../sound-manager/sound-manager-config";
+import demoTemplate from "./demo-template.html?raw";
+import { SoundControl } from "../../components/sound-control.component";
+import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
+import { SoundEvent } from "../../../sound-manager/sound-event.interface";
+import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
 import { DEMO_CONFIG } from "./demo.config";
-import { SoundPannerConfig } from "../types";
+import { SoundPannerConfig } from "../../../types";
+import { SoundManager } from './../../../sound-manager/sound-manager';
 
 interface SoundManagerLibrary {
   SoundManager: new (config?: SoundManagerConfig) => SoundManager;
@@ -105,7 +105,8 @@ export class SoundManagerDemo {
     },
   } as const;
 
-  constructor(container: HTMLElement, library: SoundManagerLibrary) {
+  constructor(container: HTMLElement) {
+    console.log(' init demot ts constructor');
     if (!container) {
       throw new Error("Container element is required for SoundManagerDemo");
     }
@@ -119,7 +120,7 @@ export class SoundManagerDemo {
     }
 
     this.containerElement = container;
-    this.soundManager = new library.SoundManager(<SoundManagerConfig>this.soundManagerConfig);
+    this.soundManager = new SoundManager(<SoundManagerConfig>this.soundManagerConfig);
     this.initialize();
   }
 
@@ -590,18 +591,6 @@ export class SoundManagerDemo {
       preloadBtn.classList.remove("loading");
     }
   }
-
-  // private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
-  //   this.soundControls.clear();
-  //   const container = document.getElementById("soundControlsContainer")!;
-  //   container.innerHTML = "";
-
-  //   // Create controls in the same order as soundsToLoad
-  //   soundsToLoad.forEach(({ id }) => {
-  //     const control = new SoundControl(id, this.soundManager, container);
-  //     this.soundControls.set(id, control);
-  //   });
-  // }
 
   private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
     this.soundControls.clear();

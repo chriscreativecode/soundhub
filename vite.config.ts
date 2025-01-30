@@ -34,7 +34,7 @@ const devConfig : UserConfig = {
   server: {
     port: 5174,
     strictPort: false,
-    open: "/index-dev.html",
+    // open: "/index-dev.html",
   },
   resolve: {
     alias: {
@@ -43,16 +43,34 @@ const devConfig : UserConfig = {
   },
 };
 
-const demoConfig: UserConfig= {
+// Development configuration for the main demo
+const devMainConfig: UserConfig = {
+  ...devConfig,
+  server: {
+    ...devConfig.server,
+    open: "/src/demo/pages/main/index.html", // Serve the main demo HTML
+  },
+};
+
+// Development configuration for the sprite demo
+const devSpriteConfig: UserConfig = {
+  ...devConfig,
+  server: {
+    ...devConfig.server,
+    open: "/src/demo/pages/sprite/index.html", // Serve the sprite demo HTML
+  },
+};
+
+const demoMainConfig: UserConfig = {
   base: "./",
+  root: path.resolve(__dirname, "src/demo/pages/main"), // Set the root to the sprite directory
+  publicDir: path.resolve(__dirname, "public"), // Disable copying of public directory
   build: {
-    outDir: "dist/demo",
+    outDir: path.resolve(__dirname, "dist/demo/main"), // Use absolute path
+    emptyOutDir: true,
     rollupOptions: {
-      input: {
-        index: path.resolve(__dirname, "index-prod.html"), // This will output as index.html
-      },
+      input: path.resolve(__dirname, "src/demo/pages/main/index.html"),
       output: {
-        dir: "dist/demo",
         entryFileNames: "assets/[name].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
@@ -60,6 +78,26 @@ const demoConfig: UserConfig= {
     },
   },
 };
+
+
+const demoSpriteConfig: UserConfig = {
+  base: "./",
+  root: path.resolve(__dirname, "src/demo/pages/sprite"), // Set the root to the sprite directory
+  publicDir: path.resolve(__dirname, "public"), // Disable copying of public directory
+  build: {
+    outDir: path.resolve(__dirname, "dist/demo/sprite"), // Use absolute path
+    emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(__dirname, "src/demo/pages/sprite/index.html"),
+      output: {
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+      },
+    },
+  },
+};
+
 
 // Documentation development configuration
 const documentationDevConfig: UserConfig = {
@@ -120,8 +158,12 @@ export default defineConfig(({ command, mode }) => {
     return libConfig;
   }
 
-  if (mode === "demo") {
-    return demoConfig;
+  if (mode === "demo-main") {
+    return command === "serve" ? devMainConfig : demoMainConfig;
+  }
+
+  if (mode === "demo-sprite") {
+    return command === "serve" ? devSpriteConfig : demoSpriteConfig;
   }
 
   if (mode === "documentation-dev") {
@@ -135,11 +177,9 @@ export default defineConfig(({ command, mode }) => {
   if (command === "serve") {
     return {
       ...devConfig,
-      build: {
-        ...devConfig.build,
-        rollupOptions: {
-          input: path.resolve(__dirname, "index.html"),
-        },
+      server: {
+        ...devConfig.server,
+        open: "/index-dev.html", // Default to index-dev.html for generic dev
       },
     };
   }
