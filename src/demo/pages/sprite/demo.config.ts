@@ -1,7 +1,7 @@
-import { SoundManagerConfig } from "../sound-manager/sound-manager-config";
-import { DEFAULT_PANNER_CONFIG } from './../sound-manager/sound-panner-config';
+import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
+import { DEFAULT_PANNER_CONFIG } from '../../../sound-manager/sound-panner-config';
 
-export const DEMO_CONFIG: SoundManagerConfig = {
+export const DEMO_CONFIG_SPRTES: SoundManagerConfig = {
   autoMuteOnHidden: true, // When the page is hidden, all sounds are muted
   autoResumeOnFocus: true, // when the page is focused again, all sounds are resumed
   crossOrigin: null, // CORS setting for audio files
