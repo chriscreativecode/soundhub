@@ -172,7 +172,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   <body>
     <div id="app"></div>
     <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=3.2.0"></script>
+    <script src="./lib/sound-manager-ts.umd.js?v=4.0.0"></script>
     <script>
       // Initialize the Sound Manager
       const soundManager = new SoundManager({
@@ -348,10 +348,10 @@ soundManager.destroy();
 ## Public methods on the SoundManager
 
 ```typescript
-export interface SoundManagerInterface {
+interface SoundManagerInterface {
   // Playback control
   play(id: string, options?: playOptions): void;
-  playSprite(id: string, spriteKey: string, options: playOptions): void;
+  playSprite(id: string, spriteKey: string, options: playOptions): void
   pause(id: string): void;
   resume(id: string): void;
   stop(id: string): void;
@@ -383,7 +383,13 @@ export interface SoundManagerInterface {
   isStopped(id: string): boolean;
   getSoundState(id: string): SoundStateInfo;
 
-  // Batch operations
+  // Progress tracking
+  
+  getCurrentTime(id: string): number;
+  getProgress(id: string): number; // Returns the progress as a ratio (0-1)
+  getProgressPercentage(id: string): number;
+
+   // Batch operations
   stopAllSounds(): void;
   pauseAllSounds(): void;
   resumeAllSounds(): void;
@@ -402,7 +408,7 @@ export interface SoundManagerInterface {
   resetSoundPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
-  updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void;
+  updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
 
   // Pan control
   setPan(id: string, pan: number): void;
@@ -414,6 +420,7 @@ export interface SoundManagerInterface {
   isStereoPanActive(id: string): boolean;
 
   // Utility
+  setDebugMode(debug: boolean): void;
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
@@ -451,19 +458,22 @@ Event object dispatched by the sound manager:
 ```typescript
 interface SoundEvent {
   currentTime?: number;
+  duration?:number;
   error?: Error;
   isMaster?: boolean;
   isMuted?: boolean;
   options?: playOptions;
   pan?: number;
   pannerConfig?: SoundPannerConfig;
+  playbackRate?: number;
   position?: { x: number; y: number; z: number };
   previousPan?: number;
+  progress?: number; // ratio from 0 to 1
+  progressInfo?: SoundProgressStateInfo;
   resetOptions?: SoundResetOptions;
+  sound?: Sound;
   soundId?: string;
   timestamp?: number;
-  playbackRate?: number;
-  sprite?: { [key: string]: [number, number] };
   type: SoundEventsEnum;
   volume?: number;
 }
@@ -474,24 +484,24 @@ interface SoundEvent {
 Available event types:
 
 ```typescript
-enum SoundEventsEnum {
+export enum SoundEventsEnum {
   ENDED = 'ended',
   ERROR = 'error',
   FADE_IN_COMPLETED = 'fade_in_completed',
-  FADE_OUT_COMPLETED = 'fade_out_completed',
   FADE_MASTER_IN_COMPLETED = 'fade_master_in_completed',
   FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
+  FADE_OUT_COMPLETED = 'fade_out_completed',
   GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
   LOOP_COMPLETED = 'loop_completed',
-  MASTER_VOLUME_CHANGED = 'master_volume_changed',
-  MUTED = 'muted',
-  MUTE_GLOBAL = 'mute_global',
-  UNMUTE_GLOBAL = 'unmute_global',
   MASTER_PAN_CHANGED = 'master_pan_changed',
+  MASTER_VOLUME_CHANGED = 'master_volume_changed',
+  MUTE_GLOBAL = 'mute_global',
+  MUTED = 'muted',
   OPTIONS_UPDATED = 'options_updated',
   PAN_CHANGED = 'pan_changed',
   PAUSED = 'paused',
   PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
+  PROGRESS = 'progress',
   RESET = 'reset',
   RESUMED = 'resumed',
   SEEKED = 'seeked',
@@ -500,10 +510,11 @@ enum SoundEventsEnum {
   SPRITE_SET = 'sprite_set',
   STARTED = 'started',
   STOPPED = 'stopped',
-  UPDATED_URL = 'updated_url',
+  UNMUTE_GLOBAL = 'unmute_global',
   UNMUTED = 'unmuted',
+  UPDATED_URL = 'updated_url',
   VOLUME_CHANGED = 'volume_changed',
-}
+ }
 ```
 
 ## SoundManagerConfig
@@ -549,6 +560,20 @@ enum SoundState {
 }
 ```
 
+### SoundProgressStateInfo
+
+Sound progress information, is connected to the sound event ->progressInfo
+
+```typescript
+  export interface SoundProgressStateInfo {
+    soundId: string;
+    currentTime: number;
+    duration: number;
+    progress: number; // 0-1
+  }
+```
+
+
 ## Demo included
 
 The package includes a comprehensive demo showcasing all features:
@@ -569,7 +594,7 @@ The package includes a comprehensive demo showcasing all features:
   - Stop all sounds
 - Real-time status display
 - Event logging
-- Spatial audio controls (when enabled)
+- Spatial audio controls
 
 ## Running the Demo
 
@@ -590,10 +615,21 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 3.3.0
- - Fixed issues in playSound (config value, fadeOut and volume was not working)
- - Rebuild logic to play sound sprites. (not finsihed)
- - Added method ```setDebugMode(debug: boolean): void;```
+### 4.0.0 (Major update)
+
+- Added PROGRESS event listener for sound playback monitoring
+- Rebuilt sound sprite system with improved logic
+- Fixed sound configuration issues (volume, fadeIn/fadeOut)
+- Simplified build process and removed unnecessary Vite plugins
+- Rebuild demo structure and created a seperate page for the sound sprites
+- Added new sound management methods:
+
+```typescript
+  getCurrentTime(id: string): number;
+  getProgress(id: string): number; // Returns the progress as a ratio (0-1)
+  getProgressPercentage(id: string): number;
+  setDebugMode(debug: boolean): void;
+ ```
 
 ### 3.2.0
 
