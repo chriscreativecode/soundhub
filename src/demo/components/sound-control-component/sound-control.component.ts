@@ -1,15 +1,15 @@
-import { playOptions } from "../../sound-manager/play-sound-options.interface";
-import { SoundEvent } from "../../sound-manager/sound-event.interface";
-import { SoundEventsEnum } from "../../sound-manager/sound-events.enum";
-import { SoundManager } from "../../sound-manager/sound-manager";
-import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../../sound-manager/sound-panner-config";
-import { SoundState } from "../../sound-manager/sound-state.interface";
-import { SoundManagerConfig } from "../../sound-manager/sound-manager-config";
-import "./../shared.css";
+import { playOptions } from "../../../sound-manager/play-sound-options.interface";
+import { SoundEvent } from "../../../sound-manager/sound-event.interface";
+import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
+import { SoundManager } from "../../../sound-manager/sound-manager";
+import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../../../sound-manager/sound-panner-config";
+import { SoundState } from "../../../sound-manager/sound-state.interface";
+import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
+import "./../../shared.css";
 import "./sound-control.component.css";
 /* @ts-ignore */
 import soundControlComponentHtml from "./sound-control.component.html?raw";
-import { SoundProgressStateInfo } from "../../sound-manager/sound-progress-state-info";
+import { SoundProgressStateInfo } from "../../../sound-manager/sound-progress-state-info";
 
 interface SoundControlState {
   isPlaying: boolean;
@@ -68,6 +68,7 @@ export class SoundControl {
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
     this.container.appendChild(this.element);
+    this.updateUIFromState();
   }
 
   private initializeSoundEventListeners(): void {
@@ -130,7 +131,6 @@ export class SoundControl {
       this.resetProgress();
     },
     [SoundEventsEnum.PAUSED]: (e: SoundEvent) => {
-      console.log("paused", e);
     },
     // [SoundEventsEnum.RESUMED]: () => {},
     [SoundEventsEnum.VOLUME_CHANGED]: (event) => {
@@ -165,7 +165,6 @@ export class SoundControl {
     },
     [SoundEventsEnum.SEEKED]: (e: SoundEvent) => {
       if (e.progressInfo) {
-        console.log("is seeking?", e);
       }
     },
     [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
@@ -576,8 +575,8 @@ export class SoundControl {
 
     if (muteIcon && unmuteIcon) {
       // Show/hide appropriate icons
-      muteIcon.style.display = isMuted ? "none" : "block";
-      unmuteIcon.style.display = isMuted ? "block" : "none";
+      muteIcon.style.display = isMuted ? "block" : "none" ;
+      unmuteIcon.style.display = isMuted ? "none" : "block";
     }
   }
 
