@@ -303,7 +303,7 @@ let mySprite: any = {
 
 this.soundManager.setSoundSprite("game-sound", mySprite);
 
-this.soundManager.playSprite("game-sound, "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
+this.soundManager.playSprite("game-sound", "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
 this.soundManager.playSprite("game-sound", "jump", { loop: true});
 this.soundManager.playSprite("game-sound", "levelup", { fadeOut: 1000, pan: -0.8});
 
