@@ -287,8 +287,32 @@ soundManager.fadeGlobalOut(1500); // Fade out all sounds
 // Playback rate
 soundManager.setPlaybackRate('background-music', 1.5);
 
-// 3D Spatial Audio
+// Full example using Sprites
+const soundsToLoad = [
+	{ id: "game-sound", url: gameSounds },        
+];
 
+await this.soundManager.preloadSounds(soundsToLoad);
+
+let mySprite: any = {
+	intro: [0, 2000],
+	levelup: [2400, 4000],
+	jump: [4000, 5000],
+	fail: [5000, 7000]
+};
+
+this.soundManager.setSoundSprite("game-sound", mySprite);
+
+this.soundManager.playSprite("game-sound, "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
+this.soundManager.playSprite("game-sound", "jump", { loop: true});
+this.soundManager.playSprite("game-sound", "levelup", { fadeOut: 1000, pan: -0.8});
+
+setTimeout( ()=> {
+    this.soundManager.playSprite(this.id, "fail", { pan: 0.8});
+}, 500);
+
+
+// 3D Spatial Audio
 // Set on a specific sound the 3d / spatial audio positioni
 soundManager.setSoundPosition(5, 3, -2, 'background-music');
 
@@ -621,7 +645,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 - Rebuilt sound sprite system with improved logic
 - Fixed sound configuration issues (volume, fadeIn/fadeOut)
 - Simplified build process and removed unnecessary Vite plugins
-- Rebuild demo structure and created a seperate page for the sound sprites
+- Rebuild demo structure and split the code in components.
 - Added new sound management methods:
 
 ```typescript
