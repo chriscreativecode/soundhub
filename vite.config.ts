@@ -80,23 +80,27 @@ const demoMainConfig: UserConfig = {
 };
 
 
-const demoSpriteConfig: UserConfig = {
-  base: "./",
-  root: path.resolve(__dirname, "src/demo/pages/sprite"), // Set the root to the sprite directory
-  publicDir: path.resolve(__dirname, "public"), // Disable copying of public directory
-  build: {
-    outDir: path.resolve(__dirname, "dist/demo/sprite"), // Use absolute path
-    emptyOutDir: true,
-    rollupOptions: {
-      input: path.resolve(__dirname, "src/demo/pages/sprite/index.html"),
-      output: {
-        entryFileNames: "assets/[name].js",
-        chunkFileNames: "assets/[name]-[hash].js",
-        assetFileNames: "assets/[name]-[hash][extname]",
-      },
-    },
-  },
-};
+//  removed from package.json
+//  "dev:sprite": "vite --mode demo-sprite",
+//  "build:demo-sprite": "vite build --mode demo-sprite",
+
+// const demoSpriteConfig: UserConfig = {
+//   base: "./",
+//   root: path.resolve(__dirname, "src/demo/pages/sprite"), // Set the root to the sprite directory
+//   publicDir: path.resolve(__dirname, "public"), // Disable copying of public directory
+//   build: {
+//     outDir: path.resolve(__dirname, "dist/demo/sprite"), // Use absolute path
+//     emptyOutDir: true,
+//     rollupOptions: {
+//       input: path.resolve(__dirname, "src/demo/pages/sprite/index.html"),
+//       output: {
+//         entryFileNames: "assets/[name].js",
+//         chunkFileNames: "assets/[name]-[hash].js",
+//         assetFileNames: "assets/[name]-[hash][extname]",
+//       },
+//     },
+//   },
+// };
 
 
 // Documentation development configuration
@@ -162,9 +166,9 @@ export default defineConfig(({ command, mode }) => {
     return command === "serve" ? devMainConfig : demoMainConfig;
   }
 
-  if (mode === "demo-sprite") {
-    return command === "serve" ? devSpriteConfig : demoSpriteConfig;
-  }
+  // if (mode === "demo-sprite") {
+  //   return command === "serve" ? devSpriteConfig : demoSpriteConfig;
+  // }
 
   if (mode === "documentation-dev") {
     return documentationDevConfig;
@@ -174,15 +178,15 @@ export default defineConfig(({ command, mode }) => {
     return documentationConfig;
   }
 
-  if (command === "serve") {
-    return {
-      ...devConfig,
-      server: {
-        ...devConfig.server,
-        open: "/index-dev.html", // Default to index-dev.html for generic dev
-      },
-    };
-  }
+  // if (command === "serve") {
+  //   return {
+  //     ...devConfig,
+  //     server: {
+  //       ...devConfig.server,
+  //       open: "/index-dev.html", // Default to index-dev.html for generic dev
+  //     },
+  //   };
+  // }
 
   return devConfig;
 });
