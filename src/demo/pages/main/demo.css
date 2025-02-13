@@ -95,16 +95,6 @@ html {
   animation: spin 1s linear infinite;
 }
 
-#masterVolumeValue {
-  margin-left: 10px;
-  white-space: nowrap;
-  font-size: var(--range-value-size); 
-}
-
-#masterPanValue {
-  white-space: nowrap;
-  font-size: var(--range-value-size); 
-}
 
 @keyframes spin {
   0% {

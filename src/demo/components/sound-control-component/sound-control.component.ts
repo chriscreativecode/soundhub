@@ -35,6 +35,7 @@ export class SoundControl {
   private currentOptions: playOptions = {};
   private panSlider: HTMLInputElement;
   private volumeSlider: HTMLInputElement;
+  private playbackRateInput: HTMLInputElement;
   private isDragging = false;
   private previousVolume: number = 1;
   private listenersSpatialAudio: SpatialAudioListener[] = [];
@@ -63,6 +64,7 @@ export class SoundControl {
     this.soundManagerConfig = this.soundManager.getConfig();
     this.progressSlider = this.element.querySelector(".progress-slider")!;
     this.panSlider = this.element.querySelector(".pan-slider")!;
+    this.playbackRateInput = this.element.querySelector(".playback-rate-input")!;
     this.volumeSlider = this.element.querySelector(".volume-slider")!;
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
@@ -99,7 +101,7 @@ export class SoundControl {
     const template = soundControlComponentHtml
       .replace(/\${this\.id}/g, this.id)
       .replace("${hasSpriteHeader}", this.isSprite ? "sprite-header" : "")
-      .replace(/\${isSprite}/g, this.isSprite ? spriteBadgeHtml: "");
+      .replace(/\${isSprite}/g, this.isSprite ? spriteBadgeHtml : "");
 
     const wrapper = document.createElement("div");
     wrapper.innerHTML = template;
@@ -185,6 +187,7 @@ export class SoundControl {
 
   private updateState(): void {
     const soundState = this.soundManager.getSoundState(this.id);
+    console.log('Demo: ->update State ', soundState);
     if (!soundState) return;
 
     const newState = {
@@ -244,15 +247,19 @@ export class SoundControl {
 
       const progress = parseFloat((e.target as HTMLInputElement).value);
       const newTime = (progress / 100) * state.duration;
+      console.log('progress', progress, 'newTime', newTime);
 
       // Update time display immediately
       this.updateTimeDisplay(newTime);
 
+      this.seekPosition(newTime);
+
       // Debounce the actual seeking
-      window.clearTimeout(this.debounceTimer);
-      this.debounceTimer = window.setTimeout(() => {
-        this.seekPosition(newTime);
-      }, 16); // Approximately one frame at 60fps
+      // window.clearTimeout(this.debounceTimer);
+      // this.debounceTimer = window.setTimeout(() => {
+      //   this.seekPosition(newTime);
+      // }, 16); // Approximately one frame at 60fps
+
     },
 
     setDragging: () => (this.isDragging = true),
@@ -302,6 +309,24 @@ export class SoundControl {
     document.addEventListener("mouseup", this.boundHandlers.clearDragging);
   }
 
+  private initializePlaybackRateControl(): void {
+    this.playbackRateInput.addEventListener("change", this.handlePlaybackRateChange.bind(this));
+  }
+
+  private handlePlaybackRateChange(event: Event): void {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+
+    // Validate the input value
+    if (isNaN(value) || value <= 0) {
+      console.error("Playback rate must be at least 0");
+      return;
+    }
+
+    // Update the playback rate
+    this.soundManager.setPlaybackRate(this.id, value);
+    this.updateTimeDisplay(this.state.currentTime);
+  }
+
   private seekPosition(time: number): void {
     this.soundManager.seek(this.id, time);
   }
@@ -310,6 +335,7 @@ export class SoundControl {
     this.bindButtonEvents();
     this.initializeVolumeControl();
     this.initializePanControl();
+    this.initializePlaybackRateControl();
     this.initializeRangeInputs();
     this.initializeProgressSlider();
     this.initializeSpatialControl();
@@ -368,6 +394,7 @@ export class SoundControl {
   }
 
   private updateProgress(progressInfo: SoundProgressStateInfo | undefined): void {
+    console.log('update progress', progressInfo);
     if (this.isDragging) {
       return;
     }
@@ -442,6 +469,7 @@ export class SoundControl {
   private updateTimeDisplay(currentTime: number): void {
     const timeDisplay = this.element.querySelector(".time-display");
     const state = this.soundManager.getSoundState(this.id);
+    console.log('update Time Display', state);
     if (timeDisplay && state?.duration) {
       timeDisplay.textContent = `${this.formatTime(currentTime)} / ${this.formatTime(state.duration)}`;
     }
@@ -575,7 +603,7 @@ export class SoundControl {
 
     if (muteIcon && unmuteIcon) {
       // Show/hide appropriate icons
-      muteIcon.style.display = isMuted ? "block" : "none" ;
+      muteIcon.style.display = isMuted ? "block" : "none";
       unmuteIcon.style.display = isMuted ? "none" : "block";
     }
   }
@@ -942,6 +970,13 @@ export class SoundControl {
           Object.values(SoundEventsEnum).forEach((eventType) => {
             this.soundManager.removeEventListener(eventType, boundHandler);
           });
+        },
+
+        // Remove playback rate input listener
+        () => {
+          if (this.playbackRateInput) {
+            this.playbackRateInput.removeEventListener("change", this.handlePlaybackRateChange);
+          }
         },
 
         // Remove button event listeners

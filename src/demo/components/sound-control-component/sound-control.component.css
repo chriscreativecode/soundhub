@@ -417,6 +417,27 @@
   gap: 0.5rem;
 }
 
+.playback-rate-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.playback-rate-input {
+  width: 60px;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.playback-rate-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 @media (max-width: 768px) {
 
   .button-group {
