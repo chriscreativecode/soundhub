@@ -7,22 +7,22 @@ import { Sound } from "./sound.interface";
 
 export interface SoundEvent {
   currentTime?: number;
+  duration?:number;
   error?: Error;
   isMaster?: boolean;
   isMuted?: boolean;
   options?: playOptions;
   pan?: number;
   pannerConfig?: SoundPannerConfig;
+  playbackRate?: number;
   position?: { x: number; y: number; z: number };
   previousPan?: number;
-  resetOptions?: SoundResetOptions;
-  soundId?: string;
   progress?: number; // ratio from 0 to 1
   progressInfo?: SoundProgressStateInfo;
-  timestamp?: number;
-  duration?:number;
-  playbackRate?: number;
+  resetOptions?: SoundResetOptions;
   sound?: Sound;
+  soundId?: string;
+  timestamp?: number;
   type: SoundEventsEnum;
   volume?: number;
 }

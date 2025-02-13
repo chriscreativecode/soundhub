@@ -370,69 +370,69 @@ soundManager.<span class="hljs-title function_">setPlaybackRate</span>(<span cla
 
 <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">setSoundSprite</span>(<span class="hljs-string">&quot;game-sound&quot;</span>, mySprite);
 
-<span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">playSprite</span>(<span class="hljs-string">&quot;game-sound, &quot;</span>intro<span class="hljs-string">&quot;, { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
-this.soundManager.playSprite(&quot;</span>game-sound<span class="hljs-string">&quot;, &quot;</span>jump<span class="hljs-string">&quot;, { loop: true});
-this.soundManager.playSprite(&quot;</span>game-sound<span class="hljs-string">&quot;, &quot;</span>levelup<span class="hljs-string">&quot;, { fadeOut: 1000, pan: -0.8});
+<span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">playSprite</span>(<span class="hljs-string">&quot;game-sound&quot;</span>, <span class="hljs-string">&quot;intro&quot;</span>, { <span class="hljs-attr">fadeIn</span>: <span class="hljs-number">1000</span>, <span class="hljs-attr">pan</span>: <span class="hljs-number">0.8</span>, <span class="hljs-attr">playbackRate</span>: <span class="hljs-number">1.5</span>});
+<span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">playSprite</span>(<span class="hljs-string">&quot;game-sound&quot;</span>, <span class="hljs-string">&quot;jump&quot;</span>, { <span class="hljs-attr">loop</span>: <span class="hljs-literal">true</span>});
+<span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">playSprite</span>(<span class="hljs-string">&quot;game-sound&quot;</span>, <span class="hljs-string">&quot;levelup&quot;</span>, { <span class="hljs-attr">fadeOut</span>: <span class="hljs-number">1000</span>, <span class="hljs-attr">pan</span>: -<span class="hljs-number">0.8</span>});
 
-setTimeout( ()=&gt; {
-    this.soundManager.playSprite(this.id, &quot;</span>fail<span class="hljs-string">&quot;, { pan: 0.8});
-}, 500);
+<span class="hljs-built_in">setTimeout</span>( <span class="hljs-function">()=&gt;</span> {
+    <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">playSprite</span>(<span class="hljs-variable language_">this</span>.<span class="hljs-property">id</span>, <span class="hljs-string">&quot;fail&quot;</span>, { <span class="hljs-attr">pan</span>: <span class="hljs-number">0.8</span>});
+}, <span class="hljs-number">500</span>);
 
 
-// 3D Spatial Audio
-// Set on a specific sound the 3d / spatial audio positioni
-soundManager.setSoundPosition(5, 3, -2, &#x27;background-music&#x27;);
+<span class="hljs-comment">// 3D Spatial Audio</span>
+<span class="hljs-comment">// Set on a specific sound the 3d / spatial audio positioni</span>
+soundManager.<span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-number">5</span>, <span class="hljs-number">3</span>, -<span class="hljs-number">2</span>, <span class="hljs-string">&#x27;background-music&#x27;</span>);
 
-// Set the master spatial position (x, y, z)
-soundManager.setMasterSpatialPosition(10, 5, -3);
+<span class="hljs-comment">// Set the master spatial position (x, y, z)</span>
+soundManager.<span class="hljs-title function_">setMasterSpatialPosition</span>(<span class="hljs-number">10</span>, <span class="hljs-number">5</span>, -<span class="hljs-number">3</span>);
 
-// Mute controls
-soundManager.muteAllSounds();
-soundManager.unmuteAllSounds();
-soundManager.mute(&#x27;background-music&#x27;);
-soundManager.unmute(&#x27;background-music&#x27;);
-soundManager.toggleMute(&#x27;background-music&#x27;);
-soundManager.toggleGlobalMute();
+<span class="hljs-comment">// Mute controls</span>
+soundManager.<span class="hljs-title function_">muteAllSounds</span>();
+soundManager.<span class="hljs-title function_">unmuteAllSounds</span>();
+soundManager.<span class="hljs-title function_">mute</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">unmute</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">toggleMute</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">toggleGlobalMute</span>();
 
-// Spatial audio (if enabled in config)
-soundManager.setSoundPosition(&#x27;background-music&#x27;, 1, 0, -1);
-soundManager.resetSoundPosition(&#x27;background-music&#x27;);
-soundManager.removeSpatialEffect();
-soundManager.isSpatialAudioActive(&#x27;background-music&#x27;);
-soundManager.updatePannerConfig(&#x27;background-music&#x27;,
-    &lt;SoundPannerConfig&gt;{
-        panningModel: PanningModel.HRTF,
-        distanceModel: DistanceModel.Inverse,
-        refDistance: 1,
-        maxDistance: 10000,
-        rolloffFactor: 0.2,
-        coneInnerAngle: 360,
-        coneOuterAngle: 360,
-        coneOuterGain: 0,
+<span class="hljs-comment">// Spatial audio (if enabled in config)</span>
+soundManager.<span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, -<span class="hljs-number">1</span>);
+soundManager.<span class="hljs-title function_">resetSoundPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">removeSpatialEffect</span>();
+soundManager.<span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">updatePannerConfig</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>,
+    &lt;<span class="hljs-title class_">SoundPannerConfig</span>&gt;{
+        <span class="hljs-attr">panningModel</span>: <span class="hljs-title class_">PanningModel</span>.<span class="hljs-property">HRTF</span>,
+        <span class="hljs-attr">distanceModel</span>: <span class="hljs-title class_">DistanceModel</span>.<span class="hljs-property">Inverse</span>,
+        <span class="hljs-attr">refDistance</span>: <span class="hljs-number">1</span>,
+        <span class="hljs-attr">maxDistance</span>: <span class="hljs-number">10000</span>,
+        <span class="hljs-attr">rolloffFactor</span>: <span class="hljs-number">0.2</span>,
+        <span class="hljs-attr">coneInnerAngle</span>: <span class="hljs-number">360</span>,
+        <span class="hljs-attr">coneOuterAngle</span>: <span class="hljs-number">360</span>,
+        <span class="hljs-attr">coneOuterGain</span>: <span class="hljs-number">0</span>,
     }
 );
 
-// State checks
-const isPlaying = soundManager.isPlaying(&#x27;background-music&#x27;);
-const isPaused = soundManager.isPaused(&#x27;background-music&#x27;);
-const isStopped = soundManager.isStopped(&#x27;background-music&#x27;);
-const state = soundManager.getSoundState(&#x27;background-music&#x27;);
+<span class="hljs-comment">// State checks</span>
+<span class="hljs-keyword">const</span> isPlaying = soundManager.<span class="hljs-title function_">isPlaying</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+<span class="hljs-keyword">const</span> isPaused = soundManager.<span class="hljs-title function_">isPaused</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+<span class="hljs-keyword">const</span> isStopped = soundManager.<span class="hljs-title function_">isStopped</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+<span class="hljs-keyword">const</span> state = soundManager.<span class="hljs-title function_">getSoundState</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 
-// Reset all sound settings to default values
-soundManager.reset();
+<span class="hljs-comment">// Reset all sound settings to default values</span>
+soundManager.<span class="hljs-title function_">reset</span>();
 
-// Or use the SoundResetOptions
-soundManager.reset({
-  keepVolumes: true; // Keep current volume settings
-  keepPanning: false; // Keep current panning settings
-  keepSpatial: false; // Keep spatial audio settings
-  unloadSounds: false; // Unload all sounds
+<span class="hljs-comment">// Or use the SoundResetOptions</span>
+soundManager.<span class="hljs-title function_">reset</span>({
+  <span class="hljs-attr">keepVolumes</span>: <span class="hljs-literal">true</span>; <span class="hljs-comment">// Keep current volume settings</span>
+  <span class="hljs-attr">keepPanning</span>: <span class="hljs-literal">false</span>; <span class="hljs-comment">// Keep current panning settings</span>
+  <span class="hljs-attr">keepSpatial</span>: <span class="hljs-literal">false</span>; <span class="hljs-comment">// Keep spatial audio settings</span>
+  <span class="hljs-attr">unloadSounds</span>: <span class="hljs-literal">false</span>; <span class="hljs-comment">// Unload all sounds</span>
 })
 
-// Cleanup
-soundManager.destroy();
+<span class="hljs-comment">// Cleanup</span>
+soundManager.<span class="hljs-title function_">destroy</span>();
 
-</span></code></pre>
+</code></pre>
 <h2 id="interfaces" tabindex="-1">Interfaces</h2>
 <h2 id="public-methods-on-the-soundmanager" tabindex="-1">Public methods on the SoundManager</h2>
 <pre><code class="language-typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerInterface</span> {

@@ -61,22 +61,55 @@ Transform your web audio experience with just a few lines of code!
 
 ## Documentation
 
-- [Installation / Implement in Your Project](#installation--implement-in-your-project)
-  - [Using the Sound Manager as TypeScript Module](#1-using-the-sound-manager-as-typescript-module)
-  - [Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
-- [Usage](#usage)
-- [Interfaces](#interfaces)
+- [🎵 Modern Web Audio Manager build in TypeScript.](#-modern-web-audio-manager-build-in-typescript)
+  - [Live demo](#live-demo)
+  - [Why Choose This Package?](#why-choose-this-package)
+  - [Features](#features)
+  - [Note](#note)
+  - [Browser Support](#browser-support)
+  - [Documentation](#documentation)
+  - [About me](#about-me)
+    - [Chris Schardijn (Front-end Developer)](#chris-schardijn-front-end-developer)
+  - [🚀 Quick Start](#-quick-start)
+  - [Installation / imlement in your project](#installation--imlement-in-your-project)
+  - [Implement in your project](#implement-in-your-project)
+    - [1. Using the Sound Manager as TypeScript Module](#1-using-the-sound-manager-as-typescript-module)
+      - [Install the package](#install-the-package)
+    - [2. Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
+  - [Usage](#usage)
+  - [Interfaces](#interfaces)
+  - [Public methods on the SoundManager](#public-methods-on-the-soundmanager)
+  - [PlayOptions](#playoptions)
   - [SoundEvent](#soundevent)
   - [SoundEventsEnum](#soundeventsenum)
   - [SoundManagerConfig](#soundmanagerconfig)
   - [Sound State Information](#sound-state-information)
   - [SoundState](#soundstate)
-- [Demo Included](#demo-included)
-- [Running the Demo](#running-the-demo)
-- [Browser Support](#browser-support)
-- [Licence](#licence)
-- [Version History](#version-history)
-- [Upcoming Features](#upcoming-features)
+    - [SoundProgressStateInfo](#soundprogressstateinfo)
+  - [Demo included](#demo-included)
+  - [Running the Demo](#running-the-demo)
+  - [Licence](#licence)
+  - [📋 Version History](#-version-history)
+    - [4.0.0 (Major update)](#400-major-update)
+    - [3.2.0](#320)
+      - [🎉 Added features](#-added-features)
+    - [3.1.0](#310)
+    - [3.0.0](#300)
+      - [🚨Breaking changes and new Features](#breaking-changes-and-new-features)
+      - [Improvements](#improvements)
+      - [Added features](#added-features)
+    - [2.3.0](#230)
+    - [2.2.0](#220)
+    - [2.1.3 ~ 2.1.9 (Current)](#213--219-current)
+    - [2.1.2](#212)
+    - [2.1.1](#211)
+    - [2.1.0](#210)
+    - [2.0.0 (Major Release)](#200-major-release)
+    - [1.3.0](#130)
+    - [1.2.0](#120)
+    - [1.1.0](#110)
+    - [1.0.4](#104)
+  - [🚀 Upcoming Features](#-upcoming-features)
 
 ## About me
 
@@ -188,24 +221,52 @@ If you prefer to include Sound Manager directly as a library file in your projec
         { id: "click-effect", url: "/assets/sounds/click.wav" },
       ];
 
-      // Preload sounds
+      // ====================================================================
+      // Method 1: Preload sounds using Promises (then/catch)
+      // ====================================================================
       soundManager
         .preloadSounds(soundsToLoad)
         .then(() => {
           console.log("All sounds loaded successfully");
+
+          // Play a sound
+          soundManager.play("background-music", {
+            volume: 0.7,
+            fadeIn: 2000,
+          });
+
+          // Control individual sounds
+          soundManager.stop("background-music");
         })
         .catch((error) => {
           console.error("Error loading sounds:", error);
         });
 
-      // Play a sound
-      soundManager.play("background-music", {
-        volume: 0.7,
-        fadeIn: 2000,
-      });
+      // ====================================================================
+      // Method 2: Preload sounds using async/await
+      // ====================================================================
+      async function loadAndPlaySounds() {
+        try {
+          // Preload sounds
+          await soundManager.preloadSounds(soundsToLoad);
+          console.log("All sounds loaded successfully");
 
-      // Control individual sounds
-      soundManager.stop("background-music");
+          // Play a sound
+          soundManager.play("background-music", {
+            volume: 0.7,
+            fadeIn: 2000,
+          });
+
+          // Control individual sounds
+          soundManager.stop("background-music");
+        } catch (error) {
+          console.error("Error loading sounds:", error);
+        }
+      }
+
+      // Call the async function
+      loadAndPlaySounds();
+
     </script>
   </body>
 </html>
@@ -372,7 +433,7 @@ soundManager.destroy();
 ## Public methods on the SoundManager
 
 ```typescript
-interface SoundManagerInterface {
+export interface SoundManagerInterface {
   // Playback control
   play(id: string, options?: playOptions): void;
   playSprite(id: string, spriteKey: string, options: playOptions): void
@@ -480,7 +541,7 @@ interface playOptions {
 Event object dispatched by the sound manager:
 
 ```typescript
-interface SoundEvent {
+export interface SoundEvent {
   currentTime?: number;
   duration?:number;
   error?: Error;
@@ -509,36 +570,36 @@ Available event types:
 
 ```typescript
 export enum SoundEventsEnum {
-  ENDED = 'ended',
-  ERROR = 'error',
-  FADE_IN_COMPLETED = 'fade_in_completed',
-  FADE_MASTER_IN_COMPLETED = 'fade_master_in_completed',
-  FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
-  FADE_OUT_COMPLETED = 'fade_out_completed',
-  GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
-  LOOP_COMPLETED = 'loop_completed',
-  MASTER_PAN_CHANGED = 'master_pan_changed',
-  MASTER_VOLUME_CHANGED = 'master_volume_changed',
-  MUTE_GLOBAL = 'mute_global',
-  MUTED = 'muted',
-  OPTIONS_UPDATED = 'options_updated',
-  PAN_CHANGED = 'pan_changed',
-  PAUSED = 'paused',
-  PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
-  PROGRESS = 'progress',
-  RESET = 'reset',
-  RESUMED = 'resumed',
-  SEEKED = 'seeked',
-  SPATIAL_POSITION_CHANGED = 'spatial_position_changed',
-  SPATIAL_POSITION_RESET = 'spatial_position_reset',
-  SPRITE_SET = 'sprite_set',
-  STARTED = 'started',
-  STOPPED = 'stopped',
-  UNMUTE_GLOBAL = 'unmute_global',
-  UNMUTED = 'unmuted',
-  UPDATED_URL = 'updated_url',
-  VOLUME_CHANGED = 'volume_changed',
- }
+    ENDED = 'ended',
+    ERROR = 'error',
+    FADE_IN_COMPLETED = 'fade_in_completed',
+    FADE_MASTER_IN_COMPLETED = 'fade_master_in_completed',
+    FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
+    FADE_OUT_COMPLETED = 'fade_out_completed',
+    GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
+    LOOP_COMPLETED = 'loop_completed',
+    MASTER_PAN_CHANGED = 'master_pan_changed',
+    MASTER_VOLUME_CHANGED = 'master_volume_changed',
+    MUTE_GLOBAL = 'mute_global',
+    MUTED = 'muted',
+    OPTIONS_UPDATED = 'options_updated',
+    PAN_CHANGED = 'pan_changed',
+    PAUSED = 'paused',
+    PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
+    PROGRESS = 'progress',
+    RESET = 'reset',
+    RESUMED = 'resumed',
+    SEEKED = 'seeked',
+    SPATIAL_POSITION_CHANGED = 'spatial_position_changed',
+    SPATIAL_POSITION_RESET = 'spatial_position_reset',
+    SPRITE_SET = 'sprite_set',
+    STARTED = 'started',
+    STOPPED = 'stopped',
+    UNMUTE_GLOBAL = 'unmute_global',
+    UNMUTED = 'unmuted',
+    UPDATED_URL = 'updated_url',
+    VOLUME_CHANGED = 'volume_changed',
+}
 ```
 
 ## SoundManagerConfig
@@ -866,10 +927,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 🚀 Upcoming Features
 
-📍 **Spatial Recording & Playback**
-
 - Add setPlaybackRate to the demo for adjustable audio speed
 - Add showcase of the sound sprite to play multiple effects from a single file
 - Improvements on various sound logic
-- Add Spatial (3d) recording capability
-- Enable playback of recorded sound positions over time
+- Spatial Recording & Playback
