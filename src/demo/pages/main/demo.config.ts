@@ -5,7 +5,7 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   autoMuteOnHidden: true, // When the page is hidden, all sounds are muted
   autoResumeOnFocus: true, // when the page is focused again, all sounds are resumed
   crossOrigin: null, // CORS setting for audio files
-  debug: false,  //  Enable debug logging
+  debug: true,  //  Enable debug logging
   defaultPan: 0, //  Default pan for new sounds (0-1)
   defaultVolume: 1, // Default volume for new sounds (0-1)
   fadeInDuration: 1000, // Default fade-in duration in milliseconds

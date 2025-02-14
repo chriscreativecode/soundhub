@@ -9,4 +9,6 @@ export interface playOptions {
   maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
   playbackRate?: number;
   duration?:number;
+  newSoundInstance?: boolean;
+  isSeeking?: boolean;
 }
