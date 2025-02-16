@@ -25,5 +25,5 @@ export const DEFAULT_CONFIG: SoundManagerConfig = {
   fadeOutDuration: 500,
   spatialAudio: true,
   loopSounds: false,
-  pannerNodeConfig: DEFAULT_PANNER_CONFIG
+  pannerNodeConfig: DEFAULT_PANNER_CONFIG,
 };

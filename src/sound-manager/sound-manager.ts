@@ -1,4 +1,4 @@
-import { start } from "repl";
+
 import { playOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
@@ -10,6 +10,78 @@ import { SoundStateInfo } from "./sound-state-info.interface";
 import { SoundState } from "./sound-state.interface";
 import { Sound } from "./sound.interface";
 
+// Add to sound-manager.ts
+
+interface TickerCallback {
+  id: string;
+  callback: (deltaTime: number) => void;
+  interval?: number;
+  lastUpdate?: number;
+}
+
+class Ticker {
+  private callbacks: Map<string, TickerCallback> = new Map();
+  private animationFrameId: number | null = null;
+  private lastTick: number = 0;
+
+  constructor() {
+    this.tick = this.tick.bind(this);
+  }
+
+  private tick(timestamp: number): void {
+    const deltaTime = timestamp - (this.lastTick || timestamp);
+    this.lastTick = timestamp;
+
+    this.callbacks.forEach(callback => {
+      if (!callback.interval) {
+        callback.callback(deltaTime);
+        return;
+      }
+
+      callback.lastUpdate = callback.lastUpdate || timestamp;
+      const elapsed = timestamp - callback.lastUpdate;
+
+      if (elapsed >= callback.interval) {
+        callback.callback(deltaTime);
+        callback.lastUpdate = timestamp;
+      }
+    });
+
+    this.animationFrameId = requestAnimationFrame(this.tick);
+  }
+
+  public start(): void {
+    if (!this.animationFrameId) {
+      this.lastTick = performance.now();
+      this.animationFrameId = requestAnimationFrame(this.tick);
+    }
+  }
+
+  public stop(): void {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
+
+  public addCallback(id: string, callback: (deltaTime: number) => void, interval?: number): void {
+    this.callbacks.set(id, { id, callback, interval });
+    this.start();
+  }
+
+  public removeCallback(id: string): void {
+    this.callbacks.delete(id);
+    if (this.callbacks.size === 0) {
+      this.stop();
+    }
+  }
+
+  public clear(): void {
+    this.callbacks.clear();
+    this.stop();
+  }
+}
+
 export class SoundManager implements SoundManagerInterface {
   private readonly config: SoundManagerConfig;
   private readonly context!: AudioContext;
@@ -20,13 +92,16 @@ export class SoundManager implements SoundManagerInterface {
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
   private previousGlobalPan: number = 0;
-
-  private progressIntervals: Map<string, number> = new Map();
   private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
   private eventListeners: Map<SoundEventsEnum, Set<(event: SoundEvent) => void>> = new Map();
   private readonly activeSources: Map<string, AudioBufferSourceNode> = new Map();
+  private activeFadeCallbacks: Map<string, () => void> = new Map();
+  private isHandlingError: boolean = false;
+  private ticker: Ticker;
+  private readonly DEFAULT_PRECISION: number = 2;
 
   constructor(config: SoundManagerConfig = {}) {
+    this.ticker = new Ticker();
     this.config = {
       debug: false,
       ...config,
@@ -298,10 +373,10 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private startProgressTracking(id: string): void {
-    // Clear any existing interval for this sound
+    // Clear any existing tracking
     this.stopProgressTracking(id);
 
-    const intervalId = window.setInterval(() => {
+    const trackProgress = () => {
       const sound = this.sounds.get(id);
       if (!sound || sound.state !== SoundState.Playing) {
         this.stopProgressTracking(id);
@@ -309,10 +384,7 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       const { currentTime, duration } = this.getSoundState(id);
-
       const progress = duration ? currentTime / duration : 0;
-
-      console.log('startProgressTracking', progress, currentTime, duration);
 
       this.dispatchEvent({
         type: SoundEventsEnum.PROGRESS,
@@ -327,84 +399,41 @@ export class SoundManager implements SoundManagerInterface {
           progress,
         },
         timestamp: this.context.currentTime,
-        sound
+        sound,
       });
-    }, this.PROGRESS_UPDATE_INTERVAL);
+    };
 
-    this.progressIntervals.set(id, intervalId);
+    // Add to ticker with specified interval
+    this.ticker.addCallback(`progress_${id}`, trackProgress, this.PROGRESS_UPDATE_INTERVAL);
   }
+
 
   private stopProgressTracking(id: string): void {
-    const intervalId = this.progressIntervals.get(id);
-    if (intervalId) {
-      window.clearInterval(intervalId);
-      this.progressIntervals.delete(id);
-    }
+    this.ticker.removeCallback(`progress_${id}`);
   }
 
-  private monitorVolumeChanges(params: {
-    gainNode: GainNode;
-    duration: number;
-    soundId?: string;
-    isMaster?: boolean;
-    onComplete?: () => void;
-  }): void {
-    const { gainNode, duration, soundId, isMaster = false, onComplete } = params;
-    const startTime = this.context.currentTime;
-    const endTime = startTime + duration;
+  private cancelFadeAnimation(id: string): void {
+    // Remove the fade callback from ticker
+    this.ticker.removeCallback(`fade_${id}`);
 
-    const volumeChangedEvent = {
-      type: isMaster ? SoundEventsEnum.MASTER_VOLUME_CHANGED : SoundEventsEnum.VOLUME_CHANGED,
-      timestamp: 0,
-      volume: 0,
-      soundId: soundId,
-    };
-
-    if (soundId) {
-      const sound = this.getSound(soundId);
-      this.debugLog(`Current gain value for ${sound?.id}: ${sound?.gainNode.gain.value}`);
+    // Execute and remove any stored fade callback
+    const fadeCallback = this.activeFadeCallbacks.get(id);
+    if (fadeCallback) {
+      fadeCallback(); // Execute callback to clean up
+      this.activeFadeCallbacks.delete(id);
     }
 
-    const monitorVolume = () => {
-      const currentTime = this.context.currentTime;
+    // Cancel any scheduled gain changes
+    const sound = this.sounds.get(id);
+    if (sound?.gainNode) {
+      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+    }
 
-      if (currentTime < endTime) {
-        const currentVolume = gainNode.gain.value;
-        volumeChangedEvent.timestamp = currentTime;
-        volumeChangedEvent.volume = currentVolume;
-
-        console.log('monitorVolumeChanges', currentVolume);
-        if (soundId) {
-          const sound = this.getValidatedSound(soundId)
-          sound.volume =  Math.floor(currentVolume);
-        }
-
-        // Dispatch volume change event
-        this.dispatchEvent({ ...volumeChangedEvent });
-
-        // Schedule next monitoring frame
-        requestAnimationFrame(monitorVolume);
-      } else {
-        // Final volume update
-        const finalVolume = gainNode.gain.value;
-        volumeChangedEvent.timestamp = currentTime;
-        volumeChangedEvent.volume = finalVolume;
-
-        if (soundId) {
-          const sound = this.getValidatedSound(soundId)
-          sound.volume =  Math.floor(finalVolume);
-        }
-
-        // Dispatch final event
-        this.dispatchEvent({ ...volumeChangedEvent });
-
-        // Call completion callback
-        onComplete?.();
-      }
-    };
-
-    // Start monitoring directly
-    monitorVolume();
+    // Reset fade states
+    if (sound) {
+      sound.isFadingIn = false;
+      sound.isFadingOut = false;
+    }
   }
 
   private getValidatedSound(id: string): Sound {
@@ -525,18 +554,26 @@ export class SoundManager implements SoundManagerInterface {
     const context = id ? ` (Sound ID: ${id})` : "";
     const message = `[SoundManager] Error ${operation}${context}: ${errorMessage}`;
 
+    // Just log the error without throwing
     if (this.config.debug) {
       console.error(message, error);
     } else {
       console.error(message);
     }
 
-    // Dispatch an error event
-    this.dispatchEvent({
-      type: SoundEventsEnum.ERROR,
-      timestamp: this.context.currentTime,
-      error: new Error(message),
-    });
+    // Only dispatch error event if we're not already handling an error
+    if (!this.isHandlingError) {
+      this.isHandlingError = true;
+      try {
+        this.dispatchEvent({
+          type: SoundEventsEnum.ERROR,
+          timestamp: this.context.currentTime,
+          error: new Error(message),
+        });
+      } finally {
+        this.isHandlingError = false;
+      }
+    }
   }
 
   // Playback control-----------------------------------------------------------------------------------------------------------
@@ -552,6 +589,7 @@ export class SoundManager implements SoundManagerInterface {
 
       // Merge existing playOptions with new options
       sound.playOptions = { ...sound.playOptions, ...options };
+      console.log('PLAY with volume', sound.volume, sound.playOptions);
 
       // Default newSoundInstance to true if not provided
       const newSoundInstance = options.newSoundInstance ?? true;
@@ -710,20 +748,27 @@ export class SoundManager implements SoundManagerInterface {
 
   public stop(id: string): void {
     try {
-      const sound = this.getValidatedSound(id);
+      const sound = this.sounds.get(id);
+      if (!sound) {
+        this.debugLog(`Sound ${id} not found for stopping`);
+        return;
+      }
 
-      this.cleanupSound(id);
+      // Cancel any ongoing operations first
+      this.cancelFadeAnimation(id);
+      this.stopProgressTracking(id);
+
+      // Stop and cleanup the source first
       this.cleanupExistingSource(id);
 
-      // Reset state
+      // Reset state after source cleanup
       sound.state = SoundState.Stopped;
       sound.startTime = 0;
       sound.pausedAt = 0;
+      sound.currentTime = 0;
 
-      // Pass true to preserve spatial audio
+      // Clear audio processing while preserving spatial audio
       this.clearAudioProcessing(id, true);
-
-      this.stopProgressTracking(id);
 
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
@@ -732,17 +777,33 @@ export class SoundManager implements SoundManagerInterface {
         sound
       });
     } catch (error) {
-      this.handleError("stopping sound", error, id);
+      console.error(`Error stopping sound ${id}:`, error);
+      // Avoid recursive error handling
+      this.dispatchEvent({
+        type: SoundEventsEnum.ERROR,
+        timestamp: this.context.currentTime,
+        error: new Error(`Failed to stop sound ${id}: ${error}`),
+      });
     }
   }
 
   private cleanupExistingSource(id: string): void {
-    const currentSource = this.activeSources.get(id);
-    if (currentSource) {
-      currentSource.stop();
-      currentSource.disconnect();
-      currentSource.onended = null;
-      this.activeSources.delete(id);
+    try {
+      const currentSource = this.activeSources.get(id);
+      if (currentSource) {
+        try {
+          currentSource.stop();
+        } catch (e) {
+          // Ignore errors if source is already stopped
+          this.debugLog(`Warning: Could not stop source for ${id}: ${e}`);
+        }
+        currentSource.disconnect();
+        currentSource.onended = null;
+        this.activeSources.delete(id);
+      }
+    } catch (error) {
+      this.debugLog(`Error cleaning up source for ${id}: ${error}`);
+      // Don't throw, just log
     }
   }
 
@@ -801,6 +862,7 @@ export class SoundManager implements SoundManagerInterface {
       const playbackRate = sound.playOptions?.playbackRate || 1;
       const adjustedDuration = sound.buffer.duration / playbackRate;
 
+      console.log('SEEK with volume', sound.volume);
       // Clamp time based on adjusted duration
       const clampedTime = Math.max(0, Math.min(time, adjustedDuration));
 
@@ -860,12 +922,20 @@ export class SoundManager implements SoundManagerInterface {
 
   // Volume control-----------------------------------------------------------------------------------------------------------------
 
+  private roundedValue(value: number, decimals: number = this.DEFAULT_PRECISION): number {
+    return Number(value.toFixed(decimals));
+  }
+
   public setSoundVolume(id: string, volume: number): void {
     try {
+       // Cancel any ongoing fade animation
+      this.cancelFadeAnimation(id);
+
       const sound = this.getValidatedSound(id);
       const validatedVolume = this.setValidatedVolume(volume);
-      sound.volume = validatedVolume;
+      sound.volume = this.roundedValue(validatedVolume);
       sound.originalVolume = validatedVolume;
+      console.log('Set sound volume ', sound.volume, validatedVolume)
       sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
       this.dispatchEvent({
         type: SoundEventsEnum.VOLUME_CHANGED,
@@ -1393,70 +1463,50 @@ export class SoundManager implements SoundManagerInterface {
 
   // Fading ------------------------------------------------------------------------------------------------------------------------
 
-  private fadeSound(
-    id: string,
-    startVolume: number,
-    targetVolume: number,
-    duration: number,
-    onComplete?: () => void
-  ): void {
-    try {
-      const sound = this.getValidatedSound(id);
-      const fadeDuration = duration / 1000;
-
-      // Ensure we have an active source
-      if (!this.activeSources.has(id)) {
-        this.debugLog(`No active source for sound ${id}, creating one`);
-        this.play(id);
-      }
-
-      // Cancel any scheduled changes
-      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
-
-      // Set the initial volume
-      sound.gainNode.gain.setValueAtTime(startVolume, this.context.currentTime);
-
-      // Schedule the fade from current time
-      sound.gainNode.gain.linearRampToValueAtTime(targetVolume, this.context.currentTime + fadeDuration);
-
-      this.debugLog(`Fade scheduled for sound ${id}:
-        Start time: ${this.context.currentTime}
-        Duration: ${fadeDuration}
-        Start volume: ${startVolume}
-        Target volume: ${targetVolume}
-      `);
-
-      this.monitorVolumeChanges({
-        gainNode: sound.gainNode,
-        duration: fadeDuration,
-        soundId: id,
-        isMaster: false,
-        onComplete: () => {
-          sound.isFadingIn = false;
-          sound.isFadingOut = false;
-          onComplete?.();
-        },
-      });
-    } catch (error) {
-      this.handleError("fading sound", error, id);
-    }
-  }
-
   // Usage in fadeIn and fadeOut
-  public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void {
+  public fadeIn(id: string, duration: number, startVolume?: number, endVolume: number = 1): void {
+    console.log('Fade in', id, duration, startVolume, endVolume);
     const sound = this.getValidatedSound(id);
 
-    // Cancel any ongoing fades
-    sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+    // Cancel any ongoing fade animation
+    this.cancelFadeAnimation(id);
 
     // Reset fade states
     sound.isFadingOut = false;
     sound.isFadingIn = true;
 
-    startVolume = startVolume ?? 0;
-    const targetVolume = endVolume ?? sound.originalVolume ?? sound.volume ?? 1;
+    // Get the current volume
+    const currentVolume = sound.gainNode.gain.value;
 
-    this.fadeSound(id, startVolume, targetVolume, duration);
+    // Determine the start volume based on different conditions
+    let effectiveStartVolume: number;
+
+    if (startVolume !== undefined) {
+      // If startVolume is explicitly provided, use it
+      effectiveStartVolume = startVolume;
+    } else if (sound.isFadingOut) {
+      // If we're coming from a fadeOut, use the current volume
+      effectiveStartVolume = currentVolume;
+    } else if (currentVolume >= endVolume) {
+      // If current volume is at or above target, start from 0
+      effectiveStartVolume = 0;
+    } else {
+      // Otherwise, continue from current volume
+      effectiveStartVolume = currentVolume;
+    }
+
+    // Store the original volume for potential future use
+    sound.originalVolume = endVolume;
+
+    // Immediately set the volume to the start value
+    sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
+
+    // Start the fade
+    this.fadeSound(id, effectiveStartVolume, endVolume, duration);
+
+    if (sound.state !== SoundState.Playing) {
+      this.play(id, { newSoundInstance: false, volume: effectiveStartVolume });
+    }
   }
 
   public fadeOut(
@@ -1468,31 +1518,113 @@ export class SoundManager implements SoundManagerInterface {
   ): void {
     const sound = this.getValidatedSound(id);
 
-    // If sound hasn't been played yet, we need to initialize it
-    if (!this.activeSources.has(id)) {
-      // Set initial volume
-      sound.gainNode.gain.setValueAtTime(startVolume ?? sound.volume, this.context.currentTime);
-
-      // Play the sound (this will create and connect the source)
-      this.play(id);
-    }
-
-    // Cancel any ongoing fades
-    sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+    // Cancel any ongoing fade animation
+    this.cancelFadeAnimation(id);
 
     // Reset fade states
     sound.isFadingIn = false;
     sound.isFadingOut = true;
 
-    startVolume = startVolume ?? sound.volume;
+    // Use the current volume as the start volume if not provided
+    const currentVolume = sound.gainNode.gain.value;
+    const effectiveStartVolume = startVolume ?? currentVolume;
 
-    this.fadeSound(id, startVolume, endVolume, duration, () => {
-      sound.isFadingOut = false;
-      // Stop the sound after the fade-out completes
+    // Store the current volume before fading out
+    sound.previousVolume = currentVolume;
+
+    // Immediately set the volume to the start value
+    sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
+
+    // Start the fade
+    this.fadeSound(id, effectiveStartVolume, endVolume, duration, () => {
       if (endVolume === 0 && stopAfterFade) {
-         this.stop(id);
+        this.stop(id);
       }
     });
+  }
+
+  private fadeSound(
+    id: string,
+    startVolume: number,
+    targetVolume: number,
+    duration: number,
+    onComplete?: () => void
+  ): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      sound.volume = startVolume;
+      const fadeDuration = duration / 1000;
+
+      // Cancel any previously scheduled changes to the gain value
+      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+
+      // Cancel any existing fade
+      this.cancelFadeAnimation(id);
+
+      const startTime = this.context.currentTime;
+      const endTime = startTime + fadeDuration;
+
+      // Store the new fade callback
+      const fadeCompleteCallback = () => {
+        sound.isFadingIn = false;
+        sound.isFadingOut = false;
+        onComplete?.();
+        this.activeFadeCallbacks.delete(id);
+      };
+      this.activeFadeCallbacks.set(id, fadeCompleteCallback);
+
+      const fadeId = `fade_${id}`;
+      const updateFade = () => {
+        const currentTime = this.context.currentTime;
+
+        if (currentTime >= endTime) {
+          // Fade complete
+          sound.gainNode.gain.setValueAtTime(targetVolume, currentTime);
+          sound.volume =  this.roundedValue(targetVolume);
+
+          this.dispatchEvent({
+            type: SoundEventsEnum.VOLUME_CHANGED,
+            soundId: id,
+            timestamp: currentTime,
+            volume: sound.volume,
+            sound
+          });
+
+          // Clean up
+          this.ticker.removeCallback(fadeId);
+          fadeCompleteCallback();
+          return;
+        }
+
+        // Calculate current volume based on progress
+        const progress = (currentTime - startTime) / fadeDuration;
+        const currentVolume = startVolume + (targetVolume - startVolume) * progress;
+
+        sound.gainNode.gain.setValueAtTime(currentVolume, currentTime);
+        sound.volume = this.roundedValue(currentVolume);
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.VOLUME_CHANGED,
+          soundId: id,
+          timestamp: currentTime,
+          volume: sound.volume,
+          sound
+        });
+      };
+
+      // Add fade update to ticker
+      this.ticker.addCallback(fadeId, updateFade);
+
+      this.debugLog(`Fade scheduled for sound ${id}:
+        Start time: ${startTime}
+        Duration: ${fadeDuration}
+        Start volume: ${startVolume}
+        Target volume: ${targetVolume}
+      `);
+
+    } catch (error) {
+      this.handleError("fading sound", error, id);
+    }
   }
 
   public fadeGlobalIn(duration: number = this.config.fadeInDuration!, startVolume?: number, endVolume?: number): void {
@@ -1500,31 +1632,46 @@ export class SoundManager implements SoundManagerInterface {
       const initialVolume = startVolume ?? 0;
       const targetVolume = endVolume ?? (this.masterGainNode.gain.value || this.previousGlobalVolume);
 
-      // Cancel any scheduled changes to the gain value
-      this.masterGainNode.gain.cancelAndHoldAtTime(this.context.currentTime);
+      // Cancel any scheduled changes
+      this.masterGainNode.gain.cancelScheduledValues(this.context.currentTime);
 
-      // Start from initial volume
-      this.masterGainNode.gain.setValueAtTime(initialVolume, this.context.currentTime);
+      const startTime = this.context.currentTime;
+      const fadeDuration = duration / 1000;
+      const endTime = startTime + fadeDuration;
 
-      // Ramp to target volume
-      this.masterGainNode.gain.linearRampToValueAtTime(targetVolume, this.context.currentTime + duration / 1000);
+      const fadeId = 'fade_global_in';
+      const updateGlobalFade = () => {
+        const currentTime = this.context.currentTime;
 
-      this.isMuted = false;
+        if (currentTime >= endTime) {
+          this.masterGainNode.gain.setValueAtTime(targetVolume, currentTime);
+          this.isMuted = false;
 
-      // Track the ongoing global fade
-      this.monitorVolumeChanges({
-        gainNode: this.masterGainNode,
-        duration: duration / 1000,
-        isMaster: true,
-        onComplete: () => {
           this.dispatchEvent({
             type: SoundEventsEnum.FADE_MASTER_IN_COMPLETED,
-            timestamp: this.context.currentTime,
+            timestamp: currentTime,
             volume: targetVolume,
           });
-          this.debugLog(`Master fade in complete. Target volume: ${targetVolume}`);
-        },
-      });
+
+          this.ticker.removeCallback(fadeId);
+          return;
+        }
+
+        const progress = (currentTime - startTime) / fadeDuration;
+        const currentVolume = initialVolume + (targetVolume - initialVolume) * progress;
+
+        this.masterGainNode.gain.setValueAtTime(currentVolume, currentTime);
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
+          timestamp: currentTime,
+          volume: currentVolume,
+          isMaster: true,
+        });
+      };
+
+      this.ticker.addCallback(fadeId, updateGlobalFade);
+
     } catch (error) {
       this.handleError("fading in master volume", error);
     }
@@ -1541,42 +1688,51 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     try {
-      // Determine start volume
       const initialVolume = startVolume ?? this.masterGainNode.gain.value;
-      this.previousGlobalVolume = initialVolume; // Store volume for later
+      this.previousGlobalVolume = initialVolume;
 
-      // Cancel any scheduled changes to the gain value
-      this.masterGainNode.gain.cancelAndHoldAtTime(this.context.currentTime);
+      const startTime = this.context.currentTime;
+      const fadeDuration = duration / 1000;
+      const endTime = startTime + fadeDuration;
 
-      // Start fade from initial volume
-      this.masterGainNode.gain.setValueAtTime(initialVolume, this.context.currentTime);
+      const fadeId = 'fade_global_out';
+      const updateGlobalFade = () => {
+        const currentTime = this.context.currentTime;
 
-      // Ramp to target volume
-      this.masterGainNode.gain.linearRampToValueAtTime(endVolume, this.context.currentTime + duration / 1000);
-
-      // Track the ongoing global fade
-      this.monitorVolumeChanges({
-        gainNode: this.masterGainNode,
-        duration: duration / 1000,
-        isMaster: true,
-        onComplete: () => {
+        if (currentTime >= endTime) {
+          this.masterGainNode.gain.setValueAtTime(endVolume, currentTime);
           this.isMuted = endVolume === 0;
-          if (endVolume === 0) {
-            this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
-          }
 
           this.dispatchEvent({
             type: SoundEventsEnum.FADE_MASTER_OUT_COMPLETED,
-            timestamp: this.context.currentTime,
+            timestamp: currentTime,
             volume: endVolume,
           });
-          this.debugLog("Master fade out complete");
-        },
-      });
+
+          this.ticker.removeCallback(fadeId);
+          return;
+        }
+
+        const progress = (currentTime - startTime) / fadeDuration;
+        const currentVolume = initialVolume + (endVolume - initialVolume) * progress;
+
+        this.masterGainNode.gain.setValueAtTime(currentVolume, currentTime);
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
+          timestamp: currentTime,
+          volume: currentVolume,
+          isMaster: true,
+        });
+      };
+
+      this.ticker.addCallback(fadeId, updateGlobalFade);
+
     } catch (error) {
       this.handleError("fading out master volume", error);
     }
   }
+
 
   // End Fading ------------------------------------------------------------------------------------------------------------------------
 
@@ -2011,6 +2167,13 @@ export class SoundManager implements SoundManagerInterface {
 
     // Cleanup gain node
     sound.gainNode.disconnect();
+
+    // Remove the sound from the map
+    this.sounds.delete(id);
+
+    // Cleanup any remaining references
+    //this.stopProgressTracking(id);
+    //this.cancelFadeAnimation(id);
   }
 
   public destroy(): void {
