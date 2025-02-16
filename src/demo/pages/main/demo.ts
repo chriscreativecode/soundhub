@@ -67,18 +67,37 @@ export class SoundManagerDemo {
     if (!this.containerElement) {
       throw new Error("Element not found");
     }
-   this.containerElement.innerHTML = demoTemplate;
+    this.containerElement.innerHTML = demoTemplate;
   }
 
   private initializeEventListeners(): void {
     const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
-  
+    const themeToggle = document.getElementById('themeToggle') as HTMLInputElement;
+    const body = document.body;
+
     if (preloadBtn) {
       preloadBtn.addEventListener("click", () => this.loadDemoSounds());
     }
+
+    if(  localStorage.getItem('sound-manager-ts-demo-theme') === 'dark') {
+      body.classList.add('dark-theme');
+      themeToggle.checked = true;
+    }
+    
+    if (themeToggle) {
+      themeToggle.addEventListener('change', function () {
+        if (this.checked) {
+          body.classList.add('dark-theme');
+          localStorage.setItem('sound-manager-ts-demo-theme', 'dark');
+        } else {
+          body.classList.remove('dark-theme');
+          localStorage.setItem('sound-manager-ts-demo-theme', 'light');
+        }
+      });
+    }
   }
 
- 
+
   private async loadDemoSounds(): Promise<void> {
     const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
     if (!preloadBtn || this.loadingState) return;
@@ -131,29 +150,29 @@ export class SoundManagerDemo {
 
     // Create controls in the same order as soundsToLoad
     soundsToLoad.forEach(({ id }) => {
-        if (id === "game-sound") {
-            // Define sprites
-            const sprites: { [key: string]: [number, number] } = {
- //             intro: [0, 2000],
-              levelup: [2400, 4000],
-              jump: [4000, 5000],
-//              fail: [5000, 7000],
-            };
-               
-            // Set sprites in sound manager
-            this.soundManager.setSoundSprite(id, sprites);
+      if (id === "game-sound") {
+        // Define sprites
+        const sprites: { [key: string]: [number, number] } = {
+          //             intro: [0, 2000],
+          levelup: [2400, 4000],
+          jump: [4000, 5000],
+          //              fail: [5000, 7000],
+        };
 
-            // Create a control for each sprite
-            Object.entries(sprites).forEach(([spriteName]) => {
-                const spriteId = `${id}_${spriteName}`; // e.g., "game-sound_intro"
-                const control = new SoundControl(spriteId, this.soundManager, container, true);
-                this.soundControls.set(spriteId, control);
-            });
-        } else {
-            // Create regular sound control for non-sprite sounds
-            const control = new SoundControl(id, this.soundManager, container);
-            this.soundControls.set(id, control);
-        }
+        // Set sprites in sound manager
+        this.soundManager.setSoundSprite(id, sprites);
+
+        // Create a control for each sprite
+        Object.entries(sprites).forEach(([spriteName]) => {
+          const spriteId = `${id}_${spriteName}`; // e.g., "game-sound_intro"
+          const control = new SoundControl(spriteId, this.soundManager, container, true);
+          this.soundControls.set(spriteId, control);
+        });
+      } else {
+        // Create regular sound control for non-sprite sounds
+        const control = new SoundControl(id, this.soundManager, container);
+        this.soundControls.set(id, control);
+      }
     });
   }
 

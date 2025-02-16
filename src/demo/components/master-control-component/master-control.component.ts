@@ -490,11 +490,11 @@ export class MasterControl {
 
         private createStickyObserver(element: HTMLElement): () => void {
           const originalTop = element.getBoundingClientRect().top + window.scrollY;
-          const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
+          const soundControlsContainer = document.getElementById("masterControlContainer") as HTMLElement;
       
           const checkStuck = () => {
             const rect = element.getBoundingClientRect();
-            const isStuck = rect.top === 0 && window.scrollY >= originalTop;
+            const isStuck = rect.top <= 0 && window.scrollY >= originalTop;
             element.classList.toggle("is-stuck", isStuck);
       
             if (isStuck) {
