@@ -381,7 +381,7 @@ soundManager.<span class="hljs-title function_">setPlaybackRate</span>(<span cla
 
 <span class="hljs-comment">// 3D Spatial Audio</span>
 <span class="hljs-comment">// Set on a specific sound the 3d / spatial audio positioni</span>
-soundManager.<span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-number">5</span>, <span class="hljs-number">3</span>, -<span class="hljs-number">2</span>, <span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">setSpatialPosition</span>(<span class="hljs-number">5</span>, <span class="hljs-number">3</span>, -<span class="hljs-number">2</span>, <span class="hljs-string">&#x27;background-music&#x27;</span>);
 
 <span class="hljs-comment">// Set the master spatial position (x, y, z)</span>
 soundManager.<span class="hljs-title function_">setMasterSpatialPosition</span>(<span class="hljs-number">10</span>, <span class="hljs-number">5</span>, -<span class="hljs-number">3</span>);
@@ -395,8 +395,8 @@ soundManager.<span class="hljs-title function_">toggleMute</span>(<span class="h
 soundManager.<span class="hljs-title function_">toggleGlobalMute</span>();
 
 <span class="hljs-comment">// Spatial audio (if enabled in config)</span>
-soundManager.<span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, -<span class="hljs-number">1</span>);
-soundManager.<span class="hljs-title function_">resetSoundPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">setSpatialPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, -<span class="hljs-number">1</span>);
+soundManager.<span class="hljs-title function_">resetSpatialPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">removeSpatialEffect</span>();
 soundManager.<span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">updatePannerConfig</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>,
@@ -490,9 +490,9 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 
   <span class="hljs-comment">// Spatial audio</span>
   <span class="hljs-title function_">isSpatialAudioEnabled</span>(): <span class="hljs-built_in">boolean</span>;
-  <span class="hljs-title function_">setSoundPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">id</span>?: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>, <span class="hljs-attr">soundPannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setSpatialPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">id</span>?: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>, <span class="hljs-attr">soundPannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">setMasterSpatialPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">config</span>?: <span class="hljs-title class_">SoundPannerConfig</span>): <span class="hljs-built_in">void</span>;
-  <span class="hljs-title function_">resetSoundPosition</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">resetSpatialPosition</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">removeSpatialEffect</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">boolean</span>;
   <span class="hljs-title function_">updatePannerConfigById</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">newConfig</span>: <span class="hljs-title class_">Partial</span>&lt;<span class="hljs-title class_">SoundPannerConfig</span>&gt;): <span class="hljs-built_in">void</span> 

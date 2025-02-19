@@ -10,8 +10,9 @@ import "./sound-control.component.css";
 /* @ts-ignore */
 import soundControlComponentHtml from "./sound-control.component.html?raw";
 import { SoundProgressStateInfo } from "../../../sound-manager/sound-progress-state-info";
+import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 
-interface SoundControlState {
+export interface SoundControlState {
   isPlaying: boolean;
   isPaused: boolean;
   isMuted: boolean;
@@ -41,9 +42,10 @@ export class SoundControl {
   private isDragging = false;
   private previousVolume: number = 1;
   private listenersSpatialAudio: SpatialAudioListener[] = [];
-  private circle!: HTMLElement;
+  // private circle!: HTMLElement;
   private debounceTimer: number = 0;
   private soundManagerConfig: SoundManagerConfig;
+  private spatialGrid: SpatialGrid;
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -73,6 +75,7 @@ export class SoundControl {
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
+    this.spatialGrid = new SpatialGrid(this.element.querySelector(".spatial-grid-container-wrapper")!, this.soundManager, this.id);
     this.container.appendChild(this.element);
     this.updateUIFromState();
   }
@@ -131,7 +134,6 @@ export class SoundControl {
 
   private updateState(): void {
     const soundState = this.soundManager.getSoundState(this.id);
-    console.log('Demo: ->update State ', soundState);
     if (!soundState) return;
 
     const newState: SoundControlState = {
@@ -165,33 +167,51 @@ export class SoundControl {
 
     this.updateVolumeDisplay(this.state.volume);
     this.updatePanDisplay(this.state.pan);
-    this.updateTimeDisplay(this.state.currentTime);
+    // this.updateTimeDisplay(this.state.currentTime);
     this.updateMuteButtonIcon(this.state.isMuted);
-    this.updateProgress(this.state.progress);
+    this.updateProgress(this.state.progress); // also calls updateTimeDisplay
 
-    console.log('updateUIFromState playbackRate', this.state.playbackRate);
-    // this.updatePlaybackRateDisplay(this.state.playbackRate);
     const value = parseFloat(this.playbackRateInput.value);
     this.soundManager.setPlaybackRate(this.id, value, true);
 
-    // Recalculate panSpatialPosition values
-    const recalculatedPanSpatialPosition = {
-      x: (this.state.panSpatialPosition.x + 1) * 50, // Convert x from -1 to 1 to 0 to 100
-      y: this.state.panSpatialPosition.y, // y remains unchanged
-      z: (this.state.panSpatialPosition.z + 1) * 50, // Convert z from -1 to 1 to 0 to 100
-    };
+    if (this.state) {
+      const currentPosition = this.spatialGrid.getCurrentPosition();
+      const statePosition = this.spatialGrid.getPositionFromState(this.state);
 
-    this.log('recalculatedPanSpatialPosition', recalculatedPanSpatialPosition);
+      this.log('Position comparison:', {
+        current: {
+          x: currentPosition.x.toFixed(4),
+          y: currentPosition.y.toFixed(4),
+          z: currentPosition.z.toFixed(4)
+        },
+        state: {
+          x: statePosition.x.toFixed(4),
+          y: statePosition.y.toFixed(4),
+          z: statePosition.z.toFixed(4)
+        },
+        differences: {
+          x: Math.abs(currentPosition.x - statePosition.x),
+          y: Math.abs(currentPosition.y - statePosition.y),
+          z: Math.abs(currentPosition.z - statePosition.z)
+        }
+      });
 
-    // Call updateSpatialPosition with the recalculated values
-    this.updateSpatialPosition(
-      recalculatedPanSpatialPosition.x,
-      recalculatedPanSpatialPosition.y,
-      recalculatedPanSpatialPosition.z,
-      true
-    );
+      if (this.spatialGrid.isSamePostion(statePosition, currentPosition)) {
+        this.log('same position no need to update!!');
+      } else {
+        this.log('positions differ, updating...');
+        this.spatialGrid.updatePosition(
+          statePosition.x,
+          statePosition.y,
+          statePosition.z,
+          true
+        );
+      }
+    }
+
 
   }
+
   private handleRangeInput(input: HTMLInputElement, value?: number): void {
     if (value !== undefined) {
       input.value = value.toString();
@@ -207,11 +227,8 @@ export class SoundControl {
 
       const progress = parseFloat((e.target as HTMLInputElement).value);
       const newTime = (progress / 100) * state.duration;
-      console.log('progress', progress, 'newTime', newTime);
       this.updateTimeDisplay(newTime);
-
       this.seekPosition(newTime);
-
     },
 
     setDragging: () => (this.isDragging = true),
@@ -268,7 +285,6 @@ export class SoundControl {
     this.initializePlaybackRateControl();
     this.initializeRangeInputs();
     this.initializeProgressSlider();
-    this.initializeSpatialControl();
     this.initializeSpatialSettings();
     this.initializeCollapsiblePanel();
   }
@@ -454,7 +470,7 @@ export class SoundControl {
 
   private log(...args: any[]) {
     if (process.env.NODE_ENV === "development") {
-      console.log(...args);
+     // console.log(...args);
     }
   }
 
@@ -602,144 +618,6 @@ export class SoundControl {
     }
   }
 
-  private initializeSpatialControl(): void {
-    const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
-    this.circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
-    const verticalSlider = this.element.querySelector(".vertical-slider") as HTMLInputElement;
-    let isDragging = false;
-
-    // Handle vertical slider input
-    verticalSlider.addEventListener("input", () => {
-      const y = parseFloat(verticalSlider.value);
-      // Calculate x and z based on the circle's current position
-      const circleLeft = parseFloat(this.circle.style.left); // Percentage of the grid width
-      const circleTop = parseFloat(this.circle.style.top); // Percentage of the grid height
-
-      // Convert percentages to -1 to 1 range
-      const x = (circleLeft / 50) - 1; // X: -1 (left) to 1 (right)
-      const z = -((circleTop / 50) - 1); // Z: -1 (back) to 1 (front)
-
-      this.updateSpatialPosition(circleLeft, y, circleTop);
-    });
-
-
-    const handleMouseMove: EventListener = (e: Event): void => {
-      if (!isDragging) return;
-      const mouseEvent = e as MouseEvent;
-      const rect = grid.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
-      const z = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
-      const y = parseFloat(verticalSlider.value); // Keep the Y value from the slider
-      this.updateSpatialPosition(x, y, z);
-    };
-
-    const handleTouchMove: EventListener = (e: Event): void => {
-      if (!isDragging) return;
-      const touchEvent = e as TouchEvent;
-      const rect = grid.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientX - rect.left) / rect.width) * 100));
-      const z = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientY - rect.top) / rect.height) * 100));
-      const y = parseFloat(verticalSlider.value); // Keep the Y value from the slider
-      this.updateSpatialPosition(x, y, z);
-    };
-
-    const handleMouseDown: EventListener = (): void => {
-      isDragging = true;
-    };
-    const handleMouseUp: EventListener = (): void => {
-      isDragging = false;
-    };
-    const handleTouchStart: EventListener = (e: Event): void => {
-      isDragging = true;
-      (e as TouchEvent).preventDefault();
-    };
-    const handleTouchEnd: EventListener = (): void => {
-      isDragging = false;
-    };
-    const handleGridClick: EventListener = (e: Event): void => {
-      const mouseEvent = e as MouseEvent;
-      const rect = grid.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
-      const z = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
-      const y = parseFloat(verticalSlider.value);
-      // const normalizedZ = (y / 50 - 1) * -1;
-      this.updateSpatialPosition(x, y, z);
-    };
-
-    const listeners: SpatialAudioListener[] = [
-      { target: this.circle, type: "mousedown", listener: handleMouseDown },
-      { target: document, type: "mouseup", listener: handleMouseUp },
-      { target: document, type: "mousemove", listener: handleMouseMove },
-      { target: this.circle, type: "touchstart", listener: handleTouchStart },
-      { target: document, type: "touchend", listener: handleTouchEnd },
-      { target: document, type: "touchmove", listener: handleTouchMove },
-      { target: grid, type: "click", listener: handleGridClick },
-    ];
-
-    listeners.forEach(({ target, type, listener }) => {
-      target.addEventListener(type, listener);
-    });
-
-    this.listenersSpatialAudio = listeners;
-
-    // Initialize position at center
-    const centerX = 50;
-    const centerY = 50;
-    this.circle.style.left = `${centerX}%`;
-    this.circle.style.top = `${centerY}%`;
-  }
-
-  private isSpatialPositionCentered(): boolean {
-    const circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
-    if (!circle) return false;
-
-    // Get current position (in percentage)
-    const currentLeft = parseFloat(circle.style.left);
-    const currentTop = parseFloat(circle.style.top);
-
-    // Check if position is centered (50% is center)
-    return Math.abs(currentLeft - 50) < 0.1 && Math.abs(currentTop - 50) < 0.1;
-  }
-
-  private resetSpatialPosition(visualOnly: boolean = false): void {
-    // If already centered, don't do anything
-    if (this.isSpatialPositionCentered()) {
-      return;
-    }
-    // Reset to center (50% is center for both x and y)
-    this.updateSpatialPosition(50, 0, 50, visualOnly);
-  }
-
-  private updateSpatialPosition(x: number, y: number, z: number, visualOnly: boolean = false): void {
-    const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
-    const circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
-    const verticalSlider = this.element.querySelector(".vertical-slider") as HTMLInputElement;
-
-    if (!grid || !circle || !verticalSlider) return;
-
-    circle.style.left = `${x}%`;
-    circle.style.top = `${z}%`;
-
-    // Update vertical slider (Y)
-    verticalSlider.value = y.toString();
-
-    // Update sound position
-    if (!visualOnly) {
-      this.soundManager.setSoundPosition(
-        x / 50 - 1, // X: -1 (left) to 1 (right)
-        y, // Y: -1 (down) to 1 (up) So in up and down direction
-        z / 50 - 1, // Z: -1 (back) to 1 (front)
-        this.id
-      );
-    }
-
-    // Update coordinates display
-    const coordsDisplay = this.element.querySelector(".spatial-coordinates") as HTMLElement;
-    if (coordsDisplay) {
-      coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${y.toFixed(2)},<br/>Z: ${(z / 50 - 1).toFixed(2)}`;
-    }
-  }
-
   private initializeSpatialSettings(): void {
     const container = this.element.querySelector(".spatial-settings");
     if (!container) return;
@@ -797,14 +675,8 @@ export class SoundControl {
         [property]: value,
       };
 
-      // Update the sound's spatial settings
-      this.soundManager.setSoundPosition(
-        parseFloat(this.circle.style.left) / 50 - 1,
-        -(parseFloat(this.circle.style.top) / 50 - 1),
-        0,
-        this.id,
-        newConfig
-      );
+      this.spatialGrid.setSpatialPositionWithConfig(newConfig)
+
     };
 
     // Add event listeners
