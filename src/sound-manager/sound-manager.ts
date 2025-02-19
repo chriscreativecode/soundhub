@@ -643,6 +643,19 @@ export class SoundManager implements SoundManagerInterface {
         this.setPan(id, options.pan);
       }
 
+      // Ensure only one of pan or spatial audio is applied
+      if (options.pan !== undefined && options.panSpatialPosition) {
+        this.debugLog(`Both pan and panSpatialPosition provided for sound ${id}. Only one will be applied.`);
+        // Prioritize spatial audio if both are provided
+        this.setSoundPosition(options.panSpatialPosition.x, options.panSpatialPosition.y, options.panSpatialPosition.z, id);
+      } else if (options.pan !== undefined) {
+        // Apply normal panning
+        this.setPan(id, options.pan);
+      } else if (options.panSpatialPosition) {
+        // Apply spatial audio
+        this.setSoundPosition(options.panSpatialPosition.x, options.panSpatialPosition.y, options.panSpatialPosition.z, id);
+      }
+
       // Calculate the buffer position
       const bufferPosition = startTime * playbackRate; // Adjust start time for playback rate
 
@@ -674,6 +687,8 @@ export class SoundManager implements SoundManagerInterface {
         Buffer Position: ${bufferPosition}s
         Playback Rate: ${playbackRate}
         Volume: ${validatedVolume}
+        Pan: ${options.pan}
+        Pan spatial position: ${options.panSpatialPosition}
         Loop: ${sound.playOptions.loop}
         Fade in: ${options.fadeIn ? options.fadeIn + "ms" : "no"}
         Is Seeking: ${options.isSeeking ? "yes" : "no"}
@@ -746,7 +761,7 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public stop(id: string): void {
+  public stop(id: string, dispatchEvent = true): void {
     try {
       const sound = this.sounds.get(id);
       if (!sound) {
@@ -770,12 +785,15 @@ export class SoundManager implements SoundManagerInterface {
       // Clear audio processing while preserving spatial audio
       this.clearAudioProcessing(id, true);
 
-      this.dispatchEvent({
-        type: SoundEventsEnum.STOPPED,
-        soundId: id,
-        timestamp: this.context.currentTime,
-        sound
-      });
+      if (dispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.STOPPED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound
+        });
+      }
+
     } catch (error) {
       console.error(`Error stopping sound ${id}:`, error);
       // Avoid recursive error handling
@@ -807,7 +825,7 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public setPlaybackRate(id: string, rate: number): void {
+  public setPlaybackRate(id: string, rate: number, skip: boolean = false): void {
     console.log('setPlaybackRate', id, rate);
     if (!id || typeof rate !== "number" || isNaN(rate) || rate <= 0) {
       this.debugLog("Invalid parameters for playback rate change");
@@ -839,6 +857,10 @@ export class SoundManager implements SoundManagerInterface {
       // Update the playback rate
       source.playbackRate.setValueAtTime(rate, this.context.currentTime);
 
+      if(skip) {
+        return;
+      }
+      
       this.seek(id, this.getSoundState(id).currentTime);
 
       // Dispatch event
@@ -928,7 +950,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public setSoundVolume(id: string, volume: number): void {
     try {
-       // Cancel any ongoing fade animation
+      // Cancel any ongoing fade animation
       this.cancelFadeAnimation(id);
 
       const sound = this.getValidatedSound(id);
@@ -1108,7 +1130,9 @@ export class SoundManager implements SoundManagerInterface {
             state: SoundState.Stopped,
             volume: this.config.defaultVolume!,
             originalVolume: this.config.defaultVolume!,
-            playOptions: { loop: this.config.loopSounds ?? false, maxLoops: -1 },
+            playOptions: { loop: this.config.loopSounds ?? false, maxLoops: -1, playbackRate: 1, pan: 0, volume: this.config.defaultVolume || 1 },
+            panSpatialPosition: { x: 0, y: 0, z: 0 },
+            pan: 0,
           });
 
           this.debugLog(`Sound ${id} loaded successfully`);
@@ -1343,6 +1367,8 @@ export class SoundManager implements SoundManagerInterface {
       Adjusted Duration: ${adjustedDuration}s
       Playback Rate: ${playbackRate}
       Volume: ${sound.volume}
+      Pan: ${sound.pan},
+      Pan Spatial Position: ${JSON.stringify(sound.panSpatialPosition)}
     `);
 
     return {
@@ -1350,7 +1376,9 @@ export class SoundManager implements SoundManagerInterface {
       duration: adjustedDuration || null,
       state: sound.state,
       volume: sound.volume,
-      playbackRate: playbackRate
+      playbackRate: playbackRate,
+      pan: sound.pan || sound?.playOptions?.pan || 0,
+      panSpatialPosition: sound?.panSpatialPosition || { x: 0, y: 0, z: 0 },
     };
   }
 
@@ -1402,15 +1430,69 @@ export class SoundManager implements SoundManagerInterface {
     });
   }
 
+  public resetSound(id: string, options: SoundResetOptions = {}): void {
+    console.log('reset sound?', id);
+    const sound = this.sounds.get(id);
+
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for reset`);
+      return;
+    }
+
+    this.debugLog(`Resetting sound ${id} with options:`, options);
+
+    // Stop the sound if it's playing
+    if (sound.state === SoundState.Playing) {
+      this.stop(id);
+    }
+
+    // Reset sound state
+    sound.state = SoundState.Stopped;
+    sound.startTime = 0;
+    sound.pausedAt = 0;
+    sound.currentTime = 0;
+
+    if (!options.keepPlaybackRate) {
+      this.setPlaybackRate(id, 1);
+    }
+
+    // Reset volume if not keeping volumes
+    if (!options.keepVolumes) {
+      this.setSoundVolume(id, this.config.defaultVolume ?? 1);
+    }
+
+    // Reset panning if not keeping panning
+    if (!options.keepPanning && this.isStereoPanActive(id)) {
+      this.removePan(id);
+    }
+
+    // Reset spatial audio if not keeping spatial
+    if (!options.keepSpatial && this.isSpatialAudioActive(id)) {
+      this.removeSpatialEffect(id);
+      sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+    }
+
+    // Dispatch event to notify that the sound has been reset
+    this.dispatchEvent({
+      type: SoundEventsEnum.RESET,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      resetOptions: options,
+      sound
+    });
+
+    this.debugLog(`Sound ${id} reset completed`);
+  }
+
   public reset(options: SoundResetOptions = {}): void {
     this.debugLog("Resetting sound manager with options:", options);
 
     this.resetGlobalPan();
     this.resetMasterSpatial();
 
-    // Stop all playback and clean up sounds
+    // // Stop all playback and clean up sounds
     this.sounds.forEach((_sound, id) => {
-      this.cleanupSound(id);
+      this.stop(id, false);
     });
 
     // Reset master controls if not keeping volumes
@@ -1442,6 +1524,11 @@ export class SoundManager implements SoundManagerInterface {
 
         if (!options.keepSpatial && this.isSpatialAudioActive(id)) {
           this.removeSpatialEffect(id);
+          sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+        }
+
+        if (!options.keepPlaybackRate) {
+          this.setPlaybackRate(id, 1);
         }
 
         // Reset sound state
@@ -1580,7 +1667,7 @@ export class SoundManager implements SoundManagerInterface {
         if (currentTime >= endTime) {
           // Fade complete
           sound.gainNode.gain.setValueAtTime(targetVolume, currentTime);
-          sound.volume =  this.roundedValue(targetVolume);
+          sound.volume = this.roundedValue(targetVolume);
 
           this.dispatchEvent({
             type: SoundEventsEnum.VOLUME_CHANGED,
@@ -1749,6 +1836,10 @@ export class SoundManager implements SoundManagerInterface {
     soundId?: string | null,
     soundPannerConfig?: SoundPannerConfig
   ): void {
+    x = this.roundedValue(x, 3);
+    y = this.roundedValue(y, 3);
+    z = this.roundedValue(z, 3);
+
     if (!this.config.spatialAudio) {
       this.debugLog("Spatial audio is not enabled");
       return;
@@ -1769,12 +1860,10 @@ export class SoundManager implements SoundManagerInterface {
 
     const source = this.activeSources.get(soundId);
 
-    // If stereo panning is active, warn and return
+    // If stereo panning is active, reset it without dispatching PAN_CHANGED
     if (sound.stereoPanner) {
-      if (this.isStereoPanActive(soundId)) {
-        this.removePan(soundId);
-        this.debugLog(`Removed stereo panner, and overwritet with spatial panning for sound ${soundId}`);
-      }
+      this.removePan(soundId);
+      this.debugLog(`Removed stereo panner, and overwritten with spatial panning for sound ${soundId}`);
     }
 
     try {
@@ -1810,16 +1899,23 @@ export class SoundManager implements SoundManagerInterface {
         });
       }
 
+      // Example usage to set the position of the sound source
+      //pannerNode.positionX.setValueAtTime(1, audioContext.currentTime); // 1 meter to the right
+      //pannerNode.positionY.setValueAtTime(0, audioContext.currentTime); // Same height as the listener
+      //pannerNode.positionZ.setValueAtTime(-1, audioContext.currentTime); // 1 meter behind the listener
+
+
       // Update position
       sound.pannerNode.positionX.setValueAtTime(x, this.context.currentTime);
-      sound.pannerNode.positionY.setValueAtTime(y, this.context.currentTime);
+      sound.pannerNode.positionY.setValueAtTime(0, this.context.currentTime);
       sound.pannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
+      sound.panSpatialPosition = { x, y, z };
 
       this.dispatchEvent({
         type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
         soundId,
         timestamp: this.context.currentTime,
-        position: { x, y, z },
+        position: sound.panSpatialPosition,
         pannerConfig: soundPannerConfig,
         sound
       });
@@ -2024,7 +2120,14 @@ export class SoundManager implements SoundManagerInterface {
 
       // Remove spatial audio if active
       if (this.isSpatialAudioActive(id)) {
+        this.debugLog(`Removed 3D spatial audio, and overwritten with stereo panner for sound ${id}`);
         this.removeSpatialEffect(id);
+
+        // Reset spatial position without dispatching SPATIAL_POSITION_CHANGED
+        sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+        if (sound.playOptions) {
+          sound.playOptions.panSpatialPosition = { x: 0, y: 0, z: 0 };
+        }
       }
 
       // Create stereo panner if it doesn't exist
@@ -2041,19 +2144,19 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       // Clamp pan value between -1 and 1
-      const pannedValue = Math.max(-1, Math.min(1, value));
-      sound.stereoPanner.pan.setValueAtTime(pannedValue, this.context.currentTime);
+      sound.pan = Math.max(-1, Math.min(1, value));
+      sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
 
       this.dispatchEvent({
         type: SoundEventsEnum.PAN_CHANGED,
-        soundId: id, // Add this line
+        soundId: id,
         timestamp: this.context?.currentTime ?? 0,
-        pan: pannedValue,
+        pan: sound.pan || 0,
         previousPan: this.previousGlobalPan,
         sound
       });
 
-      this.debugLog(`Pan set for sound ${sound.id}: ${pannedValue}`);
+      this.debugLog(`Pan set for sound ${sound.id}: ${sound.pan}`);
     } catch (error) {
       this.handleError("setting pan", error, id);
     }
@@ -2070,6 +2173,7 @@ export class SoundManager implements SoundManagerInterface {
         }
         sound.stereoPanner.disconnect();
         sound.stereoPanner = undefined;
+        sound.pan = 0;
       }
     } catch (error) {
       this.handleError("removing pan", error, id);
@@ -2152,6 +2256,7 @@ export class SoundManager implements SoundManagerInterface {
     const sound = this.sounds.get(id);
     if (!sound) return;
 
+    this.cancelFadeAnimation(id);
     this.cleanupExistingSource(id);
 
     // Cleanup panner nodes
@@ -2170,10 +2275,6 @@ export class SoundManager implements SoundManagerInterface {
 
     // Remove the sound from the map
     this.sounds.delete(id);
-
-    // Cleanup any remaining references
-    //this.stopProgressTracking(id);
-    //this.cancelFadeAnimation(id);
   }
 
   public destroy(): void {

@@ -19,7 +19,9 @@ interface SoundControlState {
   currentTime: number;
   duration: number;
   pan: number;
+  panSpatialPosition: { x: number; y: number; z: number };
   progress: number;
+  playbackRate: number;
 }
 
 type SpatialAudioListener = {
@@ -51,7 +53,9 @@ export class SoundControl {
     currentTime: 0,
     duration: 0,
     pan: 0,
+    panSpatialPosition: { x: 0, y: 0, z: 0 },
     progress: 0,
+    playbackRate: 1
   };
 
   constructor(
@@ -117,64 +121,13 @@ export class SoundControl {
       "fade-in-btn": () => this.fadeIn(),
       "fade-out-btn": () => this.fadeOut(),
       "close-btn": () => this.destroy(),
+      "reset-sound-btn": () => this.reset(),
     };
 
     Object.entries(buttonHandlers).forEach(([className, handler]) => {
       this.element.querySelector(`.${className}`)?.addEventListener("click", handler);
     });
   }
-
-  private readonly eventHandlers: Partial<Record<SoundEventsEnum, (event: SoundEvent) => void>> = {
-    // [SoundEventsEnum.STARTED]: () =>  {},
-    [SoundEventsEnum.STOPPED]: () => {
-      //this.resetProgress();
-    },
-    [SoundEventsEnum.ENDED]: () => {
-      //this.resetProgress();
-    },
-    [SoundEventsEnum.PAUSED]: (e: SoundEvent) => {
-    },
-    [SoundEventsEnum.RESUMED]: (e) => console.log("resumed", e),
-    [SoundEventsEnum.VOLUME_CHANGED]: (event) => {
-    },
-    [SoundEventsEnum.PROGRESS]: (event: SoundEvent) => {
-      // if (event.progressInfo) {
-      //   this.updateProgress(event.progressInfo);
-      // }
-    },
-    [SoundEventsEnum.ERROR]: (event) => console.error("Sound error:", event.error),
-    [SoundEventsEnum.MUTED]: () => {
-
-    },
-    [SoundEventsEnum.UNMUTED]: () => {
-
-    },
-
-    [SoundEventsEnum.FADE_IN_COMPLETED]: () => {
-      // Handle fade in completion if needed
-    },
-    [SoundEventsEnum.FADE_OUT_COMPLETED]: () => {
-      // Handle fade out completion if needed
-    },
-    [SoundEventsEnum.SEEKED]: (e: SoundEvent) => {
-      if (e.progressInfo) {
-      }
-    },
-    [SoundEventsEnum.MASTER_PAN_CHANGED]: () => {
-      this.resetSpatialPosition();
-    },
-    [SoundEventsEnum.PAN_CHANGED]: () => {
-      this.resetSpatialPosition(true);
-    },
-    [SoundEventsEnum.SPATIAL_POSITION_CHANGED]: (event) => {
-      if (event.position) {
-        this.resetPan(true);
-      }
-    },
-    [SoundEventsEnum.RESET]: (event) => {
-      this.reset(event.resetOptions);
-    },
-  };
 
   private updateState(): void {
     const soundState = this.soundManager.getSoundState(this.id);
@@ -188,8 +141,10 @@ export class SoundControl {
       volume: soundState.volume,
       currentTime: soundState.currentTime,
       duration: soundState.duration ?? 0,
-      pan: parseFloat(this.panSlider.value),
-      progress: (soundState.duration ?? 0) > 0 ? (soundState.currentTime / (soundState.duration ?? 0)) * 100 : 0
+      pan: soundState.pan ?? 0,
+      panSpatialPosition: soundState.panSpatialPosition ?? { x: 0, y: 0, z: 0 },
+      progress: (soundState.duration ?? 0) > 0 ? (soundState.currentTime / (soundState.duration ?? 0)) * 100 : 0,
+      playbackRate: soundState.playbackRate || 1
     };
 
     this.state = newState;
@@ -209,11 +164,33 @@ export class SoundControl {
     });
 
     this.updateVolumeDisplay(this.state.volume);
-    this.handleRangeInput(this.volumeSlider, this.state.volume);
     this.updatePanDisplay(this.state.pan);
     this.updateTimeDisplay(this.state.currentTime);
     this.updateMuteButtonIcon(this.state.isMuted);
     this.updateProgress(this.state.progress);
+
+    console.log('updateUIFromState playbackRate', this.state.playbackRate);
+    // this.updatePlaybackRateDisplay(this.state.playbackRate);
+    const value = parseFloat(this.playbackRateInput.value);
+    this.soundManager.setPlaybackRate(this.id, value, true);
+
+    // Recalculate panSpatialPosition values
+    const recalculatedPanSpatialPosition = {
+      x: (this.state.panSpatialPosition.x + 1) * 50, // Convert x from -1 to 1 to 0 to 100
+      y: this.state.panSpatialPosition.y, // y remains unchanged
+      z: (this.state.panSpatialPosition.z + 1) * 50, // Convert z from -1 to 1 to 0 to 100
+    };
+
+    this.log('recalculatedPanSpatialPosition', recalculatedPanSpatialPosition);
+
+    // Call updateSpatialPosition with the recalculated values
+    this.updateSpatialPosition(
+      recalculatedPanSpatialPosition.x,
+      recalculatedPanSpatialPosition.y,
+      recalculatedPanSpatialPosition.z,
+      true
+    );
+
   }
   private handleRangeInput(input: HTMLInputElement, value?: number): void {
     if (value !== undefined) {
@@ -266,15 +243,17 @@ export class SoundControl {
 
   private handlePlaybackRateChange(event: Event): void {
     const value = parseFloat((event.target as HTMLInputElement).value);
+    this.updatePlaybackRateDisplay(value);
+    this.soundManager.setPlaybackRate(this.id, value);
+  }
 
+  private updatePlaybackRateDisplay(playbackRate: number): void {
     // Validate the input value
-    if (isNaN(value) || value <= 0) {
+    if (isNaN(playbackRate) || playbackRate <= 0) {
       console.error("Playback rate must be at least 0");
       return;
     }
-
-    // Update the playback rate
-    this.soundManager.setPlaybackRate(this.id, value);
+    this.playbackRateInput.value = playbackRate.toString();
     this.updateTimeDisplay(this.state.currentTime);
   }
 
@@ -294,55 +273,12 @@ export class SoundControl {
     this.initializeCollapsiblePanel();
   }
 
-  private reset(resetOptions?: { keepVolumes?: boolean; keepPanning?: boolean }): void {
-    this.resetProgress();
-    // Reset volume if not keeping volumes
-    if (!resetOptions?.keepVolumes) {
-      const defaultVolume = this.soundManagerConfig.defaultVolume ?? 1;
-      this.handleRangeInput(this.volumeSlider, defaultVolume); // Pass the value here
-      this.updateVolumeDisplay(defaultVolume);
-      this.previousVolume = defaultVolume;
-      this.updateMuteButtonIcon(false);
-    }
-
-    // Reset pan if not keeping panning
-    if (!resetOptions?.keepPanning) {
-      this.resetPan();
-    }
-    // Update state
-    this.state = {
-      ...this.state,
-      isPlaying: false,
-      isPaused: false,
-      isMuted: false,
-      currentTime: 0,
-      progress: 0,
-      volume: !resetOptions?.keepVolumes ? this.soundManagerConfig.defaultVolume ?? 1 : this.state.volume,
-      pan: !resetOptions?.keepPanning ? 0 : this.state.pan,
-    };
-
-    // Update UI
-    this.updateUIFromState();
-  }
-
-  private resetProgress(): void {
-    this.handleRangeInput(this.progressSlider, 0); // Pass the value here
-    this.updateTimeDisplay(0);
-  }
-
-  private resetPan(visualOnly: boolean = false): void {
-    this.handleRangeInput(this.panSlider, 0); // Pass the value here
-    this.updatePanDisplay(0);
-
-    if (this.soundManager.isPlaying(this.id) && !visualOnly) {
-      this.soundManager.setPan(this.id, 0);
-    }
+  private reset(): void {
+    this.soundManager.resetSound(this.id);
   }
 
   private updateProgress(progress: number): void {
     if (this.isDragging) return;
-
-    //    this.progressSlider.value = progress.toString();
     this.handleRangeInput(this.progressSlider, progress);
     this.updateTimeDisplay(this.state.currentTime);
   }
@@ -354,10 +290,7 @@ export class SoundControl {
   };
 
   private initializeVolumeControl(): void {
-    console.log('initializeVolumeControl');
     this.volumeSlider.addEventListener("input", this.handleVolumeInput);
-
-    // Initialize volume display
     const state = this.soundManager.getSoundState(this.id);
     if (state) {
       this.updateVolumeDisplay(state.volume);
@@ -365,8 +298,33 @@ export class SoundControl {
     }
   }
   private updateVolumeDisplay(value: number): void {
+    this.handleRangeInput(this.volumeSlider, value);
     const volumeValue = this.element.querySelector(".volume-value") as HTMLSpanElement;
     volumeValue.textContent = `${Math.round(value * 100)}%`;
+  }
+
+  private handlePanInput = (e: Event): void => {
+    const value = parseFloat((e.target as HTMLInputElement).value);
+    this.updatePanDisplay(value);
+    this.soundManager.setPan(this.id, value);
+  };
+
+  private initializePanControl(): void {
+    this.panSlider.addEventListener("input", this.handlePanInput);
+    const state = this.soundManager.getSoundState(this.id);
+    if (state) {
+      this.updatePanDisplay(state.pan);
+      this.panSlider.value = state.pan.toString();
+    }
+  }
+
+  private updatePanDisplay(pan: number): void {
+    this.handleRangeInput(this.panSlider, pan);
+    const panValueElement = this.element.querySelector(".pan-value") as HTMLSpanElement;
+    this.panSlider.value = pan.toString();
+    if (panValueElement) {
+      panValueElement.textContent = pan === 0 ? "center" : `${Math.round(pan * 100)}% ${pan < 0 ? "left" : "right"}`;
+    }
   }
 
 
@@ -379,25 +337,124 @@ export class SoundControl {
 
     // Handle global events (those without soundId) or events specific to this sound
     switch (event.type) {
+      case SoundEventsEnum.STARTED:
+        this.log("Sound started", event);
+        break;
+
+      case SoundEventsEnum.STOPPED:
+        this.log("Sound stopped", event);
+        break;
+
+      case SoundEventsEnum.ENDED:
+        this.log("Sound ended", event);
+        break;
+
+      case SoundEventsEnum.PAUSED:
+        this.log("Sound paused", event);
+        break;
+
+      case SoundEventsEnum.RESUMED:
+        this.log("Sound resumed", event);
+        break;
+
       case SoundEventsEnum.VOLUME_CHANGED:
-        // Only update if this event is specifically for this sound
-        if (event.soundId === this.id) {
-          this.updateState();
-        }
+        this.log("Volume changed", event);
         break;
 
       case SoundEventsEnum.MASTER_VOLUME_CHANGED:
-        // Handle master volume changes (affects all sounds)
-        this.updateState();
+        this.log("Master volume changed", event);
         break;
 
-      // Handle other events...
-      default:
-        if (process.env.NODE_ENV === "development") {
-          console.log(`Received ${event.type} event for sound ${event.soundId ? event.soundId : "global"}`);
-        }
-        this.updateState();
+      case SoundEventsEnum.PROGRESS:
         break;
+
+      case SoundEventsEnum.ERROR:
+        console.error("Sound error:", event.error);
+        break;
+
+      case SoundEventsEnum.MUTED:
+        this.log("Sound muted", event);
+        break;
+
+      case SoundEventsEnum.UNMUTED:
+        this.log("Sound unmuted", event);
+        break;
+
+      case SoundEventsEnum.FADE_IN_COMPLETED:
+        this.log("Fade in completed", event);
+        break;
+
+      case SoundEventsEnum.FADE_OUT_COMPLETED:
+        this.log("Fade out completed", event);
+        break;
+
+      case SoundEventsEnum.SEEKED:
+        this.log("Sound seeked", event);
+        break;
+
+      case SoundEventsEnum.MASTER_PAN_CHANGED:
+        this.log("Master pan changed", event);
+        // this.resetSpatialPosition();
+        break;
+
+      case SoundEventsEnum.PAN_CHANGED:
+        this.log("Pan changed", event);
+        break;
+
+      case SoundEventsEnum.SPATIAL_POSITION_CHANGED:
+        this.log("Spatial position changed", event);
+        break;
+
+      case SoundEventsEnum.RESET:
+        this.log("Sound reset", event);
+        break;
+
+      case SoundEventsEnum.LOOP_COMPLETED:
+        this.log("Loop completed", event);
+        break;
+
+      case SoundEventsEnum.SPRITE_SET:
+        this.log("Sprite set", event);
+        break;
+
+      case SoundEventsEnum.UPDATED_URL:
+        this.log("Sound URL updated", event);
+        break;
+
+      case SoundEventsEnum.OPTIONS_UPDATED:
+        this.log("Sound options updated", event);
+        break;
+
+      case SoundEventsEnum.PLAYBACK_RATE_CHANGED:
+        this.log("Playback rate changed", event);
+        break;
+
+      case SoundEventsEnum.FADE_MASTER_IN_COMPLETED:
+        this.log("Master fade in completed", event);
+        break;
+
+      case SoundEventsEnum.FADE_MASTER_OUT_COMPLETED:
+        this.log("Master fade out completed", event);
+        break;
+
+      case SoundEventsEnum.GLOBAL_SPATIAL_POSITION_CHANGED:
+        this.log("Global spatial position changed", event);
+        break;
+
+      case SoundEventsEnum.SPATIAL_POSITION_RESET:
+        this.log("Spatial position reset", event);
+        break;
+
+      default:
+        this.log(`Received ${event.type} event for sound ${event.soundId ? event.soundId : "global"}`);
+        break;
+    }
+    this.updateState();
+  }
+
+  private log(...args: any[]) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(...args);
     }
   }
 
@@ -415,31 +472,6 @@ export class SoundControl {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 
-  private handlePanInput = (e: Event): void => {
-    const value = parseFloat((e.target as HTMLInputElement).value);
-    this.soundManager.setPan(this.id, value);
-    this.updatePanDisplay(value);
-  };
-
-  private initializePanControl(): void {
-    this.panSlider.addEventListener("input", this.handlePanInput);
-
-    // Initialize pan display
-    this.updatePanDisplay(0);
-  }
-
-  private updatePanDisplay(pan: number): void {
-    const panValue = this.element.querySelector(".pan-value") as HTMLSpanElement;
-    if (panValue) {
-      panValue.textContent = pan === 0 ? "center" : `${Math.round(pan * 100)}% ${pan < 0 ? "left" : "right"}`;
-    }
-  }
-  private getCurrentOptions(newOptions: Partial<playOptions> = {}): playOptions {
-    return {
-      ...this.currentOptions,
-      ...newOptions,
-    };
-  }
 
   private play(): void {
     const state = this.soundManager.getSoundState(this.id);
@@ -448,15 +480,7 @@ export class SoundControl {
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
-      const progress = parseFloat(this.progressSlider.value);
-      const panValue = parseFloat(this.panSlider.value);
-
-      const options: playOptions = {
-        startTime: state?.duration && progress > 0 ? (progress / 100) * state.duration : undefined,
-        pan: panValue,
-      };
-      this.currentOptions = options;
-      this.soundManager.play(this.id, options);
+      this.soundManager.play(this.id, this.currentOptions);
     }
   }
 
@@ -478,7 +502,6 @@ export class SoundControl {
     } else {
       this.previousVolume = state.volume;
       this.soundManager.mute(this.id);
-      // this.volumeSlider.value = "0";
       this.handleRangeInput(this.volumeSlider, 0);
     }
   }
@@ -582,16 +605,32 @@ export class SoundControl {
   private initializeSpatialControl(): void {
     const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
     this.circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
+    const verticalSlider = this.element.querySelector(".vertical-slider") as HTMLInputElement;
     let isDragging = false;
+
+    // Handle vertical slider input
+    verticalSlider.addEventListener("input", () => {
+      const y = parseFloat(verticalSlider.value);
+      // Calculate x and z based on the circle's current position
+      const circleLeft = parseFloat(this.circle.style.left); // Percentage of the grid width
+      const circleTop = parseFloat(this.circle.style.top); // Percentage of the grid height
+
+      // Convert percentages to -1 to 1 range
+      const x = (circleLeft / 50) - 1; // X: -1 (left) to 1 (right)
+      const z = -((circleTop / 50) - 1); // Z: -1 (back) to 1 (front)
+
+      this.updateSpatialPosition(circleLeft, y, circleTop);
+    });
+
 
     const handleMouseMove: EventListener = (e: Event): void => {
       if (!isDragging) return;
       const mouseEvent = e as MouseEvent;
       const rect = grid.getBoundingClientRect();
       const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
-      const normalizedZ = (y / 50 - 1) * -1;
-      this.updateSpatialPosition(x, y, normalizedZ);
+      const z = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
+      const y = parseFloat(verticalSlider.value); // Keep the Y value from the slider
+      this.updateSpatialPosition(x, y, z);
     };
 
     const handleTouchMove: EventListener = (e: Event): void => {
@@ -599,9 +638,9 @@ export class SoundControl {
       const touchEvent = e as TouchEvent;
       const rect = grid.getBoundingClientRect();
       const x = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientY - rect.top) / rect.height) * 100));
-      const normalizedZ = (y / 50 - 1) * -1;
-      this.updateSpatialPosition(x, y, normalizedZ);
+      const z = Math.max(0, Math.min(100, ((touchEvent.touches[0].clientY - rect.top) / rect.height) * 100));
+      const y = parseFloat(verticalSlider.value); // Keep the Y value from the slider
+      this.updateSpatialPosition(x, y, z);
     };
 
     const handleMouseDown: EventListener = (): void => {
@@ -621,9 +660,10 @@ export class SoundControl {
       const mouseEvent = e as MouseEvent;
       const rect = grid.getBoundingClientRect();
       const x = Math.max(0, Math.min(100, ((mouseEvent.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
-      const normalizedZ = (y / 50 - 1) * -1;
-      this.updateSpatialPosition(x, y, normalizedZ);
+      const z = Math.max(0, Math.min(100, ((mouseEvent.clientY - rect.top) / rect.height) * 100));
+      const y = parseFloat(verticalSlider.value);
+      // const normalizedZ = (y / 50 - 1) * -1;
+      this.updateSpatialPosition(x, y, z);
     };
 
     const listeners: SpatialAudioListener[] = [
@@ -667,24 +707,28 @@ export class SoundControl {
       return;
     }
     // Reset to center (50% is center for both x and y)
-    this.updateSpatialPosition(50, 50, 0, visualOnly);
+    this.updateSpatialPosition(50, 0, 50, visualOnly);
   }
 
   private updateSpatialPosition(x: number, y: number, z: number, visualOnly: boolean = false): void {
     const grid = this.element.querySelector(".spatial-grid") as HTMLElement;
     const circle = this.element.querySelector(".spatial-position-circle") as HTMLElement;
+    const verticalSlider = this.element.querySelector(".vertical-slider") as HTMLInputElement;
 
-    if (!grid || !circle) return;
+    if (!grid || !circle || !verticalSlider) return;
 
     circle.style.left = `${x}%`;
-    circle.style.top = `${y}%`;
+    circle.style.top = `${z}%`;
+
+    // Update vertical slider (Y)
+    verticalSlider.value = y.toString();
 
     // Update sound position
     if (!visualOnly) {
       this.soundManager.setSoundPosition(
         x / 50 - 1, // X: -1 (left) to 1 (right)
-        -(y / 50 - 1), // Y: -1 (down) to 1 (up)
-        z, // Z: -1 (down) to 1 (up)
+        y, // Y: -1 (down) to 1 (up) So in up and down direction
+        z / 50 - 1, // Z: -1 (back) to 1 (front)
         this.id
       );
     }
@@ -692,10 +736,7 @@ export class SoundControl {
     // Update coordinates display
     const coordsDisplay = this.element.querySelector(".spatial-coordinates") as HTMLElement;
     if (coordsDisplay) {
-      coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${(-(
-        y / 50 -
-        1
-      )).toFixed(2)},<br/>Z: ${z.toFixed(2)}`;
+      coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${y.toFixed(2)},<br/>Z: ${(z / 50 - 1).toFixed(2)}`;
     }
   }
 
@@ -807,6 +848,8 @@ export class SoundControl {
 
   public destroy(): void {
     try {
+      this.soundManager.resetSound(this.id);
+
       const cleanupTasks: (() => void)[] = [
         // Clear intervals
         () => {
@@ -844,6 +887,7 @@ export class SoundControl {
             "mute-btn": this.toggleMute.bind(this),
             "fade-in-btn": this.fadeIn.bind(this),
             "fade-out-btn": this.fadeOut.bind(this),
+            "reset-sound-btn": this.reset.bind(this),
           };
 
           Object.entries(buttonHandlers).forEach(([className, handler]) => {
@@ -916,7 +960,9 @@ export class SoundControl {
             currentTime: 0,
             duration: 0,
             pan: 0,
+            panSpatialPosition: { x: 0, y: 0, z: 0 },
             progress: 0,
+            playbackRate: 1
           };
         },
       ];
@@ -931,6 +977,7 @@ export class SoundControl {
       });
 
       this.element.innerHTML = "";
+      this.log('destroy completed');
     } catch (error) {
       console.error("Error during component destruction:", error);
     }

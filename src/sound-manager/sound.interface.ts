@@ -10,6 +10,8 @@ export interface Sound {
   isFadingOut?: boolean;
   originalVolume?: number;
   pannerNode?: PannerNode; // for 3D panning
+  pan?: number; // Normal panning value -1 to 1
+  panSpatialPosition? : { x: number; y: number; z: number };
   pausedAt: number;
   playOptions?: playOptions;
   previousVolume?: number;

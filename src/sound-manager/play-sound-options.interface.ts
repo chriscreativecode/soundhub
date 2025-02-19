@@ -3,6 +3,7 @@ export interface playOptions {
   fadeInStartVolume?: number;
   fadeOut?: number;
   pan?: number; // -1 (left) to 1 (right)
+  panSpatialPosition?: { x: number; y: number; z: number };
   startTime?: number; 
   volume?: number;
   loop?: boolean;

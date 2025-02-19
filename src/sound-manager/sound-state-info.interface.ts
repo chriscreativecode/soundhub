@@ -6,4 +6,6 @@ export interface SoundStateInfo {
     playbackRate : number | null;
     state: SoundState;
     volume: number;
+    pan: number;
+    panSpatialPosition: { x: number; y: number; z: number };
   }

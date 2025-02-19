@@ -2,6 +2,8 @@ import "./../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
+import introSpeach from "../../../sounds/intro-text-speach.mp3";
+// @ts-ignore
 import song from "../../../sounds/we-are-dreaming-song.mp3";
 // @ts-ignore
 import song2 from "../../../sounds/little-wonders-song.mp3";
@@ -57,6 +59,7 @@ export class SoundManagerDemo {
   private initialize(): void {
     try {
       this.render();
+      this.initializeTheme();
       this.initializeEventListeners();
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
@@ -72,18 +75,33 @@ export class SoundManagerDemo {
 
   private initializeEventListeners(): void {
     const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
-    const themeToggle = document.getElementById('themeToggle') as HTMLInputElement;
-    const body = document.body;
-
+    // Load demo sounds when the preload button is clicked
     if (preloadBtn) {
       preloadBtn.addEventListener("click", () => this.loadDemoSounds());
     }
+  }
 
-    if(  localStorage.getItem('sound-manager-ts-demo-theme') === 'dark') {
-      body.classList.add('dark-theme');
-      themeToggle.checked = true;
+  private initializeTheme(): void {
+    const body = document.body;
+    const themeToggle = document.getElementById('themeToggle') as HTMLInputElement;
+    const themeIconMoon = document.getElementsByClassName('theme-icon--moon')[0];
+    const themeIconSun = document.getElementsByClassName('theme-icon--sun')[0];
+
+    const storedTheme = localStorage.getItem('sound-manager-ts-demo-theme');
+  
+    if (!storedTheme) {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      localStorage.setItem('sound-manager-ts-demo-theme', systemTheme);
     }
-    
+  
+    if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      body.classList.add('dark-theme');
+      if (themeToggle) themeToggle.checked = true;
+    } else {
+      body.classList.remove('dark-theme');
+      if (themeToggle) themeToggle.checked = false;
+    }
+  
     if (themeToggle) {
       themeToggle.addEventListener('change', function () {
         if (this.checked) {
@@ -97,7 +115,6 @@ export class SoundManagerDemo {
     }
   }
 
-
   private async loadDemoSounds(): Promise<void> {
     const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
     if (!preloadBtn || this.loadingState) return;
@@ -107,6 +124,7 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
+        { id: "intro-speach", url: introSpeach},
         { id: "game-sound", url: gameSounds },
         { id: "birds", url: birds },
         { id: "rain", url: rain },
