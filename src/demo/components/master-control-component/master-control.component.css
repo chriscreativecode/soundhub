@@ -1,150 +1,56 @@
+#masterVolumeValue,
+#masterPanValue {
+  white-space: nowrap;
+  font-size: var(--range-value-size);
+}
 
-.master-spatial-controls {
-    margin-top: 1rem;
-  }
-  
-  .master-spatial-controls .control-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    padding: var(--spacing-xs) 0;
-  }
-  
-  .master-spatial-controls .spatial-content {
-    transition: max-height 0.3s ease-out;
-    max-height: 500px; /* Adjust based on your content height */
-    overflow: hidden;
-  }
-  
-  .master-spatial-controls .spatial-content.collapsed {
-    max-height: 0;
-  }
-  
-  
-  .master-spatial-controls .collapse-btn {
-    transition: transform 0.3s ease;
-  }
-  
-  .master-spatial-controls .collapsed .collapse-btn svg {
-    transform: rotate(-90deg);
-  }
-  
-  .master-spatial-controls .spatial-grid-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .master-spatial-controls .spatial-grid {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    background: linear-gradient(to right, #ddd 1px, transparent 1px) 0 0 / 10px 100%,
-      linear-gradient(to bottom, #ddd 1px, transparent 1px) 0 0 / 100% 10px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-  }
-  
-  .master-spatial-controls .spatial-grid::before,
-  .master-spatial-controls .spatial-grid::after {
-    content: "";
-    position: absolute;
-    z-index: 10;
-    background-color: rgb(21, 21, 148);
-  }
-  
-  .master-spatial-controls .spatial-grid::before {
-    width: 100%;
-    height: 2px;
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-  }
-  
-  .master-spatial-controls .spatial-grid::after {
-    width: 2px;
-    height: 100%;
-    left: 50%;
-    top: 0;
-    transform: translateX(-50%);
-  }
-  
-  .master-spatial-controls .front-line {
-    width: 100px;
-    text-align: center;
-    border-bottom: 4px solid rgb(99, 99, 99);
-    font-size: 0.75rem;
-  }
-  
-  .master-spatial-controls .spatial-position-circle {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    background: var(--color-primary);
-    border-radius: 50%;
-    top: 40px;
-    left: 40px;
-    cursor: grab;
-    transform: translate(-50%, -50%);
-    transition: background-color 0.2s;
-  }
-  
-  .master-spatial-controls .spatial-position-circle:active {
-    cursor: grabbing;
-    background: var(--color-primary-hover);
-  }
-  
-  .master-spatial-controls .spatial-controls {
-    display: flex;
-    justify-content: center;
-    margin-top: -0.5rem;
-  }
-  
-  .master-spatial-controls .spatial-coordinates {
-    font-size: 0.75rem;
-    color: var(--color-text);
-  }
-  
-  .master-spatial-controls .spatial-settings {
-    margin-top: var(--spacing-md);
-    display: flex;
-    flex-wrap: wrap;
-    flex: 1;
-    gap: var(--spacing-md);
-  }
-  
-  .master-spatial-controls .spatial-setting-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-  }
-  
-  .master-spatial-controls .spatial-setting-group label {
-    font-size: 0.9rem;
-    color: var(--color-text);
-  }
-  
-  .master-spatial-controls .spatial-setting-group select,
-  .master-spatial-controls .spatial-setting-group input {
-    padding: var(--spacing-xs);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    background: var(--color-surface);
-  }
-  
-  .master-spatial-controls .spatial-setting-group input[type="number"] {
-    width: 100px;
-  }
+#masterVolumeValue {
+  margin-left: 10px;
+}
 
-  #masterVolumeValue {
-    margin-left: 10px;
-    white-space: nowrap;
-    font-size: var(--range-value-size); 
-  }
-  
-  #masterPanValue {
-    white-space: nowrap;
-    font-size: var(--range-value-size); 
-  }
-  
+body.dark-theme .master-controls {
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+.control-group.sticky.master-controls {
+  background: #afdcff85;
+}
+
+.control-group.master-controls input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(to right,
+      var(--color-master) var(--range-progress, 0%),
+      #ddd var(--range-progress, 0%));
+}
+.control-group.master-controls input[type="range"]::-webkit-slider-thumb {
+  background: var(--color-master);
+}
+
+.control-group.master-controls input[type="range"]::-moz-range-thumb {
+  background: var(--color-master);
+}
+
+.control-group.master-controls input[type="range"]::-ms-thumb {
+  background: var(--color-master);
+}
+
+.control-group.master-controls .icon-button,
+.control-group.master-controls button {
+  background: var(--color-master);
+}
+
+.control-group.master-controls button:disabled {
+  background-color: var(--color-master-disabled);
+}
+
+.control-group.master-controls button:hover:not(:disabled) {
+  background: var(--color-master-hover);
+}
+
+.control-group.master-controls button:focus {
+  outline-color: var(--color-master);
+}
+
+body.dark-theme .control-group.master-controls {
+  background: #4caf4f3f;
+}
