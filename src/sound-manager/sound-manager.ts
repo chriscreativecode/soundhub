@@ -1,5 +1,6 @@
 
-import { playOptions } from "./play-sound-options.interface";
+import { start } from "repl";
+import { PlayOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { DEFAULT_CONFIG, SoundManagerConfig } from "./sound-manager-config";
@@ -94,10 +95,11 @@ export class SoundManager implements SoundManagerInterface {
   private previousGlobalPan: number = 0;
   private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
   private eventListeners: Map<SoundEventsEnum, Set<(event: SoundEvent) => void>> = new Map();
-  private readonly activeSources: Map<string, AudioBufferSourceNode> = new Map();
+  private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
   private activeFadeCallbacks: Map<string, () => void> = new Map();
   private isHandlingError: boolean = false;
   private ticker: Ticker;
+  private lastError: Error | null = null;
   private masterSpatialPosition: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private readonly DEFAULT_PRECISION: number = 2;
 
@@ -164,7 +166,7 @@ export class SoundManager implements SoundManagerInterface {
     this.debugLog("Initialized with config:", this.config);
   }
 
-  private dispatchEvent(event: SoundEvent): void {
+  public dispatchEvent(event: SoundEvent): void {
     const listeners = this.eventListeners.get(event.type);
     if (listeners) {
       listeners.forEach((callback) => {
@@ -288,16 +290,16 @@ export class SoundManager implements SoundManagerInterface {
     const playbackRate = sound.playOptions?.playbackRate || 1;
     const source = this.context.createBufferSource();
     source.buffer = sound.buffer;
-
-    // Set playback rate before connecting
+    sound.source = source;
     source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
-    // Connect audio nodes
-    this.connectAudioNodes(sound, source);
+    // Connect audio
+    sound.gainNode.connect(this.masterGainNode);
 
     // Set up onended handler
     source.onended = () => {
       this.debugLog(`Sound ${sound.id} ended naturally`);
+      console.log(`Sound ${sound.id} ended naturally`);
       if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
         this.handleLoopIteration(sound);
       } else {
@@ -327,8 +329,7 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    // This works after the second time playing after a loop
-    // this.play(sound.id, sound.playOptions);
+    // Reset currentTime to 0 at the start of each loop
 
     this.seek(sound.id, 0, true);
 
@@ -341,6 +342,7 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private handleSoundEnded(sound: Sound): void {
+    console.log('handle sound ended?');
     // If the sound is already stopped, do nothing
     if (sound.state === SoundState.Stopped) {
       return;
@@ -348,13 +350,16 @@ export class SoundManager implements SoundManagerInterface {
 
     // Update the sound state
     sound.state = SoundState.Stopped;
-    sound.startTime = 0;
+    sound.startTime = sound.startTime = this.context.currentTime;
     sound.pausedAt = 0;
+    sound.currentTime = 0;
 
     // Clean up the existing source and stop progress tracking
     this.cleanupExistingSource(sound.id);
     this.stopProgressTracking(sound.id);
 
+    // Clean up the sound
+    this.cleanupSound(sound.id);
     // Dispatch the ENDED event
     this.dispatchEvent({
       type: SoundEventsEnum.ENDED,
@@ -362,9 +367,6 @@ export class SoundManager implements SoundManagerInterface {
       timestamp: this.context.currentTime,
       sound,
     });
-
-    // Clean up the sound
-    this.cleanupSound(sound.id);
   }
 
   // Optional: Method to configure update interval
@@ -372,7 +374,7 @@ export class SoundManager implements SoundManagerInterface {
     this.PROGRESS_UPDATE_INTERVAL = interval;
   }
 
-  private startProgressTracking(id: string): void {
+  public startProgressTracking(id: string): void {
     // Clear any existing tracking
     this.stopProgressTracking(id);
 
@@ -383,8 +385,24 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      const { currentTime, duration } = this.getSoundState(id);
-      const progress = duration ? currentTime / duration : 0;
+      const { currentTime, duration, startTime, elapsedTime, adjustedElapsedTime } = this.getSoundState(id);
+      const progress = duration ? (elapsedTime / duration) : 0; // duration ? currentTime / duration : 0;
+
+
+      console.log(`progress: ${progress} \n - startTime: ${startTime} \n - elapsedTime: ${elapsedTime} \n - adjustedElapsedTime: ${adjustedElapsedTime} \n - currentTime: ${currentTime} \n - duration: ${duration} \n - progress: ${progress}\n - pausedAt: ${sound.pausedAt}`);
+      if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
+        //        const elapsedTime = (this.context.currentTime - startTime) * 1000;
+        if (adjustedElapsedTime >= sound.playOptions.duration) {
+          console.log('try to stop??');
+          this.debugLog(`Sound ${id} reached specified duration: ${sound.playOptions.duration}ms`);
+          if (sound.playOptions.pauseAtDurationReached) {
+            this.pause(id);
+          } else {
+            this.stop(id);
+          }
+          return;
+        }
+      }
 
       this.dispatchEvent({
         type: SoundEventsEnum.PROGRESS,
@@ -408,7 +426,7 @@ export class SoundManager implements SoundManagerInterface {
   }
 
 
-  private stopProgressTracking(id: string): void {
+  public stopProgressTracking(id: string): void {
     this.ticker.removeCallback(`progress_${id}`);
   }
 
@@ -448,69 +466,6 @@ export class SoundManager implements SoundManagerInterface {
     return Math.max(0, Math.min(1, volume));
   }
 
-  private connectAudioNodes(sound: Sound, source: AudioBufferSourceNode): void {
-    if (sound.stereoPanner) {
-      source.connect(sound.stereoPanner);
-      sound.stereoPanner.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-    } else if (sound.pannerNode) {
-      source.connect(sound.pannerNode);
-      sound.pannerNode.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-    } else {
-      source.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-    }
-  }
-
-  private clearAudioProcessing(id: string, preserveSpatialAudio: boolean = false): void {
-    const sound = this.sounds.get(id);
-    if (!sound) return;
-
-    const source = this.activeSources.get(id);
-    if (source) {
-      source.disconnect();
-    }
-
-    // Store spatial position if we need to preserve it
-    const pannerPosition =
-      preserveSpatialAudio && sound.pannerNode
-        ? {
-          x: sound.pannerNode.positionX.value,
-          y: sound.pannerNode.positionY.value,
-          z: sound.pannerNode.positionZ.value,
-        }
-        : null;
-
-    if (sound.pannerNode && !preserveSpatialAudio) {
-      sound.pannerNode.disconnect();
-      sound.pannerNode = undefined;
-    }
-
-    if (sound.stereoPanner) {
-      sound.stereoPanner.disconnect();
-      sound.stereoPanner = undefined;
-    }
-
-    // Reconnect the audio chain, preserving spatial audio if needed
-    if (source) {
-      if (preserveSpatialAudio && pannerPosition) {
-        if (!sound.pannerNode) {
-          sound.pannerNode = this.context.createPanner();
-          // Set position using individual properties, pannerNode.setPosition is depricated.
-          sound.pannerNode.positionX.value = pannerPosition.x;
-          sound.pannerNode.positionY.value = pannerPosition.y;
-          sound.pannerNode.positionZ.value = pannerPosition.z;
-        }
-        source.connect(sound.pannerNode);
-        sound.pannerNode.connect(sound.gainNode);
-      } else {
-        source.connect(sound.gainNode);
-      }
-      sound.gainNode.connect(this.masterGainNode);
-    }
-  }
-
   private cleanup(): void {
     // Clean up all sounds
     this.sounds.forEach((_sound, id) => {
@@ -522,12 +477,14 @@ export class SoundManager implements SoundManagerInterface {
 
     // Stop and disconnect all active sources
     this.activeSources.forEach((source) => {
-      try {
-        source.onended = null;
-        source.stop();
-        source.disconnect();
-      } catch (e) {
-        // Ignore errors if source is already stopped
+      if (source) {
+        try {
+          source.onended = null;
+          source.stop();
+          source.disconnect();
+        } catch (e) {
+          // Ignore errors if source is already stopped
+        }
       }
     });
     this.activeSources.clear();
@@ -541,6 +498,11 @@ export class SoundManager implements SoundManagerInterface {
       if (sound.stereoPanner) {
         sound.stereoPanner.disconnect();
       }
+      if (sound.source) {
+        sound.source.stop();
+        sound.source.disconnect();
+        sound.source.onended = null;
+      }
       sound.gainNode.disconnect();
     });
 
@@ -553,6 +515,7 @@ export class SoundManager implements SoundManagerInterface {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const context = id ? ` (Sound ID: ${id})` : "";
     const message = `[SoundManager] Error ${operation}${context}: ${errorMessage}`;
+    this.lastError = error instanceof Error ? error : new Error(errorMessage);
 
     // Just log the error without throwing
     if (this.config.debug) {
@@ -577,9 +540,8 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   // Playback control-----------------------------------------------------------------------------------------------------------
-
-
-  public play(id: string, options: playOptions = {}): void {
+  public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): void {
+    console.log('play options', options);
     try {
       const sound = this.getValidatedSound(id);
       if (!sound) {
@@ -587,152 +549,107 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      // Merge existing playOptions with new options
-      sound.playOptions = { ...sound.playOptions, ...options };
-
       // Default newSoundInstance to true if not provided
       const newSoundInstance = options.newSoundInstance ?? true;
 
       // If newSoundInstance is false, try to reuse the existing source
       if (!newSoundInstance) {
+        console.log('reuse existing source');
         this.cleanupExistingSource(id);
       }
 
-      // Handle Loop options
-      if (options.maxLoops === -1) {
-        sound.playOptions.loop = true;
-        sound.playOptions.maxLoops = 0; // Infinite loops
-      } else {
-        sound.playOptions.loop = options.loop || sound.playOptions.loop || false;
-        sound.playOptions.maxLoops = options.maxLoops ?? sound.playOptions.maxLoops ?? 0;
-      }
-
-      // Setup volume
-      const validatedVolume = this.setValidatedVolume(sound.playOptions?.volume ?? sound.volume);
-      sound.volume = validatedVolume;
-      sound.originalVolume = validatedVolume;
-
-      const source = this.setupAudioSource(sound);
+      const source: AudioBufferSourceNode = this.setupAudioSource(sound);
       if (!source) {
         this.debugLog(`Failed to create audio source for sound ${id}`);
         return;
       }
 
-      const startTime = sound.pausedAt || options.startTime || 0;
-      sound.currentTime = startTime; // Store the current time position
+      sound.playOptions = { ...sound.playOptions, ...options };
 
-      // Configure playback rate
-      const playbackRate = options.playbackRate ?? sound.playOptions?.playbackRate ?? 1;
-      if (playbackRate !== undefined) {
-        source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
+      console.log('playOptions', sound.playOptions);
+      // Calculate startTime considering playbackRate
+      const playbackRate = sound.playOptions.playbackRate || 1;
+      let startTime = 0;
+      if (sound.pausedAt !== undefined && sound.pausedAt !== 0) {
+        // Use pausedAt without playbackRate adjustment since it's stored in raw time
+        startTime = sound.pausedAt;
+      } else if (options.startTime !== undefined) {
+        startTime = options.startTime / 1000; // Convert ms to seconds
       }
 
-      // Handle fade in
-      if (options.fadeIn && options.isSeeking === false) {
-        this.fadeIn(id, options.fadeIn, sound.playOptions.fadeInStartVolume ?? 0, options.volume);
-      } else if (options.fadeOut && options.isSeeking === false) {
-        // Set normal volume if no fade
-        this.fadeOut(id, options.fadeOut);
+      // Update timing information
+      const currentTime = this.context.currentTime;
+      sound.currentTime = startTime;
+      sound.startTime = currentTime - (startTime / playbackRate);
+
+      console.log(`play with: \n -startTime : ${this.roundValue(sound.startTime, 2)}\n - currentTime: ${sound.currentTime}\n - pausedAt: ${(sound.pausedAt || 0)}`);
+
+      // this.startTime = this.context.currentTime - startTime;
+      if (sound.panSpatialPosition && sound.lastPanningType === 'spatial') {
+        this.setSpatialPosition(
+          sound.panSpatialPosition.x,
+          sound.panSpatialPosition.y,
+          sound.panSpatialPosition.z,
+          id,
+          undefined,
+          true
+        );
       } else {
-        sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
+        this.setPan(id, sound.pan || 0, true);
       }
 
-      // Apply pan if needed
-      if (options.pan !== undefined) {
-        this.setPan(id, options.pan);
-      }
+      source.start(0, startTime);
 
-      // Ensure only one of pan or spatial audio is applied
-      if (options.pan !== undefined && options.panSpatialPosition) {
-        this.debugLog(`Both pan and panSpatialPosition provided for sound ${id}. Only one will be applied.`);
-        // Prioritize spatial audio if both are provided
-        this.setSpatialPosition(options.panSpatialPosition.x, options.panSpatialPosition.y, options.panSpatialPosition.z, id);
-      } else if (options.pan !== undefined) {
-        // Apply normal panning
-        this.setPan(id, options.pan);
-      } else if (options.panSpatialPosition) {
-        // Apply spatial audio
-        this.setSpatialPosition(options.panSpatialPosition.x, options.panSpatialPosition.y, options.panSpatialPosition.z, id);
-      }
-
-      // Calculate the buffer position
-      const bufferPosition = startTime * playbackRate; // Adjust start time for playback rate
-
-      // If isSeeking is true, only seek and don't start playback unless the sound was already playing
-      if (options.isSeeking) {
-        if (sound.state === SoundState.Playing) {
-          // If the sound was already playing, continue playing from the new position
-          source.start(0, bufferPosition, sound.buffer.duration);
-          sound.state = SoundState.Playing;
-        } else {
-          // If the sound was not playing, just update the position without starting playback
-          sound.pausedAt = startTime;
-          sound.currentTime = startTime;
-          sound.state = SoundState.Paused;
-        }
-      } else {
-        // Normal playback behavior
-        source.start(0, bufferPosition, sound.buffer.duration);
-        sound.state = SoundState.Playing;
-      }
-
-      sound.startTime = this.context.currentTime;
+      sound.state = SoundState.Playing;;
 
       this.startProgressTracking(id);
 
-      this.debugLog(`Playing sound ${id}:
-        Sound duration: ${sound.buffer.duration}s
-        Start offset: ${startTime}s
-        Buffer Position: ${bufferPosition}s
-        Playback Rate: ${playbackRate}
-        Volume: ${validatedVolume}
-        Pan: ${options.pan}
-        Pan spatial position: ${options.panSpatialPosition}
-        Loop: ${sound.playOptions.loop}
-        Fade in: ${options.fadeIn ? options.fadeIn + "ms" : "no"}
-        Is Seeking: ${options.isSeeking ? "yes" : "no"}
-      `);
-
-      this.dispatchEvent({
-        type: SoundEventsEnum.STARTED,
-        soundId: id,
-        timestamp: this.context.currentTime,
-        sound,
-      });
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.STARTED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
     } catch (error) {
       this.handleError("playing sound", error, id);
     }
   }
-
-  public playSprite(id: string, spriteKey: string, options: playOptions): void {
+  public playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent: boolean = false): void {
     const spriteId = `${id}_${spriteKey}`;
-    this.play(spriteId, options);
+    this.play(spriteId, options, skipDispatchEvent);
   }
 
-  public pause(id: string): void {
+  public pause(id: string, skipDispatchEvent: boolean = false): void {
     try {
       const sound = this.getValidatedSound(id);
       if (!this.isPlaying(id) || this.isPaused(id)) return;
 
+
       // Get the current playback position from the sound's state
-      const { currentTime } = this.getSoundState(id);
+      const playbackRate = sound.playOptions?.playbackRate || 1;
+      const { currentTime, startTime } = this.getSoundState(id);
+      sound.currentTime = currentTime;
       sound.pausedAt = currentTime;
+
+      console.log(`pauze with: \n -startTime : ${startTime}\n - currentTime: ${sound.currentTime}\n - pausedAt: ${(sound.pausedAt || 0)}`);
 
       // Update state
       sound.state = SoundState.Paused;
 
-      // Stop current source without triggering onended
       this.cleanupExistingSource(id);
 
       this.stopProgressTracking(id);
 
-      this.dispatchEvent({
-        type: SoundEventsEnum.PAUSED,
-        soundId: id,
-        timestamp: this.context.currentTime,
-        sound,
-      });
-
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.PAUSED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
       this.debugLog("Pause state:", {
         id,
         pausedAt: sound.pausedAt,
@@ -742,23 +659,25 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public resume(id: string): void {
+  public resume(id: string, skipDispatchEvent: boolean = false): void {
     this.play(id);
     let sound = this.getValidatedSound(id);
     try {
-      this.dispatchEvent({
-        type: SoundEventsEnum.RESUMED,
-        soundId: id,
-        timestamp: this.context.currentTime,
-        sound,
-      });
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.RESUMED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
       this.debugLog(`Resumed sound ${id}:`);
     } catch (error) {
       this.handleError("resuming sound", error, id);
     }
   }
 
-  public stop(id: string, dispatchEvent = true): void {
+  public stop(id: string, skipDispatchEvent: boolean = false): void {
     try {
       const sound = this.sounds.get(id);
       if (!sound) {
@@ -779,10 +698,7 @@ export class SoundManager implements SoundManagerInterface {
       sound.pausedAt = 0;
       sound.currentTime = 0;
 
-      // Clear audio processing while preserving spatial audio
-      this.clearAudioProcessing(id, true);
-
-      if (dispatchEvent) {
+      if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.STOPPED,
           soundId: id,
@@ -802,27 +718,44 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  public setLoop(id: string, loop: boolean): void {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for setting loop`);
+      return;
+    }
+
+    sound.playOptions = { ...sound.playOptions, loop };
+    this.debugLog(`Loop set for sound ${id}: ${loop}`);
+  }
+
+  public getLoop(id: string): boolean {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for getting loop`);
+      return false;
+    }
+
+    return sound.playOptions?.loop ?? false;
+  }
+
   private cleanupExistingSource(id: string): void {
     try {
-      const currentSource = this.activeSources.get(id);
-      if (currentSource) {
-        try {
-          currentSource.stop();
-        } catch (e) {
-          // Ignore errors if source is already stopped
-          this.debugLog(`Warning: Could not stop source for ${id}: ${e}`);
-        }
-        currentSource.disconnect();
-        currentSource.onended = null;
+      let sound = this.getValidatedSound(id);
+      if (sound.source) {
+        sound.source.stop();
+        sound.source.onended = null;
+        sound.source.disconnect();
+        this.activeSources.delete(id);
+        sound.source = null;
         this.activeSources.delete(id);
       }
     } catch (error) {
       this.debugLog(`Error cleaning up source for ${id}: ${error}`);
-      // Don't throw, just log
     }
   }
 
-  public setPlaybackRate(id: string, rate: number, skip: boolean = false): void {
+  public setPlaybackRate(id: string, rate: number, skipDispatchEvent: boolean = false): void {
     if (!id || typeof rate !== "number" || isNaN(rate) || rate <= 0) {
       this.debugLog("Invalid parameters for playback rate change");
       return;
@@ -830,7 +763,7 @@ export class SoundManager implements SoundManagerInterface {
 
     try {
       const sound = this.getValidatedSound(id);
-      const source = this.activeSources.get(id);
+      const source = sound.source;
       sound.playOptions = {
         ...sound.playOptions,
         playbackRate: rate,
@@ -846,24 +779,26 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      // Update the playback rate
-      source.playbackRate.setValueAtTime(rate, this.context.currentTime);
-
-      if (skip) {
-        return;
-      }
-
-      this.seek(id, this.getSoundState(id).currentTime);
-
-      // Dispatch event
-      this.dispatchEvent({
-        type: SoundEventsEnum.PLAYBACK_RATE_CHANGED,
-        soundId: id,
-        timestamp: this.context.currentTime,
+      // Update the sound's playOptions with the new rate
+      sound.playOptions = {
+        ...sound.playOptions,
         playbackRate: rate,
-        sound
-      });
+      };
+      // Update the playback rate
+      const playbackRate = sound.playOptions.playbackRate ?? rate ?? 1;
+      source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
+      if (!skipDispatchEvent) {
+        // Dispatch event
+        this.dispatchEvent({
+          type: SoundEventsEnum.PLAYBACK_RATE_CHANGED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          playbackRate: rate,
+          sound
+        });
+        this.seek(id, this.getSoundState(id).currentTime);
+      }
       this.debugLog(`Playback rate set for sound ${id}: ${rate}`);
     } catch (error) {
       this.handleError("setting playback rate", error, id);
@@ -873,46 +808,47 @@ export class SoundManager implements SoundManagerInterface {
   public seek(id: string, time: number, skipDispatchEvent: boolean = false): void {
     try {
       const sound = this.getValidatedSound(id);
-      const playbackRate = sound.playOptions?.playbackRate || 1;
-      const adjustedDuration = sound.buffer.duration / playbackRate;
-      // Clamp time based on adjusted duration
-      const clampedTime = Math.max(0, Math.min(time, adjustedDuration));
-
+      const { duration, currentTime, elapsedTime } = this.getSoundState(id);
+      console.log('seek to', time, currentTime, elapsedTime, duration);
       // Check if the seek position is at the end of the sound
-      if (clampedTime >= adjustedDuration) {
+      if (time >= duration) {
         // If the sound is already stopped, do nothing
+        console.log('sound state', sound.state, sound.playOptions?.loop);
         if (sound.state === SoundState.Stopped) {
           return;
         }
-
         // Handle looping if enabled
         if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
+          console.log('handle loop?');
           this.handleLoopIteration(sound);
         } else {
           this.handleSoundEnded(sound);
         }
-
         return;
       }
 
-      // Update the pausedAt property to store the seek position
-      sound.pausedAt = clampedTime;
+      const rawDuration = sound.buffer?.duration || 0;
+      const playbackRate = sound.playOptions?.playbackRate || 1;
 
+// Clamp time to valid range (using raw duration)
+const clampedTime = Math.max(0, Math.min(time, rawDuration));
+
+      // Always store the actual position regardless of play state
+      sound.currentTime = clampedTime;
+      sound.pausedAt = clampedTime;
       // If the sound is currently playing, stop it and restart from the new position
+      // If sound is playing, restart from new position
       if (sound.state === SoundState.Playing) {
         this.cleanupExistingSource(id);
 
-        // Update startTime to reflect the new playback position
-        sound.startTime = this.context.currentTime - clampedTime / playbackRate;
+        // Update startTime to maintain correct progress calculation
+        sound.startTime = this.context.currentTime - (clampedTime / playbackRate);
 
         this.play(id, {
-          startTime: clampedTime,
+          startTime: clampedTime * 1000, // Convert to milliseconds
           newSoundInstance: false,
-          isSeeking: true, // Indicate that this is a seek operation
+          isSeeking: true
         });
-      } else {
-        // If the sound is paused, update the pausedAt value
-        sound.pausedAt = clampedTime;
       }
 
       if (skipDispatchEvent) return;
@@ -920,7 +856,7 @@ export class SoundManager implements SoundManagerInterface {
       this.dispatchEvent({
         type: SoundEventsEnum.SEEKED,
         soundId: id,
-        currentTime: clampedTime, // Use adjusted time for event
+        currentTime: currentTime, // Use adjusted time for event
         timestamp: this.context.currentTime,
         sound,
       });
@@ -951,6 +887,7 @@ export class SoundManager implements SoundManagerInterface {
       const sound = this.getValidatedSound(id);
       const validatedVolume = this.setValidatedVolume(volume);
       sound.volume = this.roundValue(validatedVolume);
+      console.log('updated sound volume to ', sound.volume);
       sound.originalVolume = validatedVolume;
       sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
       this.dispatchEvent({
@@ -968,11 +905,15 @@ export class SoundManager implements SoundManagerInterface {
   public getSoundVolume(id: string): number {
     try {
       const sound = this.getValidatedSound(id);
-      return sound.originalVolume ?? sound.volume;
+      return sound.originalVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
     } catch (error) {
       this.handleError("getting volume", error, id);
       return 0;
     }
+  }
+
+  public getVolume(id: string): number {
+    return this.getSoundVolume(id);
   }
 
   public setGlobalVolume(volume: number): void {
@@ -1024,7 +965,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public toggleMute(id: string): void {
     const sound = this.getValidatedSound(id);
-    if (sound.volume > 0) {
+    if (sound?.volume || sound?.originalVolume || sound.playOptions?.volume || 1 > 0) {
       this.mute(id);
     } else {
       this.unmute(id);
@@ -1085,9 +1026,9 @@ export class SoundManager implements SoundManagerInterface {
 
   // Sound loading and management-----------------------------------------------------------------------------------------------------------------
 
-  public async preloadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void> {
+  public async loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void> {
     try {
-      const loadPromises = soundsToLoad.map(async ({ id, url }) => {
+      const loadPromises: Promise<void>[] = soundsToLoad.map(async ({ id, url }) => {
         if (this.sounds.has(id)) {
           this.debugLog(`Sound with id ${id} already exists. Skipping.`);
           return;
@@ -1095,7 +1036,7 @@ export class SoundManager implements SoundManagerInterface {
 
         try {
           // Fetch the audio file
-          const response = await fetch(url, {
+          const response: Response = await fetch(url, {
             credentials: this.config.crossOrigin === "use-credentials" ? "include" : "same-origin",
             mode: this.config.crossOrigin ? "cors" : "no-cors",
           });
@@ -1106,7 +1047,7 @@ export class SoundManager implements SoundManagerInterface {
 
           // Decode the audio data
           const arrayBuffer = await response.arrayBuffer();
-          const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+          const audioBuffer: AudioBuffer = await this.context.decodeAudioData(arrayBuffer);
 
           // Create and configure gain node
           const gainNode = this.context.createGain();
@@ -1118,15 +1059,22 @@ export class SoundManager implements SoundManagerInterface {
             id,
             buffer: audioBuffer,
             gainNode,
-            startTime: 0,
-            currentTime: 0,
-            pausedAt: 0,
-            state: SoundState.Stopped,
-            volume: this.config.defaultVolume!,
+            source: this.context.createBufferSource(),
+            // startTime: 0,
+            // currentTime: 0,
+            // pausedAt: 0,
+            // state: SoundState.Stopped,
+            // volume: this.config.defaultVolume!,
             originalVolume: this.config.defaultVolume!,
-            playOptions: { loop: this.config.loopSounds ?? false, maxLoops: -1, playbackRate: 1, pan: 0, volume: this.config.defaultVolume || 1 },
-            panSpatialPosition: { x: 0, y: 0, z: 0 },
-            pan: 0,
+            playOptions: {
+              //loop: this.config.loopSounds ?? false, // Default loop setting
+              //maxLoops: -1, // Default max loops
+              //playbackRate: 1, // Default playback rate
+              //pan: 0, // Default pan
+              //volume: this.config.defaultVolume || 1, // Default volume
+            },
+            // panSpatialPosition: { x: 0, y: 0, z: 0 },
+            //pan: 0,
           });
 
           this.debugLog(`Sound ${id} loaded successfully`);
@@ -1156,6 +1104,110 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  public async loadSound(id: string, url: string): Promise<void> {
+    try {
+      await this.loadSounds([{ id, url }]);
+    } catch (error) {
+      this.handleError("loading sound", error, id);
+      throw error;
+    }
+  }
+
+  public unloadSound(id: string): void {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for unloading`);
+      return;
+    }
+
+    this.stop(id, false);
+    this.cleanupSound(id);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.UNLOADED,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      sound
+    });
+
+    this.debugLog(`Sound ${id} unloaded`);
+  }
+
+  public removeSound(id: string): void {
+    try {
+      const sound = this.sounds.get(id);
+      if (!sound) return;
+      this.unloadSound(id);
+      this.sounds.delete(id);
+      this.debugLog(`Removed sound ${id}`);
+    } catch (error) {
+      this.handleError("removing sound", error, id);
+    }
+  }
+
+  /**
+   * Checks if the sound manager is ready to play sounds
+   */
+  public isReady(): boolean {
+    return this.context.state === 'running' && this.sounds.size > 0;
+  }
+  public getSoundCount(): number {
+    return this.sounds.size;
+  }
+
+  public getBuffer(id: string): AudioBuffer | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.buffer || undefined;
+    } catch (error) {
+      this.handleError("getting buffer", error, id);
+      return undefined;
+    }
+  }
+
+  public getSource(id: string): AudioBufferSourceNode | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.source || this.activeSources.get(id) || undefined;
+    } catch (error) {
+      this.handleError("getting source", error, id);
+      return undefined;
+    }
+  }
+
+  public getGainNode(id: string): GainNode | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.gainNode || undefined;
+    } catch (error) {
+      this.handleError("getting gain node", error, id);
+      return undefined;
+    }
+  }
+
+
+  public async suspendContext(): Promise<void> {
+    try {
+      await this.context.suspend();
+      this.debugLog('Audio context suspended');
+    } catch (error) {
+      this.handleError("suspending context", error);
+    }
+  }
+
+  public async resumeContext(): Promise<void> {
+    try {
+      await this.context.resume();
+      this.debugLog('Audio context resumed');
+    } catch (error) {
+      this.handleError("resuming context", error);
+    }
+  }
+
+  public getContext(): AudioContext {
+    return this.context;
+  }
+
   public async updateSoundUrl(id: string, newUrl: string): Promise<void> {
     try {
       const sound = this.sounds.get(id);
@@ -1168,7 +1220,7 @@ export class SoundManager implements SoundManagerInterface {
       this.cleanupSound(id);
 
       // Load the new sound
-      await this.preloadSounds([{ id, url: newUrl }]);
+      await this.loadSound(id, newUrl);
 
       this.dispatchEvent({
         type: SoundEventsEnum.UPDATED_URL,
@@ -1183,7 +1235,7 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public updateSoundOptions(soundId: string, options: Partial<playOptions>): void {
+  public updateSoundOptions(soundId: string, options: Partial<PlayOptions>): void {
     const sound = this.sounds.get(soundId);
     if (!sound) {
       this.debugLog(`Sound ${soundId} not found for updating options`);
@@ -1248,22 +1300,24 @@ export class SoundManager implements SoundManagerInterface {
 
         // Create audio nodes for the sprite
         const gainNode = this.context.createGain();
-        gainNode.gain.value = originalSound.volume;
+        const volume = originalSound.volume ?? this.config.defaultVolume ?? 1;
+        gainNode.gain.value = volume;
         gainNode.connect(this.masterGainNode);
 
         // Create the sprite sound object
         const spriteSound: Sound = {
           id: spriteId,
           buffer: spriteBuffer,
-          volume: originalSound.volume,
-          originalVolume: originalSound.volume,
+          source: this.context.createBufferSource(),
+          //  volume: volume,
+          originalVolume: volume,
           state: SoundState.Stopped,
           gainNode: gainNode,
           duration: duration,
           playOptions: { ...originalSound.playOptions },
           currentLoopCount: 0,
-          pausedAt: 0, //this.context.currentTime
-          startTime: 0,
+          //  pausedAt: 0, //this.context.currentTime
+          //  startTime: 0,
         };
 
         // Add stereoPanner if needed
@@ -1296,6 +1350,28 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  public getSpriteConfig(id: string): { [key: string]: [number, number] } | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.sprite;
+    } catch (error) {
+      this.handleError("getting sprite config", error, id);
+      return undefined;
+    }
+  }
+
+  public removeSpriteConfig(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      if (sound) {
+        sound.sprite = undefined;
+        this.debugLog(`Removed sprite config for sound ${id}`);
+      }
+    } catch (error) {
+      this.handleError("removing sprite config", error, id);
+    }
+  }
+
   public isSoundLoaded(id: string): boolean {
     const sound = this.sounds.get(id);
     return sound?.buffer != null;
@@ -1325,36 +1401,49 @@ export class SoundManager implements SoundManagerInterface {
 
   public getSoundState(id: string): SoundStateInfo {
     const sound = this.getValidatedSound(id);
-    let currentTime = 0;
+    if (!sound) {
+      console.log('sound not found in getSoundState', sound);
+    }
 
-    // Calculate adjusted duration based on playbackRate
     const playbackRate = sound.playOptions?.playbackRate || 1;
-    const adjustedDuration = sound.buffer ? sound.buffer.duration / playbackRate : 0;
+    const rawDuration = sound.buffer?.duration || 0;
+   
+    const adjustedDuration = rawDuration / playbackRate;
+
+    let currentTime = 0;
+    let elapsedTime = 0;
 
     if (sound.state === SoundState.Playing) {
-      const elapsedTime = this.context.currentTime - sound.startTime;
-      // Don't multiply by playbackRate here since elapsedTime is already in real-time
-      currentTime = (sound.currentTime || 0) + elapsedTime;
+      // Calculate elapsed time since start
+      elapsedTime = (this.context.currentTime - (sound.startTime || 0)) * playbackRate;
+      currentTime = elapsedTime;
 
-      // Handle looping
       if (sound.playOptions?.loop) {
-        currentTime = currentTime % adjustedDuration;
+        currentTime = currentTime % rawDuration;
       }
-    } else if (sound.state === SoundState.Paused || sound.state === SoundState.Stopped) {
-      currentTime = sound.pausedAt || 0;
+    } else {
+      // For non-playing states, use the stored position
+      currentTime = sound.pausedAt || sound.currentTime || 0;
+      elapsedTime = currentTime;
     }
 
-    // Ensure currentTime doesn't exceed adjusted duration
-    if (sound.buffer) {
-      currentTime = Math.min(currentTime, adjustedDuration);
-    }
+    // Progress should always be relative to raw duration
+    let progressRatio = rawDuration > 0 ? currentTime / rawDuration : 0;
+    // if(playbackRate !== 1) {
+    //   progressRatio = progressRatio * playbackRate;
+    // }
+
+    console.log('getSoundState progress', progressRatio, 'elapsedTime', elapsedTime);
 
     this.debugLog(`Sound state for ${id}:
       State: ${sound.state}
-      Initial offset: ${sound.currentTime}s
-      Elapsed time: ${sound.state === SoundState.Playing ? this.context.currentTime - sound.startTime : 0}s
+      Progress: ${progressRatio}
+      Initial offset: ${sound.playOptions?.startTime || 0}ms
+      Sound currentTime: ${sound.currentTime}s
+      Elapsed time: ${sound.state === SoundState.Playing ? elapsedTime : 0}s
       Current time: ${currentTime}s
-      Raw Duration: ${sound.buffer?.duration || 0}s
+      Raw Duration: ${rawDuration}s
+      Duration playOptions: ${sound.playOptions?.duration || 0}s
       Adjusted Duration: ${adjustedDuration}s
       Playback Rate: ${playbackRate}
       Volume: ${sound.volume}
@@ -1362,11 +1451,17 @@ export class SoundManager implements SoundManagerInterface {
       Pan Spatial Position: ${JSON.stringify(sound.panSpatialPosition)}
     `);
 
+
     return {
-      currentTime,
-      duration: adjustedDuration || null,
-      state: sound.state,
-      volume: sound.volume,
+      progress: this.roundValue(progressRatio, 4),
+      startTime: sound.startTime || 0,
+      currentTime: this.roundValue(currentTime, 4),
+      elapsedTime: this.roundValue(elapsedTime, 4),
+      adjustedElapsedTime: this.roundValue(elapsedTime, 4),
+      duration: this.roundValue(adjustedDuration, 4),
+      rawDuration: this.roundValue(rawDuration, 4),
+      state: sound.state || SoundState.Stopped,
+      volume: sound.volume || sound?.playOptions?.volume || this.config.defaultVolume || 1,
       playbackRate: playbackRate,
       pan: sound.pan || sound?.playOptions?.pan || 0,
       panSpatialPosition: sound?.panSpatialPosition || { x: 0, y: 0, z: 0 },
@@ -1390,6 +1485,17 @@ export class SoundManager implements SoundManagerInterface {
   public getProgressPercentage(id: string): number {
     return this.getProgress(id) * 100;
   }
+
+  public getDuration(id: string): number {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.buffer?.duration || 0;
+    } catch (error) {
+      this.handleError("getting duration", error, id);
+      return 0;
+    }
+  }
+
 
   // End State checks---------------------------------------------------------------------------------------------------------------
 
@@ -1429,6 +1535,14 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
+    if (sound.lastPanningType === 'spatial') {
+      this.resetSpatialPosition(id);
+    } else {
+      if (!options.keepPanning) {
+        this.removePan(id);
+      }
+    }
+
     this.debugLog(`Resetting sound ${id} with options:`, options);
 
     // Stop the sound if it's playing
@@ -1448,7 +1562,7 @@ export class SoundManager implements SoundManagerInterface {
 
     // Reset volume if not keeping volumes
     if (!options.keepVolumes) {
-      this.setSoundVolume(id, this.config.defaultVolume ?? 1);
+      this.setSoundVolume(id, sound.playOptions?.volume ?? this.config.defaultVolume ?? 1);
     }
 
     // Reset panning if not keeping panning
@@ -1459,7 +1573,7 @@ export class SoundManager implements SoundManagerInterface {
     // Reset spatial audio if not keeping spatial
     if (!options.keepSpatial && this.isSpatialAudioActive(id)) {
       this.removeSpatialEffect(id);
-      sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+      // sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
     }
 
     // Dispatch event to notify that the sound has been reset
@@ -1823,6 +1937,7 @@ export class SoundManager implements SoundManagerInterface {
     soundPannerConfig?: SoundPannerConfig,
     skipEvent: boolean = false
   ): void {
+    console.log('set spatial position');
     x = this.roundValue(x, 2);
     y = this.roundValue(y, 2);
     z = this.roundValue(z, 2);
@@ -1845,13 +1960,14 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    const source = this.activeSources.get(soundId);
+    const source = sound.source; //this.activeSources.get(soundId);
 
     // If stereo panning is active, reset it without dispatching PAN_CHANGED
     if (sound.stereoPanner) {
       this.removePan(soundId);
       this.debugLog(`Removed stereo panner, and overwritten with spatial panning for sound ${soundId}`);
     }
+    sound.lastPanningType = 'spatial';
 
     try {
       // Merge configurations in order of precedence
@@ -1860,6 +1976,7 @@ export class SoundManager implements SoundManagerInterface {
         ...(this.config.pannerNodeConfig || {}), // Override with sound manager config if exists
         ...(soundPannerConfig || {}), // Override with specific config if provided
       };
+      console.log('merge config', mergedConfig);
 
       // Create a panner node if it doesn't exist
       if (!sound.pannerNode) {
@@ -1873,10 +1990,7 @@ export class SoundManager implements SoundManagerInterface {
         sound.pannerNode.coneOuterAngle = mergedConfig.coneOuterAngle!;
         sound.pannerNode.coneOuterGain = mergedConfig.coneOuterGain!;
 
-        // Reconnect the audio nodes with the panner
-        source?.disconnect();
-        source?.connect(sound.pannerNode);
-        sound.pannerNode.connect(sound.gainNode);
+
       } else if (soundPannerConfig) {
         // If panner exists and new config is provided, update only the provided values
         Object.entries(soundPannerConfig).forEach(([key, value]) => {
@@ -1886,6 +2000,11 @@ export class SoundManager implements SoundManagerInterface {
         });
       }
 
+
+      // Reconnect the audio nodes with the panner
+      source?.disconnect();
+      source?.connect(sound.pannerNode);
+      sound.pannerNode.connect(sound.gainNode);
       // Example usage to set the position of the sound source
       //pannerNode.positionX.setValueAtTime(1, audioContext.currentTime); // 1 meter to the right
       //pannerNode.positionY.setValueAtTime(0, audioContext.currentTime); // Same height as the listener
@@ -2092,15 +2211,16 @@ export class SoundManager implements SoundManagerInterface {
     try {
       const sound = this.getValidatedSound(id);
       if (sound.pannerNode) {
-        const source = this.activeSources.get(id);
+        const source = sound.source;
         if (source) {
           source.disconnect();
           source.connect(sound.gainNode);
         }
         sound.pannerNode.disconnect();
-        sound.pannerNode = undefined;
+        sound.pannerNode = null;
         sound.gainNode.connect(this.masterGainNode);
       }
+      sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
     } catch (error) {
       this.handleError("removing spatial effect", error, id);
     }
@@ -2115,59 +2235,78 @@ export class SoundManager implements SoundManagerInterface {
 
   // Pan control ----------------------------------------------------------------------------------------------------------------------
 
-  public setPan(id: string, value: number): void {
+  public setPan(id: string, value: number, skipDispatchEvent: boolean = false): void {
     try {
       const sound = this.getValidatedSound(id);
 
       // Remove spatial audio if active
       if (this.isSpatialAudioActive(id)) {
         this.debugLog(`Removed 3D spatial audio, and overwritten with stereo panner for sound ${id}`);
+
         this.removeSpatialEffect(id);
 
+        sound.lastPanningType = 'stereo';
+
         // Reset spatial position without dispatching SPATIAL_POSITION_CHANGED
-        sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+        const restoredPanSpatialPosition = { x: 0, y: 0, z: 0 };
+        sound.panSpatialPosition = restoredPanSpatialPosition;
         if (sound.playOptions) {
-          sound.playOptions.panSpatialPosition = { x: 0, y: 0, z: 0 };
+          sound.playOptions.panSpatialPosition = restoredPanSpatialPosition;
         }
       }
 
-      // Create stereo panner if it doesn't exist
-      if (!sound.stereoPanner) {
-        sound.stereoPanner = this.context.createStereoPanner();
-        // Get the active source
-        const source = this.activeSources.get(sound.id);
-        if (source) {
-          // Reconnect the audio nodes with the stereo panner
-          source.disconnect();
-          source.connect(sound.stereoPanner);
-          sound.stereoPanner.connect(sound.gainNode);
-        }
+      sound.stereoPanner = this.context.createStereoPanner();
+      const source = sound.source;
+      if (source) {
+        // Reconnect the audio nodes with the stereo panner
+        source.disconnect();
+        source.connect(sound.stereoPanner);
+        sound.stereoPanner.connect(sound.gainNode);
       }
 
       // Clamp pan value between -1 and 1
       sound.pan = Math.max(-1, Math.min(1, value));
+
       sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
 
-      this.dispatchEvent({
-        type: SoundEventsEnum.PAN_CHANGED,
-        soundId: id,
-        timestamp: this.context?.currentTime ?? 0,
-        pan: sound.pan || 0,
-        previousPan: this.previousGlobalPan,
-        sound
-      });
-
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.PAN_CHANGED,
+          soundId: id,
+          timestamp: this.context?.currentTime ?? 0,
+          pan: sound.pan || 0,
+          previousPan: this.previousGlobalPan,
+          sound
+        });
+      }
       this.debugLog(`Pan set for sound ${sound.id}: ${sound.pan}`);
     } catch (error) {
       this.handleError("setting pan", error, id);
     }
   }
 
+  public resetPan(id?: string): void {
+    if (!id) {
+      this.resetGlobalPan();
+      return;
+    }
+    const sound = this.getValidatedSound(id);
+    this.setPan(id, 0, true);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.PAN_RESET,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      isMaster: false,
+      sound
+    });
+  }
+
   public removePan(id: string): void {
     try {
       const sound = this.getValidatedSound(id);
       if (sound.stereoPanner) {
-        const source = this.activeSources.get(id);
+        const source = sound.source;
         if (source) {
           source.disconnect();
           source.connect(sound.gainNode);
@@ -2216,7 +2355,12 @@ export class SoundManager implements SoundManagerInterface {
 
   public resetGlobalPan(): void {
     this.setGlobalPan(0);
-    this.previousGlobalPan = 0;
+    this.dispatchEvent({
+      type: SoundEventsEnum.PAN_RESET,
+      timestamp: this.context.currentTime,
+      isMaster: true,
+    });
+
   }
 
   public getPreviousMasterPan(): number {
@@ -2244,6 +2388,10 @@ export class SoundManager implements SoundManagerInterface {
     return Array.from(this.sounds.keys());
   }
 
+  public getLastError(): Error | null {
+    return this.lastError;
+  }
+
   public isStopped(id: string): boolean {
     try {
       const sound = this.getValidatedSound(id);
@@ -2259,23 +2407,30 @@ export class SoundManager implements SoundManagerInterface {
 
     this.cancelFadeAnimation(id);
     this.cleanupExistingSource(id);
+    this.stopProgressTracking(id);
 
     // Cleanup panner nodes
     if (sound.pannerNode) {
       sound.pannerNode.disconnect();
-      sound.pannerNode = undefined;
+      sound.pannerNode = null;
     }
 
     if (sound.stereoPanner) {
       sound.stereoPanner.disconnect();
-      sound.stereoPanner = undefined;
+      sound.stereoPanner = null;
     }
 
     // Cleanup gain node
     sound.gainNode.disconnect();
 
-    // Remove the sound from the map
-    this.sounds.delete(id);
+    // Reset sound state
+    sound.state = SoundState.Stopped;
+    sound.startTime = sound.playOptions?.startTime ?? 0;
+    sound.pausedAt = 0;
+    sound.currentTime = 0;
+  }
+  public hasEventListener(type: SoundEventsEnum): boolean {
+    return this.eventListeners.has(type) && this.eventListeners.get(type)!.size > 0;
   }
 
   public destroy(): void {

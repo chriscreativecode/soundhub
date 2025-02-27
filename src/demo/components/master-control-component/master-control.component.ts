@@ -1,5 +1,5 @@
 
-import { playOptions } from "../../../sound-manager/play-sound-options.interface";
+import { PlayOptions } from "../../../sound-manager/play-sound-options.interface";
 import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";

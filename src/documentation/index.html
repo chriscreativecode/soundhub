@@ -183,7 +183,7 @@
 <pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;sound-manager-ts&quot;</span>;
 
 <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>();
-<span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">preloadSounds</span>([{ <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/sounds/music.mp3&quot;</span> }]);
+<span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">loadSounds</span>([{ <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/sounds/music.mp3&quot;</span> }]);
 soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;music&quot;</span>);
 </code></pre>
 <h2 id="installation-imlement-in-your-project" tabindex="-1">Installation / imlement in your project</h2>
@@ -215,7 +215,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 
 <span class="hljs-comment">// Preload sounds</span>
 soundManager
-  .<span class="hljs-title function_">preloadSounds</span>(soundsToLoad)
+  .<span class="hljs-title function_">loadSounds</span>(soundsToLoad)
   .<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
     <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
   })
@@ -260,7 +260,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 
       <span class="hljs-comment">// Preload sounds</span>
       soundManager
-        .<span class="hljs-title function_">preloadSounds</span>(soundsToLoad)
+        .<span class="hljs-title function_">loadSounds</span>(soundsToLoad)
         .<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
           <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
         })
@@ -307,7 +307,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 
 <span class="hljs-comment">// Preload sounds (recommended)</span>
 <span class="hljs-keyword">try</span> {
-    <span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">preloadSounds</span>(soundsToLoad);
+    <span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">loadSounds</span>(soundsToLoad);
     <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;All sounds loaded successfully&#x27;</span>);
 } <span class="hljs-keyword">catch</span> (error) {
     <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;Error loading sounds:&#x27;</span>, error);
@@ -359,7 +359,7 @@ soundManager.<span class="hljs-title function_">setPlaybackRate</span>(<span cla
 	{ <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;game-sound&quot;</span>, <span class="hljs-attr">url</span>: gameSounds },        
 ];
 
-<span class="hljs-keyword">await</span> <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">preloadSounds</span>(soundsToLoad);
+<span class="hljs-keyword">await</span> <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">loadSounds</span>(soundsToLoad);
 
 <span class="hljs-keyword">let</span> <span class="hljs-attr">mySprite</span>: <span class="hljs-built_in">any</span> = {
 	<span class="hljs-attr">intro</span>: [<span class="hljs-number">0</span>, <span class="hljs-number">2000</span>],
@@ -437,8 +437,8 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="public-methods-on-the-soundmanager" tabindex="-1">Public methods on the SoundManager</h2>
 <pre><code class="language-typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerInterface</span> {
   <span class="hljs-comment">// Playback control</span>
-  <span class="hljs-title function_">play</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>?: playOptions): <span class="hljs-built_in">void</span>;
-  <span class="hljs-title function_">playSprite</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">spriteKey</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: playOptions): <span class="hljs-built_in">void</span>
+  <span class="hljs-title function_">play</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>?: PlayOptions): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">playSprite</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">spriteKey</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: PlayOptions): <span class="hljs-built_in">void</span>
   <span class="hljs-title function_">pause</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">resume</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">stop</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
@@ -459,7 +459,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">toggleMute</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Sound loading and management</span>
-  <span class="hljs-title function_">preloadSounds</span>(<span class="hljs-attr">soundsToLoad</span>: { <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>; <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span> }[]): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
+  <span class="hljs-title function_">loadSounds</span>(<span class="hljs-attr">soundsToLoad</span>: { <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>; <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span> }[]): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
   <span class="hljs-title function_">updateSoundUrl</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">newUrl</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
   <span class="hljs-title function_">isSoundLoaded</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">boolean</span>;
   <span class="hljs-title function_">hasSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">boolean</span>;
@@ -511,7 +511,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">getConfig</span>(): <span class="hljs-title class_">Readonly</span>&lt;<span class="hljs-title class_">SoundManagerConfig</span>&gt;;
   <span class="hljs-title function_">getSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">Sound</span> | <span class="hljs-literal">undefined</span>;
   <span class="hljs-title function_">getSoundIds</span>(): <span class="hljs-built_in">string</span>[];
-  <span class="hljs-title function_">updateSoundOptions</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: <span class="hljs-title class_">Partial</span>&lt;playOptions&gt;): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">updateSoundOptions</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: <span class="hljs-title class_">Partial</span>&lt;PlayOptions&gt;): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">setPlaybackRate</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">rate</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">setSoundSprite</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">sprite</span>: { [<span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>]: [<span class="hljs-built_in">number</span>, <span class="hljs-built_in">number</span>] }): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">destroy</span>(): <span class="hljs-built_in">void</span>;
@@ -521,9 +521,9 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">removeEventListener</span>(<span class="hljs-attr">type</span>: <span class="hljs-title class_">SoundEventsEnum</span>, <span class="hljs-attr">callback</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span></span>) =&gt;</span> <span class="hljs-built_in">void</span>): <span class="hljs-built_in">void</span>;
 }
 </code></pre>
-<h2 id="playoptions" tabindex="-1">PlayOptions</h2>
+<h2 id="PlayOptions" tabindex="-1">PlayOptions</h2>
 <p>Options for playing a sound</p>
-<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> playOptions {
+<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> PlayOptions {
   <span class="hljs-attr">fadeIn</span>?: <span class="hljs-built_in">number</span>;
   <span class="hljs-attr">fadeOut</span>?: <span class="hljs-built_in">number</span>;
   <span class="hljs-attr">pan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// -1 (left) to 1 (right)</span>
@@ -541,7 +541,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">error</span>?: <span class="hljs-title class_">Error</span>;
   <span class="hljs-attr">isMaster</span>?: <span class="hljs-built_in">boolean</span>;
   <span class="hljs-attr">isMuted</span>?: <span class="hljs-built_in">boolean</span>;
-  <span class="hljs-attr">options</span>?: playOptions;
+  <span class="hljs-attr">options</span>?: PlayOptions;
   <span class="hljs-attr">pan</span>?: <span class="hljs-built_in">number</span>;
   <span class="hljs-attr">pannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>;
   <span class="hljs-attr">playbackRate</span>?: <span class="hljs-built_in">number</span>;

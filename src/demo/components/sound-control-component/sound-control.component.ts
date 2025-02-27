@@ -1,4 +1,4 @@
-import { playOptions } from "../../../sound-manager/play-sound-options.interface";
+import { PlayOptions } from "../../../sound-manager/play-sound-options.interface";
 import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";
@@ -9,7 +9,6 @@ import "./../../shared.css";
 import "./sound-control.component.css";
 /* @ts-ignore */
 import soundControlComponentHtml from "./sound-control.component.html?raw";
-import { SoundProgressStateInfo } from "../../../sound-manager/sound-progress-state-info";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 
 export interface SoundControlState {
@@ -34,18 +33,16 @@ type SpatialAudioListener = {
 export class SoundControl {
   private element: HTMLElement;
   private progressSlider: HTMLInputElement;
-  private progressInterval!: number;
-  private currentOptions: playOptions = {};
+  private currentOptions: PlayOptions = {};
   private panSlider: HTMLInputElement;
   private volumeSlider: HTMLInputElement;
   private playbackRateInput: HTMLInputElement;
   private isDragging = false;
   private previousVolume: number = 1;
   private listenersSpatialAudio: SpatialAudioListener[] = [];
-  // private circle!: HTMLElement;
-  private debounceTimer: number = 0;
   private soundManagerConfig: SoundManagerConfig;
   private spatialGrid: SpatialGrid;
+  private isUpdatingUI = false;
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -141,19 +138,22 @@ export class SoundControl {
       isPaused: soundState.state === SoundState.Paused,
       isMuted: soundState.volume === 0,
       volume: soundState.volume,
-      currentTime: soundState.currentTime,
+      currentTime: soundState.elapsedTime,
       duration: soundState.duration ?? 0,
       pan: soundState.pan ?? 0,
       panSpatialPosition: soundState.panSpatialPosition ?? { x: 0, y: 0, z: 0 },
-      progress: (soundState.duration ?? 0) > 0 ? (soundState.currentTime / (soundState.duration ?? 0)) * 100 : 0,
+      progress: soundState.progress * 100 || 0,
       playbackRate: soundState.playbackRate || 1
     };
+    console.log('new State', newState, soundState);
 
     this.state = newState;
     this.updateUIFromState();
   }
 
   private updateUIFromState(): void {
+    if (this.isUpdatingUI) return;
+    this.isUpdatingUI = true;
     // Button states
     const buttons = {
       "play-btn": this.state.isPlaying,
@@ -167,7 +167,6 @@ export class SoundControl {
 
     this.updateVolumeDisplay(this.state.volume);
     this.updatePanDisplay(this.state.pan);
-    // this.updateTimeDisplay(this.state.currentTime);
     this.updateMuteButtonIcon(this.state.isMuted);
     this.updateProgress(this.state.progress); // also calls updateTimeDisplay
 
@@ -208,8 +207,7 @@ export class SoundControl {
         );
       }
     }
-
-
+    this.isUpdatingUI = false;
   }
 
   private handleRangeInput(input: HTMLInputElement, value?: number): void {
@@ -256,6 +254,104 @@ export class SoundControl {
 
   private initializePlaybackRateControl(): void {
     this.playbackRateInput.addEventListener("change", this.handlePlaybackRateChange.bind(this));
+
+    const stepUpButton = this.element.querySelector('.step-up')! as HTMLButtonElement;
+    const stepDownButton = this.element.querySelector('.step-down')! as HTMLButtonElement;
+
+    // Helper function to update the input value and trigger internal logic
+    const updateValue = (action: 'stepUp' | 'stepDown') => {
+      const currentValue = parseFloat(this.playbackRateInput.value);
+      const step = parseFloat(this.playbackRateInput.step) || 0.01; // Default step is 0.01 if not specified
+      let newValue: number;
+
+      if (action === 'stepUp') {
+        newValue = currentValue + step;
+      } else {
+        newValue = currentValue - step;
+      }
+
+      // Ensure the new value is within the min and max bounds
+      const min = parseFloat(this.playbackRateInput.min) || 0;
+      const max = parseFloat(this.playbackRateInput.max) || Infinity;
+      newValue = Math.min(Math.max(newValue, min), max);
+
+      newValue = this.soundManager.roundValue(newValue, 2);
+
+      this.playbackRateInput.value = newValue.toString();
+    };
+
+    // Simulate the native spinner behavior
+    const simulateSpinnerBehavior = (button: HTMLButtonElement, action: 'stepUp' | 'stepDown') => {
+      let timeoutId: number | null = null;
+      let intervalId: number | null = null;
+      let repeatCount = 0;
+
+      const getDelay = () => {
+        // Mimic browser's native acceleration behavior
+        if (repeatCount < 4) return 200;
+        if (repeatCount < 8) return 100;
+        if (repeatCount < 12) return 50;
+        if (repeatCount < 24) return 40;
+        if (repeatCount < 50) return 30;
+        if (repeatCount < 100) return 25;
+        return 20;
+      };
+
+      const startRepeating = () => {
+        updateValue(action); // Update the value and trigger internal logic
+        repeatCount++;
+
+        // Clear existing interval if any
+        if (intervalId) clearInterval(intervalId);
+
+        // Set up the interval with dynamic delay recalculation
+        const intervalCallback = () => {
+          updateValue(action); // Update the value and trigger internal logic
+          repeatCount++;
+
+          // Recalculate the delay dynamically
+          const delay = getDelay();
+          console.log('Current delay:', delay); // Debugging: Log the current delay
+
+          // Clear the existing interval and set a new one with the updated delay
+          if (intervalId) clearInterval(intervalId);
+          intervalId = window.setInterval(intervalCallback, delay);
+        };
+
+        // Start the first iteration with the initial delay
+        const initialDelay = getDelay();
+        intervalId = window.setInterval(intervalCallback, initialDelay);
+      };
+
+      const stopRepeating = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (intervalId) clearInterval(intervalId);
+        repeatCount = 0;
+      };
+
+      // Common event handler for both mouse and touch events
+      const startHandler = (e: Event) => {
+        e.preventDefault();
+        updateValue(action); // Update the value and trigger internal logic
+        repeatCount = 0;
+
+        // Start repeat after initial delay
+        timeoutId = window.setTimeout(startRepeating, 100); // Initial delay is 100ms
+      };
+
+      // Add event listeners for mouse and touch events
+      button.addEventListener('mousedown', startHandler);
+      button.addEventListener('mouseup', stopRepeating);
+      button.addEventListener('mouseleave', stopRepeating);
+
+      button.addEventListener('touchstart', startHandler);
+      button.addEventListener('touchend', stopRepeating);
+      button.addEventListener('touchcancel', stopRepeating);
+    };
+
+    // Initialize buttons
+    simulateSpinnerBehavior(stepUpButton, 'stepUp');
+    simulateSpinnerBehavior(stepDownButton, 'stepDown');
   }
 
   private handlePlaybackRateChange(event: Event): void {
@@ -291,6 +387,7 @@ export class SoundControl {
 
   private reset(): void {
     this.soundManager.resetSound(this.id);
+    this.playbackRateInput.value = (this.currentOptions?.playbackRate ?? 1).toString();
   }
 
   private updateProgress(progress: number): void {
@@ -345,12 +442,15 @@ export class SoundControl {
 
 
   private handleSoundEvent(event: SoundEvent): void {
-    // First check if this event is for this specific sound
-    if (event.soundId && event.soundId !== this.id) {
-      // If the event is for a different sound, ignore it
+    // First check if this event is for this specific sound or if it's a global event we should ignore
+    if ((event.soundId && event.soundId !== this.id) ||
+      event.type === SoundEventsEnum.MASTER_PAN_CHANGED ||
+      event.type === SoundEventsEnum.MASTER_VOLUME_CHANGED ||
+      event.type === SoundEventsEnum.MUTE_GLOBAL ||
+      event.type === SoundEventsEnum.UNMUTE_GLOBAL) {
+      // Ignore master events and events for other sounds
       return;
     }
-
     // Handle global events (those without soundId) or events specific to this sound
     switch (event.type) {
       case SoundEventsEnum.STARTED:
@@ -376,10 +476,9 @@ export class SoundControl {
       case SoundEventsEnum.VOLUME_CHANGED:
         this.log("Volume changed", event);
         break;
-
-      case SoundEventsEnum.MASTER_VOLUME_CHANGED:
-        this.log("Master volume changed", event);
-        break;
+      // case SoundEventsEnum.MASTER_VOLUME_CHANGED:
+      //   this.log("Master volume changed", event);
+      //   break;
 
       case SoundEventsEnum.PROGRESS:
         break;
@@ -408,10 +507,10 @@ export class SoundControl {
         this.log("Sound seeked", event);
         break;
 
-      case SoundEventsEnum.MASTER_PAN_CHANGED:
-        this.log("Master pan changed", event);
-        // this.resetSpatialPosition();
-        break;
+      // case SoundEventsEnum.MASTER_PAN_CHANGED:
+      //   this.log("Master pan changed", event);
+      //   // this.resetSpatialPosition();
+      //   break;
 
       case SoundEventsEnum.PAN_CHANGED:
         this.log("Pan changed", event);
@@ -470,11 +569,14 @@ export class SoundControl {
 
   private log(...args: any[]) {
     if (process.env.NODE_ENV === "development") {
-     // console.log(...args);
+      // console.log(...args);
     }
   }
 
   private updateTimeDisplay(currentTime: number): void {
+    if(currentTime > 12) {
+      console.log('updateTimeDisplay', currentTime);
+    }
     const timeDisplay = this.element.querySelector(".time-display");
     const state = this.soundManager.getSoundState(this.id);
     if (timeDisplay && state?.duration) {
@@ -493,10 +595,19 @@ export class SoundControl {
     const state = this.soundManager.getSoundState(this.id);
     const isPaused = state?.state === SoundState.Paused;
 
+    // this.currentOptions.duration = 5000;
+    //  this.currentOptions.startTime = 3000;
+    // this.currentOptions.pauseAtDurationReached = true;
+    // this.currentOptions.newSoundInstance = true;
+
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
       this.soundManager.play(this.id, this.currentOptions);
+//      this.soundManager.play(this.id, this.currentOptions); // this.currentOptions);
+      // setTimeout(() => {
+      //   this.soundManager.play(this.id, this.currentOptions);
+      // }, 1000);
     }
   }
 
@@ -719,22 +830,12 @@ export class SoundControl {
   }
 
   public destroy(): void {
+    // prevent any updates if it was removed from the DOM
+    this.isUpdatingUI = true;
     try {
       this.soundManager.resetSound(this.id);
 
       const cleanupTasks: (() => void)[] = [
-        // Clear intervals
-        () => {
-          if (this.progressInterval) {
-            window.clearInterval(this.progressInterval);
-            this.progressInterval = 0;
-          }
-          if (this.debounceTimer) {
-            window.clearTimeout(this.debounceTimer);
-            this.debounceTimer = 0;
-          }
-        },
-
         // Remove sound event listeners
         () => {
           const boundHandler = this.handleSoundEvent.bind(this);

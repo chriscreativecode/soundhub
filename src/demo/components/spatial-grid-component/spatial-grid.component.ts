@@ -112,13 +112,13 @@ export class SpatialGrid {
         this.updatePosition(x, y, z);
     }
 
-    public updatePosition(x: number, y: number, z: number, skipEvent: boolean = false): void {
+    public updatePosition(x: number, y: number, z: number, skipEvent: boolean = false, visuallyOnly: boolean = false): void {
 
         this.circle.style.left = `${x}%`;
         this.circle.style.top = `${z}%`;
         this.verticalSlider.value = y.toString();
 
-        if (this.soundId && skipEvent === false) {
+        if (this.soundId && skipEvent === false && visuallyOnly === false) {
             this.soundManager.setSpatialPosition(
                 x / 50 - 1,
                 y,
@@ -127,7 +127,7 @@ export class SpatialGrid {
                 {},
                 true
             );
-        } else {
+        } else if(visuallyOnly === false) {
             this.soundManager.setMasterSpatialPosition(
                 x / 50 - 1,
                 y,
@@ -198,6 +198,6 @@ export class SpatialGrid {
     }
 
     private initializePosition(): void {
-        this.updatePosition(50, 0, 50);
+        this.updatePosition(50, 0, 50, true, true);
     }
 }
