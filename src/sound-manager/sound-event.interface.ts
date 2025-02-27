@@ -1,4 +1,4 @@
-import { playOptions } from "./play-sound-options.interface";
+import { PlayOptions } from "./play-sound-options.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundProgressStateInfo } from "./sound-progress-state-info";
@@ -11,7 +11,7 @@ export interface SoundEvent {
   error?: Error;
   isMaster?: boolean;
   isMuted?: boolean;
-  options?: playOptions;
+  options?: PlayOptions;
   pan?: number;
   pannerConfig?: SoundPannerConfig;
   playbackRate?: number;

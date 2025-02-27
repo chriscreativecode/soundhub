@@ -125,17 +125,17 @@ export class SoundManagerDemo {
 
       const soundsToLoad = [
         { id: "intro-speach", url: introSpeach},
-        { id: "game-sound", url: gameSounds },
-        { id: "birds", url: birds },
-        { id: "rain", url: rain },
-        { id: "crickets", url: crickets },
-        { id: "brook", url: brook },
-        { id: "magma", url: magma },
-        { id: "we-are-dreaming-song", url: song },
-        { id: "little-wonders-song", url: song2 },
+        // { id: "game-sound", url: gameSounds },
+        // { id: "birds", url: birds },
+        // { id: "rain", url: rain },
+        // { id: "crickets", url: crickets },
+        // { id: "brook", url: brook },
+        // { id: "magma", url: magma },
+        // { id: "we-are-dreaming-song", url: song },
+        // { id: "little-wonders-song", url: song2 },
       ];
 
-      await this.soundManager.preloadSounds(soundsToLoad);
+      await this.soundManager.loadSounds(soundsToLoad);
       const masterControlContainer = document.getElementById("masterControlContainer") as HTMLElement;
       const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
       soundControlsContainer.classList.add("show");

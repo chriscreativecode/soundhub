@@ -2,7 +2,8 @@
 /* Reset and Base Styles */
 /* ==================== */
 body {
-  --s: 24px; /* control the size */
+  --s: 24px;
+  /* control the size */
   --c1: #4480bc;
   --c2: #295d91;
 
@@ -64,7 +65,7 @@ body {
   --panel-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --controls-shadow: inset 0 2px 4px 0px rgb(170 170 170);
 
-  --color-grid-circle:  rgba(227, 16, 72, 0.658);
+  --color-grid-circle: rgba(227, 16, 72, 0.658);
   --color-grid-line: #ddddddb5;
 }
 
@@ -72,6 +73,7 @@ body {
   display: flex;
   gap: 5px;
 }
+
 .theme-icon {
   display: grid;
   grid-template-columns: 1fr;
@@ -79,6 +81,7 @@ body {
   height: 24px;
   width: 24px;
 }
+
 .theme-icon--moon,
 .theme-icon--sun {
   grid-row: 1;
@@ -310,6 +313,7 @@ input[type="range"]::-moz-range-thumb:active {
   justify-content: center;
   margin-top: -0.5rem;
 }
+
 .spatial-coordinates {
   font-size: 0.75rem;
   color: var(--color-text);
@@ -348,7 +352,7 @@ input[type="range"]::-moz-range-thumb:active {
 }
 
 .spatial-grid-container {
-  position:relative;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -359,7 +363,7 @@ input[type="range"]::-moz-range-thumb:active {
   width: 100px;
   height: 100px;
   background: linear-gradient(to right, var(--color-grid-line) 0.5px, transparent 1px) 0 0 / 10.1px 100%,
-    linear-gradient(to bottom,var(--color-grid-line) 0.5px, transparent 0.5px) 0 0 / 100% 10.1px;
+    linear-gradient(to bottom, var(--color-grid-line) 0.5px, transparent 0.5px) 0 0 / 100% 10.1px;
   border: 2px solid #c3c3c3;
   cursor: pointer;
 }
@@ -387,6 +391,7 @@ input[type="range"]::-moz-range-thumb:active {
   top: 0;
   transform: translateX(-50%);
 }
+
 .front-line {
   width: 100px;
   text-align: center;
@@ -404,23 +409,31 @@ input[type="range"]::-moz-range-thumb:active {
 }
 
 .vertical-slider-container input[type="range"] {
-  width: 100px; /* Adjust the width to make it taller */
+  width: 100px;
+  /* Adjust the width to make it taller */
   min-width: 100px;
 }
 
 .vertical-slider {
   transform: rotate(270deg);
-  width: 100px; /* Adjust the width to make it taller */
-  height: 8px; /* Adjust the height to make it thinner */
+  width: 100px;
+  /* Adjust the width to make it taller */
+  height: 8px;
+  /* Adjust the height to make it thinner */
   margin: 0;
   cursor: pointer;
 }
 
+.step-button {
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+}
 
 /* ==================== */
 /* Theme Overrides */
 /* ==================== */
- body.dark-theme {
+body.dark-theme {
   --c1: #0f0f0f;
   --c2: #2f2f32;
 
@@ -454,7 +467,7 @@ body.dark-theme .theme-icon--sun {
 }
 
 body.dark-theme .control-group {
-  background: var(--panel-background); 
+  background: var(--panel-background);
   box-shadow: var(--panel-shadow);
   border: 1px solid rgb(86, 86, 86);
 }
@@ -471,7 +484,8 @@ body.dark-theme .copyright {
   color: var(--color-text);
 }
 
-body.dark-theme .spatial-setting-group select, .spatial-setting-group input {
+body.dark-theme .spatial-setting-group select,
+.spatial-setting-group input {
   color: var(--color-text);
 }
 

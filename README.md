@@ -90,6 +90,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
+    - [5.0.0 (Major udpate)](#500-major-udpate)
     - [4.0.0 (Major update)](#400-major-update)
     - [3.2.0](#320)
       - [🎉 Added features](#-added-features)
@@ -375,7 +376,7 @@ setTimeout( ()=> {
 
 // 3D Spatial Audio
 // Set on a specific sound the 3d / spatial audio positioni
-soundManager.setSoundPosition(5, 3, -2, 'background-music');
+soundManager.setSpatialPosition(5, 3, -2, 'background-music');
 
 // Set the master spatial position (x, y, z)
 soundManager.setMasterSpatialPosition(10, 5, -3);
@@ -389,8 +390,8 @@ soundManager.toggleMute('background-music');
 soundManager.toggleGlobalMute();
 
 // Spatial audio (if enabled in config)
-soundManager.setSoundPosition('background-music', 1, 0, -1);
-soundManager.resetSoundPosition('background-music');
+soundManager.setSpatialPosition('background-music', 1, 0, -1);
+soundManager.resetSpatialPosition('background-music');
 soundManager.removeSpatialEffect();
 soundManager.isSpatialAudioActive('background-music');
 soundManager.updatePannerConfig('background-music',
@@ -435,8 +436,8 @@ soundManager.destroy();
 ```typescript
 export interface SoundManagerInterface {
   // Playback control
-  play(id: string, options?: playOptions): void;
-  playSprite(id: string, spriteKey: string, options: playOptions): void
+  play(id: string, options?: PlayOptions): void;
+  playSprite(id: string, spriteKey: string, options: PlayOptions): void
   pause(id: string): void;
   resume(id: string): void;
   stop(id: string): void;
@@ -488,9 +489,9 @@ export interface SoundManagerInterface {
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
-  setSoundPosition(x: number, y: number, z: number, id?: string | null, soundPannerConfig?: SoundPannerConfig): void;
+  setSpatialPosition(x: number, y: number, z: number, id?: string | null, soundPannerConfig?: SoundPannerConfig): void;
   setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig): void;
-  resetSoundPosition(id: string): void;
+  resetSpatialPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
   updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
@@ -509,7 +510,7 @@ export interface SoundManagerInterface {
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
   getSoundIds(): string[];
-  updateSoundOptions(soundId: string, options: Partial<playOptions>): void;
+  updateSoundOptions(soundId: string, options: Partial<PlayOptions>): void;
   setPlaybackRate(id: string, rate: number): void;
   setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void;
   destroy(): void;
@@ -525,14 +526,21 @@ export interface SoundManagerInterface {
 Options for playing a sound
 
 ```typescript
-interface playOptions {
+export interface PlayOptions {
   fadeIn?: number;
+  fadeInStartVolume?: number;
   fadeOut?: number;
   pan?: number; // -1 (left) to 1 (right)
-  startTime?: number;
+  panSpatialPosition?: { x: number; y: number; z: number };
+  startTime?: number; 
   volume?: number;
   loop?: boolean;
   maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
+  playbackRate?: number;
+  duration?:number; // in miliseconds
+  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached
+  newSoundInstance?: boolean;
+  isSeeking?: boolean;
 }
 ```
 
@@ -547,7 +555,7 @@ export interface SoundEvent {
   error?: Error;
   isMaster?: boolean;
   isMuted?: boolean;
-  options?: playOptions;
+  options?: PlayOptions;
   pan?: number;
   pannerConfig?: SoundPannerConfig;
   playbackRate?: number;
@@ -570,35 +578,35 @@ Available event types:
 
 ```typescript
 export enum SoundEventsEnum {
-    ENDED = 'ended',
-    ERROR = 'error',
-    FADE_IN_COMPLETED = 'fade_in_completed',
-    FADE_MASTER_IN_COMPLETED = 'fade_master_in_completed',
-    FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
-    FADE_OUT_COMPLETED = 'fade_out_completed',
-    GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
-    LOOP_COMPLETED = 'loop_completed',
-    MASTER_PAN_CHANGED = 'master_pan_changed',
-    MASTER_VOLUME_CHANGED = 'master_volume_changed',
-    MUTE_GLOBAL = 'mute_global',
-    MUTED = 'muted',
-    OPTIONS_UPDATED = 'options_updated',
-    PAN_CHANGED = 'pan_changed',
-    PAUSED = 'paused',
-    PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
-    PROGRESS = 'progress',
-    RESET = 'reset',
-    RESUMED = 'resumed',
-    SEEKED = 'seeked',
-    SPATIAL_POSITION_CHANGED = 'spatial_position_changed',
-    SPATIAL_POSITION_RESET = 'spatial_position_reset',
-    SPRITE_SET = 'sprite_set',
-    STARTED = 'started',
-    STOPPED = 'stopped',
-    UNMUTE_GLOBAL = 'unmute_global',
-    UNMUTED = 'unmuted',
-    UPDATED_URL = 'updated_url',
-    VOLUME_CHANGED = 'volume_changed',
+  ENDED = 'ended',
+  ERROR = 'error',
+  FADE_IN_COMPLETED = 'fade_in_completed',
+  FADE_MASTER_IN_COMPLETED = 'fade_master_in_completed',
+  FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
+  FADE_OUT_COMPLETED = 'fade_out_completed',
+  GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
+  LOOP_COMPLETED = 'loop_completed',
+  MASTER_PAN_CHANGED = 'master_pan_changed',
+  MASTER_VOLUME_CHANGED = 'master_volume_changed',
+  MUTE_GLOBAL = 'mute_global',
+  MUTED = 'muted',
+  OPTIONS_UPDATED = 'options_updated',
+  PAN_CHANGED = 'pan_changed',
+  PAUSED = 'paused',
+  PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
+  PROGRESS = 'progress',
+  RESET = 'reset',
+  RESUMED = 'resumed',
+  SEEKED = 'seeked',
+  SPATIAL_POSITION_CHANGED = 'spatial_position_changed',
+  SPATIAL_POSITION_RESET = 'spatial_position_reset',
+  SPRITE_SET = 'sprite_set',
+  STARTED = 'started',
+  STOPPED = 'stopped',
+  UNMUTE_GLOBAL = 'unmute_global',
+  UNMUTED = 'unmuted',
+  UPDATED_URL = 'updated_url',
+  VOLUME_CHANGED = 'volume_changed',
 }
 ```
 
@@ -699,6 +707,90 @@ Features are automatically adapted based on browser support:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.0.0 (Major udpate)
+
+ - Added more utility methods for better sound state management and control.
+ - Renamed the following methods
+| Old Method                               | New Method                                |
+| ---------------------------------------- | ----------------------------------------- |
+| `soundManager.setSoundPosition(id)`      | `soundManager.setSpatialPosition(id)`     |
+| `soundManager.resetSoundPosition(id)`    | `soundManager.resetSpatialPosition(id)`   |
+| `playOptions`  (interface)               | `PlayOptions` (interface)                 |
+| `preloadSounds`                          | `loadSounds`                              |
+
+- Added new methods
+
+  ```typescript
+  getVolume(id: string): number;
+
+    // Loop control
+  setLoop(id: string, loop: boolean): void
+  getLoop(id: string): boolean
+
+  loadSound(id: string, url: string): Promise<void>;
+  unloadSound(id: string): void
+  removeSound(id: string): void
+
+  // State checks
+  getSoundCount(): number;
+  isReady(): boolean;
+
+  // Progress tracking
+  getDuration(id: string): number;
+  startProgressTracking(id: string): void;
+  stopProgressTracking(id: string): void;
+
+  // Spatial audio
+  setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipEvent?: boolean): void;
+  getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null;
+
+  // Context management
+  suspendContext(): Promise<void>;
+  resumeContext(): Promise<void>;
+  getContext(): AudioContext;
+
+  // Utilities
+  getSound(id: string): Sound | undefined;
+  getBuffer(id: string): AudioBuffer | undefined;
+  getSource(id: string): AudioBufferSourceNode | undefined;
+  getGainNode(id: string): GainNode | undefined;
+  getSoundIds(): string[];
+  getLastError(): Error | null;
+  roundValue(value: number, decimals: number): number; // Default precision is this.DEFAULT_PRECISION
+
+  // Listeners / Event handling
+  dispatchEvent(event: SoundEvent): void;
+  hasEventListener(type: SoundEventsEnum): boolean;
+  
+  }
+```
+
+- Added more PlayOptions
+  * newSoundInstance (if false, it will use the previously instance of the sound)
+  * playbackRate
+  * isSeeking
+  * duration (miliseconds)
+  * pauseAtDurationReached (by default it will trigger the stop method when the duration is reached)
+  
+- Added more information to the getSoundState(id) `SoundStateInfo`
+  * elapsedTime
+  * panSpatialPosition
+  * rawDuration
+
+- Rebuild demo page
+  * seperate component for the spatial grid
+  * added dark theme
+  * seperate component master constrols
+  * seperate component sound controls
+  
+- Bug fixes
+  * startTime in PlayOptions was not working correctly.
+  * fix issues with spatial audio
+  * fix reset method
+  * playBackRate
+  * fadeIn / fadeOut
+
 
 ### 4.0.0 (Major update)
 

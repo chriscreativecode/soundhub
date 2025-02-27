@@ -13,6 +13,7 @@ export enum SoundEventsEnum {
     MUTED = 'muted',
     OPTIONS_UPDATED = 'options_updated',
     PAN_CHANGED = 'pan_changed',
+    PAN_RESET = 'pan_reset',
     PAUSED = 'paused',
     PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
     PROGRESS = 'progress',
@@ -26,6 +27,7 @@ export enum SoundEventsEnum {
     STOPPED = 'stopped',
     UNMUTE_GLOBAL = 'unmute_global',
     UNMUTED = 'unmuted',
+    UNLOADED = 'unloaded',
     UPDATED_URL = 'updated_url',
     VOLUME_CHANGED = 'volume_changed',
   }
