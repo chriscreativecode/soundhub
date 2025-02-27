@@ -629,12 +629,22 @@ export class SoundManager implements SoundManagerInterface {
 
       // Get the current playback position from the sound's state
       const playbackRate = sound.playOptions?.playbackRate || 1;
-      const { currentTime, startTime } = this.getSoundState(id);
-      sound.currentTime = currentTime;
-      sound.pausedAt = currentTime;
 
-      console.log(`pauze with: \n -startTime : ${startTime}\n - currentTime: ${sound.currentTime}\n - pausedAt: ${(sound.pausedAt || 0)}`);
+      // Calculate the raw elapsed time since start
+      const rawElapsedTime = (this.context.currentTime - (sound.startTime || 0)) * playbackRate;
 
+      // Store raw time values
+      sound.currentTime = rawElapsedTime;
+      sound.pausedAt = rawElapsedTime;
+
+      console.log(`pause with:
+        Raw elapsed time: ${rawElapsedTime}
+        Adjusted time: ${rawElapsedTime / playbackRate}
+        StartTime: ${sound.startTime}
+        CurrentTime: ${sound.currentTime}
+        PausedAt: ${sound.pausedAt}
+        PlaybackRate: ${playbackRate}
+    `);
       // Update state
       sound.state = SoundState.Paused;
 
@@ -830,22 +840,23 @@ export class SoundManager implements SoundManagerInterface {
       const rawDuration = sound.buffer?.duration || 0;
       const playbackRate = sound.playOptions?.playbackRate || 1;
 
-// Clamp time to valid range (using raw duration)
-const clampedTime = Math.max(0, Math.min(time, rawDuration));
 
-      // Always store the actual position regardless of play state
+      // Convert UI time (adjusted) back to raw time for internal storage
+      const rawTime = time * playbackRate;
+
+      // Clamp time to valid range (using raw duration)
+      const clampedTime = Math.max(0, Math.min(rawTime, rawDuration));
+
+      // Store the raw time position
       sound.currentTime = clampedTime;
       sound.pausedAt = clampedTime;
-      // If the sound is currently playing, stop it and restart from the new position
-      // If sound is playing, restart from new position
+
       if (sound.state === SoundState.Playing) {
         this.cleanupExistingSource(id);
-
-        // Update startTime to maintain correct progress calculation
         sound.startTime = this.context.currentTime - (clampedTime / playbackRate);
 
         this.play(id, {
-          startTime: clampedTime * 1000, // Convert to milliseconds
+          startTime: clampedTime * 1000,
           newSoundInstance: false,
           isSeeking: true
         });
@@ -1407,15 +1418,14 @@ const clampedTime = Math.max(0, Math.min(time, rawDuration));
 
     const playbackRate = sound.playOptions?.playbackRate || 1;
     const rawDuration = sound.buffer?.duration || 0;
-   
     const adjustedDuration = rawDuration / playbackRate;
 
     let currentTime = 0;
     let elapsedTime = 0;
 
     if (sound.state === SoundState.Playing) {
-      // Calculate elapsed time since start
-      elapsedTime = (this.context.currentTime - (sound.startTime || 0)) * playbackRate;
+      // Calculate elapsed time in raw seconds
+      elapsedTime = (this.context.currentTime - (sound.startTime || 0 )) * playbackRate;
       currentTime = elapsedTime;
 
       if (sound.playOptions?.loop) {
@@ -1427,11 +1437,13 @@ const clampedTime = Math.max(0, Math.min(time, rawDuration));
       elapsedTime = currentTime;
     }
 
-    // Progress should always be relative to raw duration
-    let progressRatio = rawDuration > 0 ? currentTime / rawDuration : 0;
-    // if(playbackRate !== 1) {
-    //   progressRatio = progressRatio * playbackRate;
-    // }
+    // Progress calculation using raw time values
+    const progressRatio = rawDuration > 0 ? currentTime / rawDuration : 0;
+
+    // Adjust times for UI display
+    const adjustedElapsedTime = elapsedTime / playbackRate;
+    const adjustedCurrentTime = currentTime / playbackRate;
+
 
     console.log('getSoundState progress', progressRatio, 'elapsedTime', elapsedTime);
 
@@ -1455,10 +1467,10 @@ const clampedTime = Math.max(0, Math.min(time, rawDuration));
     return {
       progress: this.roundValue(progressRatio, 4),
       startTime: sound.startTime || 0,
-      currentTime: this.roundValue(currentTime, 4),
-      elapsedTime: this.roundValue(elapsedTime, 4),
-      adjustedElapsedTime: this.roundValue(elapsedTime, 4),
-      duration: this.roundValue(adjustedDuration, 4),
+      currentTime: this.roundValue(adjustedCurrentTime, 4), // Adjusted for UI
+      elapsedTime: this.roundValue(adjustedElapsedTime, 4), // Adjusted for UI
+      adjustedElapsedTime: this.roundValue(elapsedTime, 4), // Raw value
+      duration: this.roundValue(adjustedDuration, 4), // Adjusted for UI
       rawDuration: this.roundValue(rawDuration, 4),
       state: sound.state || SoundState.Stopped,
       volume: sound.volume || sound?.playOptions?.volume || this.config.defaultVolume || 1,
