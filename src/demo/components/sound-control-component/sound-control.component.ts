@@ -311,16 +311,19 @@ export class SoundControl {
 
           // Recalculate the delay dynamically
           const delay = getDelay();
-          console.log('Current delay:', delay); // Debugging: Log the current delay
 
           // Clear the existing interval and set a new one with the updated delay
           if (intervalId) clearInterval(intervalId);
           intervalId = window.setInterval(intervalCallback, delay);
+          const value = parseFloat((this.playbackRateInput).value);
+          this.updatePlaybackRateDisplay(value);
+          this.soundManager.setPlaybackRate(this.id, value, false);
         };
 
         // Start the first iteration with the initial delay
         const initialDelay = getDelay();
         intervalId = window.setInterval(intervalCallback, initialDelay);
+
       };
 
       const stopRepeating = () => {
@@ -355,6 +358,7 @@ export class SoundControl {
   }
 
   private handlePlaybackRateChange(event: Event): void {
+    console.log('handle playbackRate Chagne', event);
     const value = parseFloat((event.target as HTMLInputElement).value);
     this.updatePlaybackRateDisplay(value);
     this.soundManager.setPlaybackRate(this.id, value);
@@ -574,9 +578,6 @@ export class SoundControl {
   }
 
   private updateTimeDisplay(currentTime: number): void {
-    if(currentTime > 12) {
-      console.log('updateTimeDisplay', currentTime);
-    }
     const timeDisplay = this.element.querySelector(".time-display");
     const state = this.soundManager.getSoundState(this.id);
     if (timeDisplay && state?.duration) {
