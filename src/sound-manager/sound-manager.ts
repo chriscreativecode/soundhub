@@ -789,16 +789,11 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      // Update the sound's playOptions with the new rate
-      sound.playOptions = {
-        ...sound.playOptions,
-        playbackRate: rate,
-      };
       // Update the playback rate
       const playbackRate = sound.playOptions.playbackRate ?? rate ?? 1;
       source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
-      if (!skipDispatchEvent) {
+    if (!skipDispatchEvent) {
         // Dispatch event
         this.dispatchEvent({
           type: SoundEventsEnum.PLAYBACK_RATE_CHANGED,
@@ -808,7 +803,7 @@ export class SoundManager implements SoundManagerInterface {
           sound
         });
         this.seek(id, this.getSoundState(id).currentTime);
-      }
+    }
       this.debugLog(`Playback rate set for sound ${id}: ${rate}`);
     } catch (error) {
       this.handleError("setting playback rate", error, id);
