@@ -20,11 +20,10 @@ export interface Sound {
   playOptions?: PlayOptions;
   previousVolume?: number;
   sprite?: { [key: string]: [number, number] }; // Sprite support
-  offset?: number;
-  startTime?: number;
+  startTime?: number; // in seconds
   state?: SoundState;
   stereoPanner?: StereoPannerNode | null; // just plain left to right panning
-  volume?: number;
-  duration?: number;
-  currentTime?:number;
+  volume?: number; // values from 0 to 1
+  duration?: number; // in seconds
+  currentTime?:number; // in seconds
 }

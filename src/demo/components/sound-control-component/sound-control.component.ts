@@ -16,7 +16,7 @@ export interface SoundControlState {
   isPaused: boolean;
   isMuted: boolean;
   volume: number;
-  currentTime: number;
+  elapsedTime: number;
   duration: number;
   pan: number;
   panSpatialPosition: { x: number; y: number; z: number };
@@ -43,13 +43,17 @@ export class SoundControl {
   private soundManagerConfig: SoundManagerConfig;
   private spatialGrid: SpatialGrid;
   private isUpdatingUI = false;
+  private loopCheckbox: HTMLInputElement;
+  private maxLoopsSelect: HTMLSelectElement;
+  private loopSettings: HTMLElement;
+  private maxLoopsInput: HTMLInputElement;
 
   private state: SoundControlState = {
     isPlaying: false,
     isPaused: false,
     isMuted: false,
     volume: 1,
-    currentTime: 0,
+    elapsedTime: 0,
     duration: 0,
     pan: 0,
     panSpatialPosition: { x: 0, y: 0, z: 0 },
@@ -65,16 +69,68 @@ export class SoundControl {
   ) {
     this.element = this.createControl();
     this.soundManagerConfig = this.soundManager.getConfig();
+
     this.progressSlider = this.element.querySelector(".progress-slider")!;
     this.panSlider = this.element.querySelector(".pan-slider")!;
     this.playbackRateInput = this.element.querySelector(".playback-rate-input")!;
     this.volumeSlider = this.element.querySelector(".volume-slider")!;
+    this.loopCheckbox = this.element.querySelector(".loop-checkbox")!;
+    this.maxLoopsSelect = this.element.querySelector(".max-loops-select")!;
+    this.loopSettings = this.element.querySelector(".loop-settings")!;
+    this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
+
+    // Initialize currentOptions with default values from soundManagerConfig and HTML inputs
+    this.initializeCurrentOptions();
+
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
     this.spatialGrid = new SpatialGrid(this.element.querySelector(".spatial-grid-container-wrapper")!, this.soundManager, this.id);
     this.container.appendChild(this.element);
-    this.updateUIFromState();
+    this.updateState();
+  }
+
+  private initializeCurrentOptions(): void {
+    this.currentOptions = {
+      loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
+      maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
+      volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
+      pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
+      playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
+
+      startTime: 1,
+      duration: 2,
+    };
+    this.applyCurrentOptions();
+  }
+
+  private applyCurrentOptions(): void {
+    if (this.currentOptions.volume !== undefined) {
+      this.soundManager.setSoundVolume(this.id, this.currentOptions.volume, true);
+      this.volumeSlider.value = this.currentOptions.volume.toString();
+    }
+    if (this.currentOptions.pan !== undefined) {
+      this.soundManager.setPan(this.id, this.currentOptions.pan, true);
+      this.panSlider.value = this.currentOptions.pan.toString();
+    }
+    if (this.currentOptions.playbackRate !== undefined) {
+      this.soundManager.setPlaybackRate(this.id, this.currentOptions.playbackRate, true);
+      this.playbackRateInput.value = this.currentOptions.playbackRate.toString();
+    }
+
+    if (this.currentOptions.loop !== undefined) {
+      this.soundManager.setLoop(this.id, this.currentOptions.loop, this.currentOptions.maxLoops);
+      this.loopCheckbox.checked = this.currentOptions.loop;
+    }
+
+    if (this.currentOptions && this.currentOptions.maxLoops !== undefined) {
+      this.soundManager.setLoop(this.id, this.currentOptions.loop ?? false, this.currentOptions.maxLoops);
+    }
+
+    if (this.currentOptions.startTime !== undefined) {
+      this.soundManager.seek(this.id, this.currentOptions.startTime, true);
+    }
+
   }
 
   private initializeSoundEventListeners(): void {
@@ -138,9 +194,9 @@ export class SoundControl {
       isPaused: soundState.state === SoundState.Paused,
       isMuted: soundState.volume === 0,
       volume: soundState.volume,
-      currentTime: soundState.elapsedTime,
+      elapsedTime: soundState.elapsedTime,
       duration: soundState.duration ?? 0,
-      pan: soundState.pan ?? 0,
+      pan: soundState.pan ?? this.currentOptions?.pan ?? 0,
       panSpatialPosition: soundState.panSpatialPosition ?? { x: 0, y: 0, z: 0 },
       progress: soundState.progress * 100 || 0,
       playbackRate: soundState.playbackRate || 1
@@ -165,13 +221,17 @@ export class SoundControl {
       this.element.querySelector(`.${className}`)!.toggleAttribute("disabled", disabled);
     });
 
+    // Update playback rate only if it has changed
+    const newPlaybackRate = parseFloat(this.playbackRateInput.value);
+    if (newPlaybackRate !== this.state.playbackRate) {
+      this.soundManager.setPlaybackRate(this.id, newPlaybackRate, true);
+    }
+
     this.updateVolumeDisplay(this.state.volume);
     this.updatePanDisplay(this.state.pan);
     this.updateMuteButtonIcon(this.state.isMuted);
     this.updateProgress(this.state.progress); // also calls updateTimeDisplay
-
-    const value = parseFloat(this.playbackRateInput.value);
-    this.soundManager.setPlaybackRate(this.id, value, true);
+    this.updateTimeDisplay(this.state.elapsedTime);
 
     if (this.state) {
       const currentPosition = this.spatialGrid.getCurrentPosition();
@@ -358,10 +418,10 @@ export class SoundControl {
   }
 
   private handlePlaybackRateChange(event: Event): void {
-    console.log('handle playbackRate Chagne', event);
     const value = parseFloat((event.target as HTMLInputElement).value);
     this.updatePlaybackRateDisplay(value);
     this.soundManager.setPlaybackRate(this.id, value);
+    this.updateState();
   }
 
   private updatePlaybackRateDisplay(playbackRate: number): void {
@@ -371,7 +431,7 @@ export class SoundControl {
       return;
     }
     this.playbackRateInput.value = playbackRate.toString();
-    this.updateTimeDisplay(this.state.currentTime);
+    this.updateTimeDisplay(this.state.elapsedTime);
   }
 
   private seekPosition(time: number): void {
@@ -394,10 +454,11 @@ export class SoundControl {
     this.playbackRateInput.value = (this.currentOptions?.playbackRate ?? 1).toString();
   }
 
+
   private updateProgress(progress: number): void {
     if (this.isDragging) return;
     this.handleRangeInput(this.progressSlider, progress);
-    this.updateTimeDisplay(this.state.currentTime);
+    this.updateTimeDisplay(this.state.elapsedTime);
   }
 
   private handleVolumeInput = (e: Event): void => {
@@ -431,7 +492,6 @@ export class SoundControl {
     const state = this.soundManager.getSoundState(this.id);
     if (state) {
       this.updatePanDisplay(state.pan);
-      this.panSlider.value = state.pan.toString();
     }
   }
 
@@ -596,28 +656,32 @@ export class SoundControl {
     const state = this.soundManager.getSoundState(this.id);
     const isPaused = state?.state === SoundState.Paused;
 
-    // this.currentOptions.duration = 5000;
-    //  this.currentOptions.startTime = 3000;
-    // this.currentOptions.pauseAtDurationReached = true;
-    // this.currentOptions.newSoundInstance = true;
+    // this.currentOptions.loop = true;
+    // this.currentOptions.duration = 4;
+    //  this.currentOptions.startTime = 3;
+    //  this.currentOptions.pan = -0.75;
+    //  this.currentOptions.pauseAtDurationReached = true;
 
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
       this.soundManager.play(this.id, this.currentOptions);
-//      this.soundManager.play(this.id, this.currentOptions); // this.currentOptions);
+      //  this.soundManager.play(this.id, this.currentOptions); // this.currentOptions);
       // setTimeout(() => {
       //   this.soundManager.play(this.id, this.currentOptions);
       // }, 1000);
     }
+    this.updateState();
   }
 
   private pause(): void {
     this.soundManager.pause(this.id);
+    this.updateState();
   }
 
   private stop(): void {
     this.soundManager.stop(this.id);
+    this.updateState();
   }
 
   private toggleMute(): void {
@@ -632,6 +696,7 @@ export class SoundControl {
       this.soundManager.mute(this.id);
       this.handleRangeInput(this.volumeSlider, 0);
     }
+    this.updateState();
   }
 
   private updateMuteButtonIcon(isMuted: boolean): void {
@@ -646,73 +711,75 @@ export class SoundControl {
 
   private fadeIn(): void {
     this.soundManager.fadeIn(this.id, 2000);
+    this.updateState();
   }
 
   private fadeOut(): void {
     this.soundManager.fadeOut(this.id, 2000);
+    this.updateState();
   }
 
   private initializeLoopControls(): void {
-    const maxLoopsSelect = this.element.querySelector(".max-loops-select") as HTMLSelectElement;
-    const loopCheckbox = this.element.querySelector(".loop-checkbox") as HTMLInputElement;
-    const loopSettings = this.element.querySelector(".loop-settings") as HTMLElement;
-    const maxLoopsInput = this.element.querySelector(".max-loops-input") as HTMLInputElement;
-
+    this.maxLoopsSelect = this.element.querySelector(".max-loops-select") as HTMLSelectElement;
+    this.loopCheckbox = this.element.querySelector(".loop-checkbox") as HTMLInputElement;
+    this.loopSettings = this.element.querySelector(".loop-settings") as HTMLElement;
+    this.maxLoopsInput = this.element.querySelector(".max-loops-input") as HTMLInputElement;
+  
     const shouldLoop = this.currentOptions.loop ?? this.soundManagerConfig.loopSounds ?? false;
-    loopCheckbox.checked = shouldLoop;
-    loopSettings.style.display = shouldLoop ? "block" : "none";
-
-    if (shouldLoop) {
-      this.currentOptions.loop = true;
+    this.loopCheckbox.checked = shouldLoop;
+    this.loopSettings.style.display = shouldLoop ? "block" : "none";
+  
+    // Only set maxLoops to -1 if it is not already defined
+    if (shouldLoop && this.currentOptions.maxLoops === undefined) {
       this.currentOptions.maxLoops = -1;
     }
-
+  
     const initialMaxLoops = this.currentOptions.maxLoops ?? (shouldLoop ? -1 : undefined);
     if (initialMaxLoops !== undefined) {
       if (initialMaxLoops === -1) {
-        maxLoopsSelect.value = "-1";
-        maxLoopsInput.style.display = "none";
+        this.maxLoopsSelect.value = "-1";
+        this.maxLoopsInput.style.display = "none";
       } else {
-        maxLoopsSelect.value = "custom";
-        maxLoopsInput.style.display = "inline";
-        maxLoopsInput.value = initialMaxLoops.toString();
+        this.maxLoopsSelect.value = "custom";
+        this.maxLoopsInput.style.display = "inline";
+        this.maxLoopsInput.value = initialMaxLoops.toString();
       }
     }
-
-    loopCheckbox.addEventListener("change", () => {
-      this.currentOptions.loop = loopCheckbox.checked;
-      loopSettings.style.display = loopCheckbox.checked ? "block" : "none";
-
-      if (loopCheckbox.checked) {
+  
+    this.loopCheckbox.addEventListener("change", () => {
+      this.currentOptions.loop = this.loopCheckbox.checked;
+      this.loopSettings.style.display = this.loopCheckbox.checked ? "block" : "none";
+  
+      if (this.loopCheckbox.checked) {
         this.currentOptions.maxLoops = -1;
-        maxLoopsSelect.value = "-1";
-        maxLoopsInput.style.display = "none";
+        this.maxLoopsSelect.value = "-1";
+        this.maxLoopsInput.style.display = "none";
       } else {
         delete this.currentOptions.maxLoops;
       }
-
+  
       this.soundManager.updateSoundOptions(this.id, {
         loop: this.currentOptions.loop,
         maxLoops: this.currentOptions.loop ? this.currentOptions.maxLoops || -1 : 0,
       });
     });
-
-    maxLoopsSelect.addEventListener("change", () => {
-      if (maxLoopsSelect.value === "-1") {
+  
+    this.maxLoopsSelect.addEventListener("change", () => {
+      if (this.maxLoopsSelect.value === "-1") {
         this.currentOptions.maxLoops = -1;
-        maxLoopsInput.style.display = "none";
+        this.maxLoopsInput.style.display = "none";
       } else {
-        maxLoopsInput.style.display = "inline";
-        this.currentOptions.maxLoops = parseInt(maxLoopsInput.value);
+        this.maxLoopsInput.style.display = "inline";
+        this.currentOptions.maxLoops = parseInt(this.maxLoopsInput.value);
       }
-
+  
       this.soundManager.updateSoundOptions(this.id, {
         maxLoops: this.currentOptions.maxLoops || 0,
       });
     });
-
-    maxLoopsInput.addEventListener("change", () => {
-      const value = parseInt(maxLoopsInput.value);
+  
+    this.maxLoopsInput.addEventListener("change", () => {
+      const value = parseInt(this.maxLoopsInput.value);
       if (value > 0) {
         this.currentOptions.maxLoops = value;
       }
@@ -720,14 +787,6 @@ export class SoundControl {
         maxLoops: this.currentOptions.maxLoops || 0,
       });
     });
-
-    if (shouldLoop) {
-      this.currentOptions = {
-        ...this.currentOptions,
-        loop: true,
-        maxLoops: -1,
-      };
-    }
   }
 
   private initializeSpatialSettings(): void {
@@ -931,7 +990,7 @@ export class SoundControl {
             isPaused: false,
             isMuted: false,
             volume: 1,
-            currentTime: 0,
+            elapsedTime: 0,
             duration: 0,
             pan: 0,
             panSpatialPosition: { x: 0, y: 0, z: 0 },
