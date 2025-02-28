@@ -1,5 +1,4 @@
 
-import { start } from "repl";
 import { PlayOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
@@ -391,14 +390,17 @@ export class SoundManager implements SoundManagerInterface {
 
       console.log(`progress: ${progress} \n - startTime: ${startTime} \n - elapsedTime: ${elapsedTime} \n - adjustedElapsedTime: ${adjustedElapsedTime} \n - currentTime: ${currentTime} \n - duration: ${duration} \n - progress: ${progress}\n - pausedAt: ${sound.pausedAt}`);
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-        //        const elapsedTime = (this.context.currentTime - startTime) * 1000;
         if (adjustedElapsedTime >= sound.playOptions.duration) {
           console.log('try to stop??');
           this.debugLog(`Sound ${id} reached specified duration: ${sound.playOptions.duration}ms`);
           if (sound.playOptions.pauseAtDurationReached) {
             this.pause(id);
           } else {
-            this.stop(id);
+            if(sound.playOptions.loop) {
+              this.play(sound.id, sound.playOptions);
+            } else {
+              this.stop(id);
+            }
           }
           return;
         }
@@ -549,14 +551,7 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      // Default newSoundInstance to true if not provided
-      const newSoundInstance = options.newSoundInstance ?? true;
-
-      // If newSoundInstance is false, try to reuse the existing source
-      if (!newSoundInstance) {
-        console.log('reuse existing source');
-        this.cleanupExistingSource(id);
-      }
+      this.cleanupExistingSource(id);
 
       const source: AudioBufferSourceNode = this.setupAudioSource(sound);
       if (!source) {
@@ -567,6 +562,11 @@ export class SoundManager implements SoundManagerInterface {
       sound.playOptions = { ...sound.playOptions, ...options };
 
       console.log('playOptions', sound.playOptions);
+
+      // Apply pan from playOptions if provided
+      const panValue = options.pan !== undefined ? options.pan : (sound.pan || 0);
+      sound.pan = panValue; // Store the pan value on the sound object
+
       // Calculate startTime considering playbackRate
       const playbackRate = sound.playOptions.playbackRate || 1;
       let startTime = 0;
@@ -574,7 +574,7 @@ export class SoundManager implements SoundManagerInterface {
         // Use pausedAt without playbackRate adjustment since it's stored in raw time
         startTime = sound.pausedAt;
       } else if (options.startTime !== undefined) {
-        startTime = options.startTime / 1000; // Convert ms to seconds
+        startTime = options.startTime; 
       }
 
       // Update timing information
@@ -595,6 +595,7 @@ export class SoundManager implements SoundManagerInterface {
           true
         );
       } else {
+        console.log('play??', id);
         this.setPan(id, sound.pan || 0, true);
       }
 
@@ -728,14 +729,15 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
-  public setLoop(id: string, loop: boolean): void {
+  public setLoop(id: string, loop: boolean, maxLoops: number = -1): void {
     const sound = this.sounds.get(id);
     if (!sound) {
       this.debugLog(`Sound ${id} not found for setting loop`);
       return;
     }
 
-    sound.playOptions = { ...sound.playOptions, loop };
+    sound.playOptions = { ...sound.playOptions, loop, maxLoops };
+    console.log('new loop options:', sound.playOptions);
     this.debugLog(`Loop set for sound ${id}: ${loop}`);
   }
 
@@ -813,12 +815,10 @@ export class SoundManager implements SoundManagerInterface {
   public seek(id: string, time: number, skipDispatchEvent: boolean = false): void {
     try {
       const sound = this.getValidatedSound(id);
-      const { duration, currentTime, elapsedTime } = this.getSoundState(id);
-      console.log('seek to', time, currentTime, elapsedTime, duration);
+      const { duration, currentTime } = this.getSoundState(id);
       // Check if the seek position is at the end of the sound
       if (time >= duration) {
         // If the sound is already stopped, do nothing
-        console.log('sound state', sound.state, sound.playOptions?.loop);
         if (sound.state === SoundState.Stopped) {
           return;
         }
@@ -852,7 +852,6 @@ export class SoundManager implements SoundManagerInterface {
 
         this.play(id, {
           startTime: clampedTime * 1000,
-          newSoundInstance: false,
           isSeeking: true
         });
       }
@@ -862,7 +861,7 @@ export class SoundManager implements SoundManagerInterface {
       this.dispatchEvent({
         type: SoundEventsEnum.SEEKED,
         soundId: id,
-        currentTime: currentTime, // Use adjusted time for event
+        currentTime: currentTime,
         timestamp: this.context.currentTime,
         sound,
       });
@@ -870,7 +869,6 @@ export class SoundManager implements SoundManagerInterface {
       this.handleError("seeking sound", error, id);
     }
   }
-
 
   // End Playback control-----------------------------------------------------------------------------------------------------------
 
@@ -885,7 +883,7 @@ export class SoundManager implements SoundManagerInterface {
     return Math.round(value * multiplier) / multiplier;
   }
 
-  public setSoundVolume(id: string, volume: number): void {
+  public setSoundVolume(id: string, volume: number, skipDispatchEvent: boolean = false): void {
     try {
       // Cancel any ongoing fade animation
       this.cancelFadeAnimation(id);
@@ -893,16 +891,18 @@ export class SoundManager implements SoundManagerInterface {
       const sound = this.getValidatedSound(id);
       const validatedVolume = this.setValidatedVolume(volume);
       sound.volume = this.roundValue(validatedVolume);
-      console.log('updated sound volume to ', sound.volume);
       sound.originalVolume = validatedVolume;
       sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
-      this.dispatchEvent({
-        type: SoundEventsEnum.VOLUME_CHANGED,
-        soundId: id,
-        timestamp: this.context.currentTime,
-        volume: sound.volume,
-        sound
-      });
+      if(!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.VOLUME_CHANGED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          volume: sound.volume,
+          sound
+        });
+      }
+
     } catch (error) {
       this.handleError("setting volume", error, id);
     }
@@ -1699,7 +1699,7 @@ export class SoundManager implements SoundManagerInterface {
     this.fadeSound(id, effectiveStartVolume, endVolume, duration);
 
     if (sound.state !== SoundState.Playing) {
-      this.play(id, { newSoundInstance: false, volume: effectiveStartVolume });
+      this.play(id, {volume: effectiveStartVolume });
     }
   }
 
@@ -1945,14 +1945,14 @@ export class SoundManager implements SoundManagerInterface {
     skipEvent: boolean = false
   ): void {
     console.log('set spatial position');
+    if(!this.isSpatialAudioEnabled()) {
+      this.debugLog("Spatial audio is not enabled or supported");
+      return;
+    }
+
     x = this.roundValue(x, 2);
     y = this.roundValue(y, 2);
     z = this.roundValue(z, 2);
-
-    if (!this.config.spatialAudio) {
-      this.debugLog("Spatial audio is not enabled");
-      return;
-    }
 
     if (!soundId) {
       this.debugLog(`Sound ${soundId} not found, global sound position will be used`);
@@ -2012,6 +2012,8 @@ export class SoundManager implements SoundManagerInterface {
       source?.disconnect();
       source?.connect(sound.pannerNode);
       sound.pannerNode.connect(sound.gainNode);
+
+
       // Example usage to set the position of the sound source
       //pannerNode.positionX.setValueAtTime(1, audioContext.currentTime); // 1 meter to the right
       //pannerNode.positionY.setValueAtTime(0, audioContext.currentTime); // Same height as the listener
@@ -2051,7 +2053,6 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    // Reset master spatial position
     if (!id) {
       this.debugLog("Resetting master spatial position");
       this.setMasterSpatialPosition(0, 0, 0);
