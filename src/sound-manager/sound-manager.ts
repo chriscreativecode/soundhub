@@ -1,4 +1,5 @@
 
+import { AudioNodeConnector } from "./audio-node-connector";
 import { PlayOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
@@ -27,10 +28,12 @@ export class SoundManager implements SoundManagerInterface {
   private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
   private activeFadeCallbacks: Map<string, () => void> = new Map();
   private isHandlingError: boolean = false;
+  private audioNodeConnector: AudioNodeConnector = new AudioNodeConnector();
   private ticker: Ticker;
   private lastError: Error | null = null;
   private masterSpatialPosition: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private readonly DEFAULT_PRECISION: number = 2;
+
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
@@ -61,6 +64,7 @@ export class SoundManager implements SoundManagerInterface {
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       this.context = new AudioContext({ latencyHint: "interactive" });
+
       // Create and connect nodes in the correct order
       this.masterGainNode = this.context.createGain();
       this.masterStereoPanner = this.context.createStereoPanner();
@@ -221,22 +225,9 @@ export class SoundManager implements SoundManagerInterface {
     source.buffer = sound.buffer;
     sound.source = source;
     source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
-    // Store the current pan value before reconnecting
-    const currentPan = sound.pan || 0;
-    // Connect audio nodes based on panning type
-    if (sound.lastPanningType === 'spatial' && sound.pannerNode) {
-      source.connect(sound.pannerNode);
-      sound.pannerNode.connect(sound.gainNode);
-    } else if (sound.stereoPanner) {
-      source.connect(sound.stereoPanner);
-      sound.stereoPanner.connect(sound.gainNode);
-      // Restore the pan value
-      sound.stereoPanner.pan.setValueAtTime(currentPan, this.context.currentTime);
-    } else {
-      source.connect(sound.gainNode);
-    }
 
-    sound.gainNode.connect(this.masterGainNode);
+    this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+
     // Set up onended handler
     source.onended = () => {
       this.debugLog(`Sound ${sound.id} ended naturally`);
@@ -249,9 +240,6 @@ export class SoundManager implements SoundManagerInterface {
 
     // Store the active source
     this.activeSources.set(sound.id, source);
-
-    // Let reconnectAudioNodes handle all the connections
-    this.reconnectAudioNodes(sound.id);
 
     return source;
   }
@@ -1462,33 +1450,7 @@ export class SoundManager implements SoundManagerInterface {
   private reconnectAudioNodes(id: string): void {
     const sound = this.sounds.get(id);
     if (!sound || !sound.source) return;
-
-    // First disconnect all nodes
-    if (sound.source) sound.source.disconnect();
-    if (sound.stereoPanner) sound.stereoPanner.disconnect();
-    if (sound.pannerNode) sound.pannerNode.disconnect();
-    sound.gainNode.disconnect();
-
-    // Then reconnect based on current panning type
-    if (sound.lastPanningType === 'spatial' && sound.pannerNode) {
-      // Spatial audio chain
-      sound.source.connect(sound.pannerNode);
-      sound.pannerNode.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-    } else if (sound.stereoPanner) {
-      // Stereo panning chain
-      sound.source.connect(sound.stereoPanner);
-      sound.stereoPanner.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-
-      // Restore pan value
-      const panValue = sound.pan || 0;
-      sound.stereoPanner.pan.setValueAtTime(panValue, this.context.currentTime);
-    } else {
-      // Direct connection
-      sound.source.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-    }
+    this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
   }
 
   public resetSound(id: string, options: SoundResetOptions = {}): void {
@@ -1925,7 +1887,7 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    const source = sound.source; //this.activeSources.get(soundId);
+    const source = sound.source; 
 
     // If stereo panning is active, reset it without dispatching PAN_CHANGED
     if (sound.stereoPanner) {
@@ -2211,13 +2173,13 @@ export class SoundManager implements SoundManagerInterface {
       const sound = this.getValidatedSound(id);
       // Clamp the pan value between -1 and 1
       const clampedValue = Math.max(-1, Math.min(1, value));
-
+  
       // Remove spatial audio if active
       if (this.isSpatialAudioActive(id)) {
         this.debugLog(`Removed 3D spatial audio, and overwritten with stereo panner for sound ${id}`);
         this.removeSpatialEffect(id);
         sound.lastPanningType = 'stereo';
-
+  
         // Reset spatial position without dispatching SPATIAL_POSITION_CHANGED
         const restoredPanSpatialPosition = { x: 0, y: 0, z: 0 };
         sound.panSpatialPosition = restoredPanSpatialPosition;
@@ -2225,32 +2187,22 @@ export class SoundManager implements SoundManagerInterface {
           sound.playOptions.panSpatialPosition = restoredPanSpatialPosition;
         }
       }
-
-      // Disconnect existing connections
-      if (sound.source) sound.source.disconnect();
-      if (sound.stereoPanner) sound.stereoPanner.disconnect();
-      sound.gainNode.disconnect();
-
+  
       // Create or update stereoPanner
       if (!sound.stereoPanner) {
         sound.stereoPanner = this.context.createStereoPanner();
       }
-
-      // Connect nodes: source -> stereoPanner -> gainNode -> masterGainNode
-      if (sound.source) {
-        sound.source.connect(sound.stereoPanner);
-      }
-      sound.stereoPanner.connect(sound.gainNode);
-      sound.gainNode.connect(this.masterGainNode);
-
+  
       // Store the pan value and update the panner
       sound.pan = clampedValue;
       sound.lastPanningType = 'stereo';
       if (sound.stereoPanner) {
-        // sound.stereoPanner.pan.linearRampToValueAtTime(clampedValue, this.context.currentTime + 0.1); // Adjust the ramp time as needed
         sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
       }
-
+  
+      // Use the AudioNodeConnector to reconnect nodes
+      this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+  
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.PAN_CHANGED,
@@ -2397,26 +2349,14 @@ export class SoundManager implements SoundManagerInterface {
     this.cleanupExistingSource(id);
     this.stopProgressTracking(id);
 
-    // Cleanup panner nodes
-    if (sound.pannerNode) {
-      sound.pannerNode.disconnect();
-      sound.pannerNode = null;
-    }
+    this.audioNodeConnector.disconnectNodes(sound);
 
-    if (sound.stereoPanner) {
-      sound.stereoPanner.disconnect();
-      sound.stereoPanner = null;
-    }
-
-    // Cleanup gain node
-    sound.gainNode.disconnect();
-
-    // Reset sound state
     sound.state = SoundState.Stopped;
     sound.startTime = sound.playOptions?.startTime ?? 0;
     sound.pausedAt = 0;
     sound.currentTime = 0;
   }
+
   public hasEventListener(type: SoundEventsEnum): boolean {
     return this.eventListeners.has(type) && this.eventListeners.get(type)!.size > 0;
   }
