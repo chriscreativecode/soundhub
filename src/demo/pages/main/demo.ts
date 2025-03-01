@@ -125,14 +125,14 @@ export class SoundManagerDemo {
 
       const soundsToLoad = [
         { id: "intro-speach", url: introSpeach},
-        // { id: "game-sound", url: gameSounds },
-        // { id: "birds", url: birds },
-        // { id: "rain", url: rain },
-        // { id: "crickets", url: crickets },
-        // { id: "brook", url: brook },
-        // { id: "magma", url: magma },
-        // { id: "we-are-dreaming-song", url: song },
-        // { id: "little-wonders-song", url: song2 },
+        { id: "game-sound", url: gameSounds },
+        { id: "birds", url: birds },
+        { id: "rain", url: rain },
+        { id: "crickets", url: crickets },
+        { id: "brook", url: brook },
+        { id: "magma", url: magma },
+        { id: "we-are-dreaming-song", url: song },
+        { id: "little-wonders-song", url: song2 },
       ];
 
       await this.soundManager.loadSounds(soundsToLoad);
@@ -171,10 +171,10 @@ export class SoundManagerDemo {
       if (id === "game-sound") {
         // Define sprites
         const sprites: { [key: string]: [number, number] } = {
-          //             intro: [0, 2000],
-          levelup: [2400, 4000],
-          jump: [4000, 5000],
-          //              fail: [5000, 7000],
+          //             intro: [0, 2],
+          levelup: [2.4, 4],
+          jump: [4, 5],
+          //              fail: [5, 7],
         };
 
         // Set sprites in sound manager
