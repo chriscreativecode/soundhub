@@ -95,10 +95,10 @@ export class SoundControl {
       loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
       maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
-      pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
+      pan: 1, //this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
 
-       startTime: 4,
+      // startTime: 4,
       // duration: 2,
     };
     this.applyCurrentOptions();
