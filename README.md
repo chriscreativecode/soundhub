@@ -186,7 +186,7 @@ soundManager
 // Play a sound
 soundManager.play("background-music", {
   volume: 0.7,
-  fadeIn: 2000,
+  fadeIn: 2,
 });
 ```
 
@@ -233,7 +233,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
           // Play a sound
           soundManager.play("background-music", {
             volume: 0.7,
-            fadeIn: 2000,
+            fadeIn: 2,
           });
 
           // Control individual sounds
@@ -255,7 +255,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
           // Play a sound
           soundManager.play("background-music", {
             volume: 0.7,
-            fadeIn: 2000,
+            fadeIn: 2,
           });
 
           // Control individual sounds
@@ -285,8 +285,8 @@ const config: SoundManagerConfig = {
   debug: true,                 // Enable debug logging
   defaultVolume: 0.8,          // Default volume (0-1)
   defaultPan: 0,               // Default stereo pan (-1 to 1)
-  fadeInDuration: 1000,        // Default fade-in duration (ms)
-  fadeOutDuration: 1000,       // Default fade-out duration (ms)
+  fadeInDuration: 1,           // Default fade-in duration (s)
+  fadeOutDuration: 1,          // Default fade-out duration (s)
   spatialAudio: false,         // Enable spatial audio
   crossOrigin: "anonymous"     // CORS setting
 };
@@ -321,7 +321,7 @@ soundManager.addEventListener(SoundEventsEnum.ENDED, (event) => {
 soundManager.play('background-music', {
     volume: 0.7,
     fadeIn: 2000,
-    fadeOut: 1000,
+    fadeOut: 1,
     pan: -0.5,
     startTime: 0
 });
@@ -341,10 +341,10 @@ soundManager.setPan('background-music', -0.5); // Pan left
 soundManager.setGlobalPan(0.3); // Slight right pan for all sounds
 
 // Fade effects
-soundManager.fadeIn('background-music', 2000); // Fade in over 2 seconds
-soundManager.fadeOut('background-music', 1000); // Fade out over 1 second
-soundManager.fadeGlobalIn(1500); // Fade in all sounds
-soundManager.fadeGlobalOut(1500); // Fade out all sounds
+soundManager.fadeIn('background-music', 2); // Fade in over 2 seconds
+soundManager.fadeOut('background-music', 1); // Fade out over 1 second
+soundManager.fadeGlobalIn(1.5); // Fade in all sounds
+soundManager.fadeGlobalOut(1.5); // Fade out all sounds
 
 // Playback rate
 soundManager.setPlaybackRate('background-music', 1.5);
@@ -357,17 +357,17 @@ const soundsToLoad = [
 await this.soundManager.preloadSounds(soundsToLoad);
 
 let mySprite: any = {
-	intro: [0, 2000],
-	levelup: [2400, 4000],
-	jump: [4000, 5000],
-	fail: [5000, 7000]
+	intro: [0, 2],
+	levelup: [2.4, 4],
+	jump: [4, 5],
+	fail: [5, 7]
 };
 
 this.soundManager.setSoundSprite("game-sound", mySprite);
 
-this.soundManager.playSprite("game-sound", "intro", { fadeIn: 1000, pan: 0.8, playbackRate: 1.5});
+this.soundManager.playSprite("game-sound", "intro", { fadeIn: 1, pan: 0.8, playbackRate: 1.5});
 this.soundManager.playSprite("game-sound", "jump", { loop: true});
-this.soundManager.playSprite("game-sound", "levelup", { fadeOut: 1000, pan: -0.8});
+this.soundManager.playSprite("game-sound", "levelup", { fadeOut: 1, pan: -0.8});
 
 setTimeout( ()=> {
     this.soundManager.playSprite(this.id, "fail", { pan: 0.8});
