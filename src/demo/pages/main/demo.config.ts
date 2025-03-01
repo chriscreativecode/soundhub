@@ -9,10 +9,10 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   defaultPlaybackRate: 1, // Default playback rate for new sounds
   defaultPan: 0, //  Default pan for new sounds (0-1)
   defaultVolume: 1, // Default volume for new sounds (0-1)
-  fadeInDuration: 1000, // Default fade-in duration in milliseconds
-  fadeOutDuration: 1000, // Default fade-out duration in milliseconds
+  fadeInDuration: 1, // Default fade-in duration in seconds
+  fadeOutDuration: 1, // Default fade-out duration in seconds
   spatialAudio: true, //  Enable spatial audio features
   loopSounds: true, // Loop all sounds by default
-  maxLoops: 3, // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  maxLoops: -1,// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Default panner settings
 };

@@ -98,8 +98,8 @@ export class SoundControl {
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
 
-      startTime: 1,
-      duration: 2,
+       startTime: 4,
+      // duration: 2,
     };
     this.applyCurrentOptions();
   }
@@ -230,7 +230,7 @@ export class SoundControl {
     this.updateVolumeDisplay(this.state.volume);
     this.updatePanDisplay(this.state.pan);
     this.updateMuteButtonIcon(this.state.isMuted);
-    this.updateProgress(this.state.progress); // also calls updateTimeDisplay
+    this.updateProgress(this.state.progress); 
     this.updateTimeDisplay(this.state.elapsedTime);
 
     if (this.state) {
@@ -710,12 +710,12 @@ export class SoundControl {
   }
 
   private fadeIn(): void {
-    this.soundManager.fadeIn(this.id, 2000);
+    this.soundManager.fadeIn(this.id, 2);
     this.updateState();
   }
 
   private fadeOut(): void {
-    this.soundManager.fadeOut(this.id, 2000);
+    this.soundManager.fadeOut(this.id, 2);
     this.updateState();
   }
 
