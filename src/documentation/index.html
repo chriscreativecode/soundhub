@@ -764,6 +764,9 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h3 id="5-0-0-major-udpate" tabindex="-1">5.0.0 (Major udpate)</h3>
 <ul>
 <li>
+<p>Changed configuration values from miliseconds to seconds.</p>
+</li>
+<li>
 <p>Added more utility methods for better sound state management and control.</p>
 </li>
 <li>
@@ -827,7 +830,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   * newSoundInstance (<span class="hljs-keyword">if</span> <span class="hljs-literal">false</span>, it will use the previously instance of the sound)
   * playbackRate
   * isSeeking
-  * duration (miliseconds)
+  * duration (seconds)
   * pauseAtDurationReached (by default it will trigger the stop method when the duration is reached)
   
 - Added more information to the getSoundState(<span class="hljs-built_in">id</span>) `SoundStateInfo`
@@ -840,6 +843,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   * added dark theme
   * seperate component master constrols
   * seperate component sound controls
+  * added playbackRate UI 
   
 - Bug fixes
   * startTime <span class="hljs-keyword">in</span> PlayOptions was not working correctly.
