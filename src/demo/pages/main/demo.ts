@@ -4,9 +4,9 @@ import "./demo.css";
 // @ts-ignore
 import introSpeach from "../../../sounds/intro-text-speach.mp3";
 // @ts-ignore
-import song from "../../../sounds/we-are-dreaming-song.mp3";
+import song from "../../../sounds/sound-surfer-constellations.mp3";
 // @ts-ignore
-import song2 from "../../../sounds/little-wonders-song.mp3";
+import song2 from "../../../sounds/little-wonders.mp3";
 // @ts-ignore
 import birds from "../../../sounds/birds-forest.mp3";
 // @ts-ignore
@@ -125,13 +125,13 @@ export class SoundManagerDemo {
 
       const soundsToLoad = [
         { id: "intro-speach", url: introSpeach},
+        { id: "sound-surfer-constellations", url: song },
         { id: "game-sound", url: gameSounds },
         { id: "birds", url: birds },
         { id: "rain", url: rain },
         { id: "crickets", url: crickets },
         { id: "brook", url: brook },
         { id: "magma", url: magma },
-        { id: "we-are-dreaming-song", url: song },
         { id: "little-wonders-song", url: song2 },
       ];
 

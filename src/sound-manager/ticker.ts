@@ -4,6 +4,7 @@ interface TickerCallback {
     interval?: number;
     lastUpdate?: number;
 }
+/** @internal */
 export class Ticker {
     private callbacks: Map<string, TickerCallback> = new Map();
     private animationFrameId: number | null = null;

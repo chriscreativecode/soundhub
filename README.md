@@ -709,7 +709,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 ## 📋 Version History
 
 ### 5.0.0 (Major udpate)
-
+ - Changed configuration values from miliseconds to seconds. 
  - Added more utility methods for better sound state management and control.
  - Renamed the following methods
 | Old Method                               | New Method                                |
@@ -770,7 +770,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
   * newSoundInstance (if false, it will use the previously instance of the sound)
   * playbackRate
   * isSeeking
-  * duration (miliseconds)
+  * duration (seconds)
   * pauseAtDurationReached (by default it will trigger the stop method when the duration is reached)
   
 - Added more information to the getSoundState(id) `SoundStateInfo`
@@ -783,6 +783,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
   * added dark theme
   * seperate component master constrols
   * seperate component sound controls
+  * added playbackRate UI 
   
 - Bug fixes
   * startTime in PlayOptions was not working correctly.
