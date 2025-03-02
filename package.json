@@ -1,7 +1,7 @@
 {
   "name": "sound-manager-ts",
   "version": "5.0.0",
-  "author": { 
+  "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
     "url": "https://www.chriscreativecode.com"
@@ -47,13 +47,13 @@
     "dev:main": "vite --mode demo-main",
     "dev:docs": "vite --mode documentation-dev",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs && npm run build:types",
+    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
     "build:demo": "npm run build:demo-main",
     "build:demo-main": "vite build --mode demo-main",
-    "build:types": "tsc --emitDeclarationOnly",
     "build:lib": "vite build --mode lib",
     "build:docs": "vite build --mode documentation-dev",
     "generate-docs": "node scripts/inject-readme.js",
+    "debug:types": "tsc --listFiles --emitDeclarationOnly",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -63,7 +63,7 @@
     "cross-env": "^7.0.3",
     "fs-extra": "^11.2.0",
     "vite": "^6.0.4",
-    "vite-plugin-dts": "^4.5.0"
+    "vite-plugin-dts": "^4.5.1"
   },
   "dependencies": {
     "github-markdown-css": "^5.8.1",

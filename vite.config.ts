@@ -1,13 +1,35 @@
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { defineConfig, UserConfig,LibraryFormats } from "vite";
+import { defineConfig, UserConfig, LibraryFormats } from "vite";
 import { readmePlugin } from "./scripts/vite-readme-plugin";
+import dts from 'vite-plugin-dts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration for building the library
-const libConfig : UserConfig = {
+const libConfig: UserConfig = {
+  plugins: [
+    dts({
+      include: ['src/index.ts', 'src/sound-manager/**/*.ts'],
+      exclude: [
+        'src/demo/**/*',
+        'src/documentation/**/*',
+        'src/sound-manager/ticker.ts',
+        'src/sound-manager/audio-node-connector.ts'
+      ],
+      outDir: 'dist/types',
+      rollupTypes: false, // Set this to false to preserve directory structure
+
+      beforeWriteFile: (filePath, content) => {
+        const excludedFiles = ['ticker.d.ts', 'audio-node-connector.d.ts'];
+        if (excludedFiles.some(file => filePath.includes(file))) {
+          return false;
+        }
+        return { filePath, content };
+      }
+    })
+  ],
   build: {
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
@@ -25,7 +47,7 @@ const libConfig : UserConfig = {
   }
 };
 
-const devConfig : UserConfig = {
+const devConfig: UserConfig = {
   root: ".",
   base: "/",
   build: {

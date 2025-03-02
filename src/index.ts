@@ -1,2 +1,11 @@
-export { SoundManager } from './sound-manager/sound-manager';
-export * from './types';  // This will exports all types in the folder types
+export * from './sound-manager/sound-manager.interface';
+export * from './sound-manager/sound.interface';
+export * from './sound-manager/sound-manager-config';
+export * from './sound-manager/sound-events.enum';
+export * from './sound-manager/play-sound-options.interface';
+export * from './sound-manager/sound-reset-options.interface';
+export * from './sound-manager/sound-progress-state-info';
+export * from './sound-manager/sound-panner-config';
+export * from './sound-manager/sound-event.interface';
+export * from './sound-manager/sound-state.interface';
+export * from './sound-manager/sound-state-info.interface';
