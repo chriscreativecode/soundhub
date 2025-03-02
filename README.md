@@ -5,7 +5,7 @@
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
 [![npm downloads](https://img.shields.io/npm/dt/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 
-A powerful yet lightweight (7KB gzipped) sound management system built on the modern Web Audio API. Perfect for web applications, games, and interactive experiences that demand precise audio control.
+A powerful and lightweight (11KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
 ## Live demo
 
@@ -16,7 +16,7 @@ A powerful yet lightweight (7KB gzipped) sound management system built on the mo
 🚀 **Modern & Efficient**
 
 - Built on the latest Web Audio API
-- Tiny footprint: only 7KB gzipped
+- Only 11 KB gzipped
 - Zero dependencies
 - High performance with low latency
 
@@ -279,17 +279,23 @@ If you prefer to include Sound Manager directly as a library file in your projec
 import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager-ts';
 
 // Optional configuration
-const config: SoundManagerConfig = {
-  autoMuteOnHidden: true,      // Mute when tab is hidden
-  autoResumeOnFocus: true,     // Resume on tab focus
-  debug: true,                 // Enable debug logging
-  defaultVolume: 0.8,          // Default volume (0-1)
-  defaultPan: 0,               // Default stereo pan (-1 to 1)
-  fadeInDuration: 1,           // Default fade-in duration (s)
-  fadeOutDuration: 1,          // Default fade-out duration (s)
-  spatialAudio: false,         // Enable spatial audio
-  crossOrigin: "anonymous"     // CORS setting
-};
+export interface SoundManagerConfig {
+  autoMuteOnHidden: true; // Automatically mute when page or tab of your browser is not active
+  autoResumeOnFocus: true; // Automatically resume when page or tab of your browser gets focus
+  autoMuteOnHidden: true, // When the page is hidden, all sounds are muted
+  autoResumeOnFocus: true, // when the page is focused again, all sounds are resumed
+  crossOrigin: null, // CORS setting for audio files
+  debug: false,  //  Enable debug logging
+  defaultPlaybackRate: 1, // Default playback rate for new sounds
+  defaultPan: 0, //  Default pan for new sounds (0-1)
+  defaultVolume: 1, // Default volume for new sounds (0-1)
+  fadeInDuration: 1, // Default fade-in duration in seconds
+  fadeOutDuration: 1, // Default fade-out duration in seconds
+  spatialAudio: true, //  Enable spatial audio features
+  loopSounds: false, // Loop all sounds by default
+  maxLoops: -1,// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Default panner settings
+}
 
 // Initialize sound manager with config
 const soundManager = new SoundManager(config);
@@ -376,10 +382,10 @@ setTimeout( ()=> {
 
 // 3D Spatial Audio
 // Set on a specific sound the 3d / spatial audio positioni
-soundManager.setSpatialPosition(5, 3, -2, 'background-music');
+soundManager.setSpatialPosition(5, 0, -2, 'background-music');
 
 // Set the master spatial position (x, y, z)
-soundManager.setMasterSpatialPosition(10, 5, -3);
+soundManager.setMasterSpatialPosition(10, 0, -3);
 
 // Mute controls
 soundManager.muteAllSounds();
@@ -436,18 +442,23 @@ soundManager.destroy();
 ```typescript
 export interface SoundManagerInterface {
   // Playback control
-  play(id: string, options?: PlayOptions): void;
-  playSprite(id: string, spriteKey: string, options: PlayOptions): void
-  pause(id: string): void;
-  resume(id: string): void;
-  stop(id: string): void;
-  seek(id: string, time: number): void;
+  play(id: string, options?: PlayOptions, skipDispatchEvent?: boolean): void;
+  playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent?: boolean): void
+  pause(id: string, skipDispatchEvent?: boolean): void;
+  resume(id: string, skipDispatchEvent?: boolean): void;
+  stop(id: string, skipDispatchEvent?: boolean): void;
+  seek(id: string, time: number, skipDispatchEvent?: boolean): void;
 
   // Volume control
+  getVolume(id: string): number;
   setSoundVolume(id: string, volume: number): void;
   getSoundVolume(id: string): number;
   setGlobalVolume(volume: number): void;
   getGlobalVolume(): number;
+
+  // Loop control
+  setLoop(id: string, loop: boolean): void
+  getLoop(id: string): boolean
 
   // Mute control
   muteAllSounds(): void;
@@ -458,8 +469,11 @@ export interface SoundManagerInterface {
   toggleMute(id: string): void;
 
   // Sound loading and management
-  preloadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
+  loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
+  loadSound(id: string, url: string): Promise<void>;
   updateSoundUrl(id: string, newUrl: string): Promise<void>;
+  unloadSound(id: string): void
+  removeSound(id: string): void
   isSoundLoaded(id: string): boolean;
   hasSound(id: string): boolean;
 
@@ -468,14 +482,18 @@ export interface SoundManagerInterface {
   isPaused(id: string): boolean;
   isStopped(id: string): boolean;
   getSoundState(id: string): SoundStateInfo;
+  getSoundCount(): number;
+  isReady(): boolean;
 
   // Progress tracking
-  
   getCurrentTime(id: string): number;
+  getDuration(id: string): number;
   getProgress(id: string): number; // Returns the progress as a ratio (0-1)
   getProgressPercentage(id: string): number;
+  startProgressTracking(id: string): void;
+  stopProgressTracking(id: string): void;
 
-   // Batch operations
+  // Batch operations
   stopAllSounds(): void;
   pauseAllSounds(): void;
   resumeAllSounds(): void;
@@ -489,36 +507,56 @@ export interface SoundManagerInterface {
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
-  setSpatialPosition(x: number, y: number, z: number, id?: string | null, soundPannerConfig?: SoundPannerConfig): void;
-  setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig): void;
+  setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipEvent?: boolean): void;
+  getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null;
+  setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig, skipEvent?: boolean): void;
   resetSpatialPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
-  updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void 
+  updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void;
 
   // Pan control
   setPan(id: string, pan: number): void;
   removePan(id: string): void;
   setGlobalPan(value: number): void;
   getGlobalPan(): number;
+  resetPan(id?: string): void;
   resetGlobalPan(): void;
   cleanupGlobalPan(): void;
   isStereoPanActive(id: string): boolean;
 
-  // Utility
+  // Sprite logic
+  setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void;
+  getSpriteConfig(id: string): { [key: string]: [number, number] } | undefined;
+  removeSpriteConfig(id: string): void 
+
+  // Context management
+  suspendContext(): Promise<void>;
+  resumeContext(): Promise<void>;
+  getContext(): AudioContext;
+
+  // Utilities
   setDebugMode(debug: boolean): void;
   getConfig(): Readonly<SoundManagerConfig>;
   getSound(id: string): Sound | undefined;
+  getBuffer(id: string): AudioBuffer | undefined;
+  getSource(id: string): AudioBufferSourceNode | undefined;
+  getGainNode(id: string): GainNode | undefined;
   getSoundIds(): string[];
   updateSoundOptions(soundId: string, options: Partial<PlayOptions>): void;
   setPlaybackRate(id: string, rate: number): void;
-  setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void;
+  getLastError(): Error | null;
+  roundValue(value: number, decimals: number): number; // Default precision is this.DEFAULT_PRECISION
   destroy(): void;
 
-  // listeners
+  // Listeners / Event handling
   addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
   removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
+  dispatchEvent(event: SoundEvent): void;
+  hasEventListener(type: SoundEventsEnum): boolean;
+
 }
+
 ```
 
 ## PlayOptions
@@ -527,20 +565,19 @@ Options for playing a sound
 
 ```typescript
 export interface PlayOptions {
-  fadeIn?: number;
-  fadeInStartVolume?: number;
-  fadeOut?: number;
+  fadeIn?: number; // in seconds
+  fadeInStartVolume?: number; // 0 to 1
+  fadeOut?: number; // in seconds
   pan?: number; // -1 (left) to 1 (right)
   panSpatialPosition?: { x: number; y: number; z: number };
-  startTime?: number; 
-  volume?: number;
-  loop?: boolean;
+  startTime?: number; // in seconds
+  volume?: number; // 0 to 1
+  loop?: boolean; // default: false
   maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
   playbackRate?: number;
-  duration?:number; // in miliseconds
+  duration?:number; // in seconds
   pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached
-  newSoundInstance?: boolean;
-  isSeeking?: boolean;
+  isSeeking?: boolean; // used internally for the seek method
 }
 ```
 
@@ -592,6 +629,7 @@ export enum SoundEventsEnum {
   MUTED = 'muted',
   OPTIONS_UPDATED = 'options_updated',
   PAN_CHANGED = 'pan_changed',
+  PAN_RESET = 'pan_reset',
   PAUSED = 'paused',
   PLAYBACK_RATE_CHANGED = 'playback_rate_changed',
   PROGRESS = 'progress',
@@ -605,6 +643,7 @@ export enum SoundEventsEnum {
   STOPPED = 'stopped',
   UNMUTE_GLOBAL = 'unmute_global',
   UNMUTED = 'unmuted',
+  UNLOADED = 'unloaded',
   UPDATED_URL = 'updated_url',
   VOLUME_CHANGED = 'volume_changed',
 }
@@ -615,17 +654,24 @@ export enum SoundEventsEnum {
 Configuration options:
 
 ```typescript
-interface SoundManagerConfig {
-  autoMuteOnHidden?: boolean; // Mute when tab hidden
-  autoResumeOnFocus?: boolean; // Resume on tab focus
-  crossOrigin?: string; // CORS setting
-  debug?: boolean; // Enable debug logs
-  defaultPan?: number; // Default pan value
-  defaultVolume?: number; // Default volume
-  fadeInDuration?: number; // Default fade-in time
-  fadeOutDuration?: number; // Default fade-out time
-  spatialAudio?: boolean; // Enable spatial audio
+export interface SoundManagerConfig {
+  autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
+  autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
+  crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
+  debug?: boolean; // Enable debug logging
+  defaultPlaybackRate?: number // The default playbackRate is 1
+  defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
+  defaultVolume?: number; // Default volume for new sounds (0-1)
+  fadeInDuration?: number; // Default fade-in duration in seconds
+  fadeOutDuration?: number; // Default fade-out duration in seconds
+  defaultStartTime?: number; // Default start time for new sounds
+  spatialAudio?: boolean; // Enable spatial audio features
+  loopSounds?: boolean // Loop all sounds by default
+  maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
+  defaultPanSpatialPosition?: { x: number; y: number; z: number };
 }
+
 ```
 
 ## Sound State Information
