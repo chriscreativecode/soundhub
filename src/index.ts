@@ -1,3 +1,4 @@
+export { SoundManager } from './sound-manager/sound-manager';
 export * from './sound-manager/sound-manager.interface';
 export * from './sound-manager/sound.interface';
 export * from './sound-manager/sound-manager-config';
