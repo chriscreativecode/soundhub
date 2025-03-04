@@ -22,6 +22,8 @@ export interface SoundEvent {
   resetOptions?: SoundResetOptions;
   sound?: Sound;
   soundId?: string;
+  originalId?: string; // Add this to track the original sound ID
+  instanceId?: string; // Add this for instance tracking
   timestamp?: number;
   type: SoundEventsEnum;
   volume?: number;

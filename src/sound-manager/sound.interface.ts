@@ -26,4 +26,5 @@ export interface Sound {
   volume?: number; // values from 0 to 1
   duration?: number; // in seconds
   currentTime?:number; // in seconds
+  instanceId?:string;
 }

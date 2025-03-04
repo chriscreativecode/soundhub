@@ -79,6 +79,28 @@ export class SoundControl {
     this.loopSettings = this.element.querySelector(".loop-settings")!;
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
+    // Testing Sound Group
+    this.soundManager.createGroup('test-group', { maxInstances: 4});
+
+    soundManager.addEventListener(
+      SoundEventsEnum.PROGRESS,
+      (event) => {
+        console.log(`Speach progress: ${event.progress}`);
+      },
+      { originalId: this.id }
+    );
+    
+    // Play with group
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'c') {
+        soundManager.play(this.id, {
+          groupId: 'test-group',
+          trackProgress: false,
+        });
+      }
+    });
+    
+
     // Initialize currentOptions with default values from soundManagerConfig and HTML inputs
     this.initializeCurrentOptions();
 
@@ -97,7 +119,7 @@ export class SoundControl {
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
-
+      trackProgress: true,
       // startTime: 4,
       // duration: 2,
     };
@@ -506,6 +528,12 @@ export class SoundControl {
 
 
   private handleSoundEvent(event: SoundEvent): void {
+    console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+    // Or track by original sound ID
+    if (event.originalId === 'piano_c') {
+      console.log(`Progress for a piano_c instance: ${event.progress}`);
+    }
+
     // First check if this event is for this specific sound or if it's a global event we should ignore
     if ((event.soundId && event.soundId !== this.id) ||
       event.type === SoundEventsEnum.MASTER_PAN_CHANGED ||
@@ -656,16 +684,25 @@ export class SoundControl {
     const state = this.soundManager.getSoundState(this.id);
     const isPaused = state?.state === SoundState.Paused;
 
+    // Create a pool for the piano note
+   // this.soundManager.createSoundPool('little-wonders-song', 5);
+
     // this.currentOptions.loop = true;
     // this.currentOptions.duration = 4;
     //  this.currentOptions.startTime = 3;
     //  this.currentOptions.pan = -0.75;
     //  this.currentOptions.pauseAtDurationReached = true;
+    setTimeout(() => {
+     let soundInstance = this.soundManager.play(this.id, this.currentOptions);
+     console.log('soundInstance', soundInstance);
+    }, 1000);
+    
 
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
-      this.soundManager.play(this.id, this.currentOptions);
+      let soundInstance2 = this.soundManager.play(this.id, this.currentOptions);
+      console.log('soundInstance2', soundInstance2);
       //  this.soundManager.play(this.id, this.currentOptions); // this.currentOptions);
       // setTimeout(() => {
       //   this.soundManager.play(this.id, this.currentOptions);

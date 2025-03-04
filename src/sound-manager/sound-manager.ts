@@ -3,6 +3,7 @@ import { AudioNodeConnector } from "./audio-node-connector";
 import { PlayOptions } from "./play-sound-options.interface";
 import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
+import { SoundGroup } from "./sound-group";
 import { DEFAULT_CONFIG, SoundManagerConfig } from "./sound-manager-config";
 import { SoundManagerInterface } from "./sound-manager.interface";
 import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "./sound-panner-config";
@@ -12,6 +13,10 @@ import { SoundState } from "./sound-state.interface";
 import { Sound } from "./sound.interface";
 import { Ticker } from "./ticker";
 
+interface EventListener {
+  callback: (event: SoundEvent) => void;
+  filter?: { originalId?: string; instancePattern?: RegExp };
+}
 
 export class SoundManager implements SoundManagerInterface {
   private readonly config: SoundManagerConfig;
@@ -24,7 +29,8 @@ export class SoundManager implements SoundManagerInterface {
   private isMuted: boolean = false;
   private previousGlobalPan: number = 0;
   private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
-  private eventListeners: Map<SoundEventsEnum, Set<(event: SoundEvent) => void>> = new Map();
+  //  private eventListeners: Map<SoundEventsEnum, Set<(event: SoundEvent) => void>> = new Map();
+  private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
   private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
   private activeFadeCallbacks: Map<string, () => void> = new Map();
   private isHandlingError: boolean = false;
@@ -33,7 +39,7 @@ export class SoundManager implements SoundManagerInterface {
   private lastError: Error | null = null;
   private masterSpatialPosition: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private readonly DEFAULT_PRECISION: number = 2;
-
+  private soundGroups: Map<string, SoundGroup> = new Map();
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
@@ -100,15 +106,21 @@ export class SoundManager implements SoundManagerInterface {
 
   public dispatchEvent(event: SoundEvent): void {
     const listeners = this.eventListeners.get(event.type);
-    if (listeners) {
-      listeners.forEach((callback) => {
-        try {
-          callback(event);
-        } catch (error) {
-          console.error(`Error in event listener for ${event.type}:`, error);
-        }
-      });
-    }
+    if (!listeners) return;
+  
+    listeners.forEach(({ callback, filter }) => {
+      // Apply filter if provided
+      if (filter) {
+        if (filter.originalId && event.originalId !== filter.originalId) return;
+        if (filter.instancePattern && !filter.instancePattern.test(event.soundId)) return;
+      }
+  
+      try {
+        callback(event);
+      } catch (error) {
+        console.error(`Error in event listener for ${event.type}:`, error);
+      }
+    });
   }
 
   private setupVisibilityHandling(): void {
@@ -131,6 +143,70 @@ export class SoundManager implements SoundManagerInterface {
 
   public setDebugMode(debug: boolean): void {
     this.config.debug = debug;
+  }
+
+
+  // Logic for the Sound Group -------------------------------------------------------------------------------------------
+  public createGroup(id: string, options: { maxInstances?: number; volume?: number } = {}): void {
+    if (this.soundGroups.has(id)) {
+      this.debugLog(`Group with id ${id} already exists.`);
+      return;
+    }
+
+    this.soundGroups.set(id, {
+      id,
+      sounds: new Set(),
+      ...options,
+    });
+
+    this.debugLog(`Created group ${id} with options:`, options);
+  }
+
+  public addToGroup(groupId: string, soundId: string): void {
+    const group = this.soundGroups.get(groupId);
+    if (!group) {
+      this.debugLog(`Group ${groupId} not found.`);
+      return;
+    }
+
+    // Check if the group has reached its max instances limit
+    if (group.maxInstances && group.sounds.size >= group.maxInstances) {
+      this.debugLog(`Group ${groupId} has reached its max instances limit (${group.maxInstances}).`);
+      return;
+    }
+
+    group.sounds.add(soundId);
+    this.debugLog(`Added sound ${soundId} to group ${groupId}.`);
+  }
+
+  public removeFromGroup(groupId: string, soundId: string): void {
+    const group = this.soundGroups.get(groupId);
+    if (!group) {
+      this.debugLog(`Group ${groupId} not found.`);
+      return;
+    }
+
+    group.sounds.delete(soundId);
+    this.debugLog(`Removed sound ${soundId} from group ${groupId}.`);
+  }
+
+  public cleanupGroup(groupId: string): void {
+    const group = this.soundGroups.get(groupId);
+    if (!group) {
+      this.debugLog(`Group ${groupId} not found.`);
+      return;
+    }
+
+    // Stop and clean up all sounds in the group
+    group.sounds.forEach((soundId) => {
+      this.stop(soundId);
+      this.sounds.delete(soundId);
+    });
+
+    group.sounds.clear();
+    this.soundGroups.delete(groupId);
+
+    this.debugLog(`Cleaned up group ${groupId}.`);
   }
 
   private isSpatialAudioSupported(): boolean {
@@ -218,6 +294,7 @@ export class SoundManager implements SoundManagerInterface {
 
     this.debugLog("Context resume handlers set up, waiting for user interaction");
   }
+
 
   private setupAudioSource(sound: Sound): AudioBufferSourceNode {
     const playbackRate = sound.playOptions?.playbackRate || 1;
@@ -311,6 +388,9 @@ export class SoundManager implements SoundManagerInterface {
     // Clear any existing tracking
     this.stopProgressTracking(id);
 
+    // Extract original ID if this is an instance
+    const originalId = id.includes('_') ? id.split('_')[0] : id;
+
     const trackProgress = () => {
       const sound = this.sounds.get(id);
       if (!sound || sound.state !== SoundState.Playing) {
@@ -339,6 +419,8 @@ export class SoundManager implements SoundManagerInterface {
       this.dispatchEvent({
         type: SoundEventsEnum.PROGRESS,
         soundId: id,
+        originalId,
+        instanceId: id,
         currentTime,
         duration: duration || 0,
         progress,
@@ -472,31 +554,49 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   // Playback control-----------------------------------------------------------------------------------------------------------
-  public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): void {
+  public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
     try {
-      const sound = this.getValidatedSound(id);
-      if (!sound) {
+      const originalSound = this.getValidatedSound(id);
+      if (!originalSound) {
         this.debugLog(`Sound ${id} not found`);
-        return;
       }
 
-      this.cleanupExistingSource(id);
+      // Create a new sound instance
+      const createNewInstance = true; // Always create a new instance for groups
+      const actualId = createNewInstance ? `${id}_${Date.now()}` : id;
 
-   
-      // Preserve the pan value if not specified in options
-      if (options.pan === undefined && sound.pan !== undefined) {
-        options.pan = sound.pan;
+      if (createNewInstance) {
+        const instance: Sound = {
+          ...originalSound,
+          id: actualId,
+          gainNode: this.context.createGain(),
+          state: SoundState.Stopped,
+          currentTime: 0,
+          startTime: options?.startTime ?? 0,
+          pausedAt: 0,
+          currentLoopCount: 0,
+        };
+
+        this.reconnectAudioNodes(actualId);
+        this.sounds.set(actualId, instance);
       }
 
-      sound.playOptions = { ...sound.playOptions, ...options };
+      const sound = this.sounds.get(actualId)!;
+      this.cleanupExistingSource(actualId);
 
+      // Add to group if specified
+      if (options.groupId) {
+        this.addToGroup(options.groupId, actualId);
+      }
+
+      // Rest of your existing play logic...
       const source: AudioBufferSourceNode = this.setupAudioSource(sound);
       if (!source) {
         this.debugLog(`Failed to create audio source for sound ${id}`);
         return;
       }
 
-      const playbackRate = sound.playOptions.playbackRate || 1;
+      const playbackRate = sound.playOptions?.playbackRate || 1;
       let startTime = 0;
       if (sound.pausedAt !== undefined && sound.pausedAt !== 0) {
         // Use pausedAt without playbackRate adjustment since it's stored in raw time
@@ -516,7 +616,9 @@ export class SoundManager implements SoundManagerInterface {
 
       sound.state = SoundState.Playing;;
 
-      this.startProgressTracking(id);
+      if (options.trackProgress) {
+        this.startProgressTracking(actualId);
+      }
 
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -526,10 +628,12 @@ export class SoundManager implements SoundManagerInterface {
           sound,
         });
       }
+      return sound;
     } catch (error) {
       this.handleError("playing sound", error, id);
     }
   }
+
   public playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent: boolean = false): void {
     const spriteId = `${id}_${spriteKey}`;
     this.play(spriteId, options, skipDispatchEvent);
@@ -990,6 +1094,7 @@ export class SoundManager implements SoundManagerInterface {
               playbackRate: this.config.defaultPlaybackRate || 1,
               pan: this.config.defaultPan || 0,
               volume: this.config.defaultVolume || 1,
+              trackProgress: true
             },
             panSpatialPosition: this.config.defaultPanSpatialPosition || { x: 0, y: 0, z: 0 },
             pan: this.config.defaultPan || 0,
@@ -1887,7 +1992,7 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    const source = sound.source; 
+    const source = sound.source;
 
     // If stereo panning is active, reset it without dispatching PAN_CHANGED
     if (sound.stereoPanner) {
@@ -2173,13 +2278,13 @@ export class SoundManager implements SoundManagerInterface {
       const sound = this.getValidatedSound(id);
       // Clamp the pan value between -1 and 1
       const clampedValue = Math.max(-1, Math.min(1, value));
-  
+
       // Remove spatial audio if active
       if (this.isSpatialAudioActive(id)) {
         this.debugLog(`Removed 3D spatial audio, and overwritten with stereo panner for sound ${id}`);
         this.removeSpatialEffect(id);
         sound.lastPanningType = 'stereo';
-  
+
         // Reset spatial position without dispatching SPATIAL_POSITION_CHANGED
         const restoredPanSpatialPosition = { x: 0, y: 0, z: 0 };
         sound.panSpatialPosition = restoredPanSpatialPosition;
@@ -2187,22 +2292,22 @@ export class SoundManager implements SoundManagerInterface {
           sound.playOptions.panSpatialPosition = restoredPanSpatialPosition;
         }
       }
-  
+
       // Create or update stereoPanner
       if (!sound.stereoPanner) {
         sound.stereoPanner = this.context.createStereoPanner();
       }
-  
+
       // Store the pan value and update the panner
       sound.pan = clampedValue;
       sound.lastPanningType = 'stereo';
       if (sound.stereoPanner) {
         sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
       }
-  
+
       // Use the AudioNodeConnector to reconnect nodes
       this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
-  
+
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.PAN_CHANGED,
@@ -2374,13 +2479,34 @@ export class SoundManager implements SoundManagerInterface {
   // End Utility methods-------------------------------------------------------------------------------------------------------------------
 
   // Listeners-----------------------------------------------------------------------------------------------------------------------------
+  public addEventListener(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void,
+    filter?: { originalId?: string; instancePattern?: RegExp }
+  ): void {
+    if (!this.eventListeners.has(type)) {
+      this.eventListeners.set(type, new Set());
+    }
 
-  public addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void {
-    this.eventListeners.get(type)?.add(callback);
+    this.eventListeners.get(type)!.add({ callback, filter });
   }
 
-  public removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void {
-    this.eventListeners.get(type)?.delete(callback);
+  public removeEventListener(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void,
+    filter?: { originalId?: string; instancePattern?: RegExp }
+  ): void {
+    const listeners = this.eventListeners.get(type);
+    if (!listeners) return;
+
+    listeners.forEach((listener) => {
+      if (
+        listener.callback === callback &&
+        JSON.stringify(listener.filter) === JSON.stringify(filter)
+      ) {
+        listeners.delete(listener);
+      }
+    });
   }
 
   // End Listeners----------------------------------------------------------------------------------------------------------------------
