@@ -12,4 +12,6 @@ export interface PlayOptions {
   duration?:number; // in seconds
   pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached
   isSeeking?: boolean; // used internally for the seek method
+  trackProgress?: boolean;
+  groupId?: string;
 }

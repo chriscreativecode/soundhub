@@ -124,15 +124,15 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
-        { id: "intro-speach", url: introSpeach},
-        { id: "sound-surfer-constellations", url: song },
-        { id: "game-sound", url: gameSounds },
-        { id: "birds", url: birds },
-        { id: "rain", url: rain },
-        { id: "crickets", url: crickets },
-        { id: "brook", url: brook },
-        { id: "magma", url: magma },
-        { id: "little-wonders-song", url: song2 },
+       { id: "intro-speach", url: introSpeach},
+        // { id: "sound-surfer-constellations", url: song },
+        // { id: "game-sound", url: gameSounds },
+        // { id: "birds", url: birds },
+        // { id: "rain", url: rain },
+        // { id: "crickets", url: crickets },
+        // { id: "brook", url: brook },
+        // { id: "magma", url: magma },
+        // { id: "little-wonders-song", url: song2 },
       ];
 
       await this.soundManager.loadSounds(soundsToLoad);
