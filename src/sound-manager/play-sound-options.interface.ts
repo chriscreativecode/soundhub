@@ -14,4 +14,5 @@ export interface PlayOptions {
   isSeeking?: boolean; // used internally for the seek method
   trackProgress?: boolean;
   groupId?: string;
+  createNewInstance?: boolean;
 }

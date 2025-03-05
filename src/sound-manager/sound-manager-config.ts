@@ -12,6 +12,8 @@ export interface SoundManagerConfig {
   fadeOutDuration?: number; // Default fade-out duration in seconds
   defaultStartTime?: number; // Default start time for new sounds
   spatialAudio?: boolean; // Enable spatial audio features
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
+  trackProgressOnNewInstance?: boolean; // Track progress of the sound when creating a new instance (default is false)
   loopSounds?: boolean // Loop all sounds by default
   maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound

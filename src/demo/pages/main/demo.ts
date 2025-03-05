@@ -28,6 +28,7 @@ import { SoundManager } from './../../../sound-manager/sound-manager';
 // @ts-ignore
 import demoTemplate from "./demo-template.html?raw";
 import { DEMO_CONFIG } from "./demo.config";
+import { LocalStorageManagerManager } from "../../services/local-storage-manager";
 
 
 export class SoundManagerDemo {
@@ -87,11 +88,11 @@ export class SoundManagerDemo {
     const themeIconMoon = document.getElementsByClassName('theme-icon--moon')[0];
     const themeIconSun = document.getElementsByClassName('theme-icon--sun')[0];
 
-    const storedTheme = localStorage.getItem('sound-manager-ts-demo-theme');
+    const storedTheme = LocalStorageManagerManager.getItem('sound-manager-ts-demo-theme');
   
     if (!storedTheme) {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      localStorage.setItem('sound-manager-ts-demo-theme', systemTheme);
+      LocalStorageManagerManager.setItem('sound-manager-ts-demo-theme', systemTheme);
     }
   
     if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -106,10 +107,10 @@ export class SoundManagerDemo {
       themeToggle.addEventListener('change', function () {
         if (this.checked) {
           body.classList.add('dark-theme');
-          localStorage.setItem('sound-manager-ts-demo-theme', 'dark');
+          LocalStorageManagerManager.setItem('sound-manager-ts-demo-theme', 'dark');
         } else {
           body.classList.remove('dark-theme');
-          localStorage.setItem('sound-manager-ts-demo-theme', 'light');
+          LocalStorageManagerManager.setItem('sound-manager-ts-demo-theme', 'light');
         }
       });
     }
@@ -124,9 +125,9 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
-       { id: "intro-speach", url: introSpeach},
-        // { id: "sound-surfer-constellations", url: song },
-        // { id: "game-sound", url: gameSounds },
+        { id: "intro-speach", url: introSpeach},
+      //   { id: "sound-surfer-constellations", url: song },
+      //  { id: "game-sound", url: gameSounds },
         // { id: "birds", url: birds },
         // { id: "rain", url: rain },
         // { id: "crickets", url: crickets },

@@ -27,4 +27,6 @@ export interface Sound {
   duration?: number; // in seconds
   currentTime?:number; // in seconds
   instanceId?:string;
+  instanceCount?:number;
+  baseId?: string; // Base sound ID (e.g., "game-sound_jump")
 }
