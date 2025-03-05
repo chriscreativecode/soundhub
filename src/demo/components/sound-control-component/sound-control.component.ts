@@ -10,6 +10,8 @@ import "./sound-control.component.css";
 /* @ts-ignore */
 import soundControlComponentHtml from "./sound-control.component.html?raw";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
+import { Sound } from "../../../sound-manager/sound.interface";
+import { LocalStorageManagerManager } from "../../services/local-storage-manager";
 
 export interface SoundControlState {
   isPlaying: boolean;
@@ -47,6 +49,7 @@ export class SoundControl {
   private maxLoopsSelect: HTMLSelectElement;
   private loopSettings: HTMLElement;
   private maxLoopsInput: HTMLInputElement;
+  private activeSounds: Map<string, Sound> = new Map(); 
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -79,27 +82,51 @@ export class SoundControl {
     this.loopSettings = this.element.querySelector(".loop-settings")!;
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
-    // Testing Sound Group
-    this.soundManager.createGroup('test-group', { maxInstances: 4});
+    // // Testing Sound Group
+    // this.soundManager.createGroup('test-group', { maxInstances: 4});
 
-    soundManager.addEventListener(
+    // // Play a new sound instance on key press
+    // document.addEventListener('keydown', (e) => {
+    //   if (e.key === 'c') {
+    //     const sound = this.soundManager.play(this.id, {
+    //       groupId: 'test-group',
+    //       trackProgress: true, // Enable progress tracking
+    //       loop: true,
+    //       createNewInstance: true
+    //     });
+    
+    //     if (sound) {
+    //       // Store the sound instance in the activeSounds map
+    //       this.activeSounds.set(sound.id, sound);
+    
+    //       // Add a listener to clean up the instance when it ends
+    //       this.soundManager.addEventListener(
+    //         SoundEventsEnum.ENDED,
+    //         (event) => {
+    //           if (event.instanceId === sound.id) {
+    //             this.activeSounds.delete(sound.id); // Remove the instance when it ends
+    //             console.log(`Sound instance ${sound.id} ended and was removed.`);
+    //           }
+    //         }
+    //       );
+    //     }
+    //   }
+    // });
+    
+    // Track progress for specific sound instances
+    this.soundManager.addEventListener(
       SoundEventsEnum.PROGRESS,
       (event) => {
-        console.log(`Speach progress: ${event.progress}`);
+        const soundInstance = event.instanceId ? this.activeSounds.get(event.instanceId) : undefined;
+        if (soundInstance) {
+          console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+          console.log(`check progress for  ${soundInstance.id} :  ${event.progress}`);
+        }
       },
-      { originalId: this.id }
+      { originalId: this.id } // Optional: Filter by originalId
     );
     
-    // Play with group
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'c') {
-        soundManager.play(this.id, {
-          groupId: 'test-group',
-          trackProgress: false,
-        });
-      }
-    });
-    
+
 
     // Initialize currentOptions with default values from soundManagerConfig and HTML inputs
     this.initializeCurrentOptions();
@@ -114,14 +141,15 @@ export class SoundControl {
 
   private initializeCurrentOptions(): void {
     this.currentOptions = {
-      loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
+      loop: false, // this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
       maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
-      trackProgress: true,
-      // startTime: 4,
-      // duration: 2,
+    //  trackProgress: true,
+      createNewInstance: false,
+      startTime: 2,
+      duration: 2,
     };
     this.applyCurrentOptions();
   }
@@ -140,13 +168,17 @@ export class SoundControl {
       this.playbackRateInput.value = this.currentOptions.playbackRate.toString();
     }
 
-    if (this.currentOptions.loop !== undefined) {
-      this.soundManager.setLoop(this.id, this.currentOptions.loop, this.currentOptions.maxLoops);
-      this.loopCheckbox.checked = this.currentOptions.loop;
-    }
-
-    if (this.currentOptions && this.currentOptions.maxLoops !== undefined) {
-      this.soundManager.setLoop(this.id, this.currentOptions.loop ?? false, this.currentOptions.maxLoops);
+    if (this.currentOptions.loop !== undefined || this.currentOptions.maxLoops !== undefined) {
+      this.soundManager.setLoop(
+        this.id,
+        this.currentOptions.loop ?? false, // Default to false if loop is undefined
+        this.currentOptions.maxLoops // Can be undefined, which is fine
+      );
+    
+      // Update the checkbox if loop is defined
+      if (this.currentOptions.loop !== undefined) {
+        this.loopCheckbox.checked = this.currentOptions.loop;
+      }
     }
 
     if (this.currentOptions.startTime !== undefined) {
@@ -438,10 +470,15 @@ export class SoundControl {
     simulateSpinnerBehavior(stepUpButton, 'stepUp');
     simulateSpinnerBehavior(stepDownButton, 'stepDown');
   }
+  
+  private updateCurrentOptions(options: Partial<PlayOptions>): void {
+    this.currentOptions = { ...this.currentOptions, ...options };
+  }
 
   private handlePlaybackRateChange(event: Event): void {
     const value = parseFloat((event.target as HTMLInputElement).value);
     this.updatePlaybackRateDisplay(value);
+    this.updateCurrentOptions({ playbackRate: value });
     this.soundManager.setPlaybackRate(this.id, value);
     this.updateState();
   }
@@ -666,9 +703,10 @@ export class SoundControl {
   }
 
   private updateTimeDisplay(currentTime: number): void {
+    console.log('update Time Display', currentTime);
     const timeDisplay = this.element.querySelector(".time-display");
     const state = this.soundManager.getSoundState(this.id);
-    if (timeDisplay && state?.duration) {
+    if (timeDisplay) {
       timeDisplay.textContent = `${this.formatTime(currentTime)} / ${this.formatTime(state.duration)}`;
     }
   }
@@ -692,17 +730,19 @@ export class SoundControl {
     //  this.currentOptions.startTime = 3;
     //  this.currentOptions.pan = -0.75;
     //  this.currentOptions.pauseAtDurationReached = true;
-    setTimeout(() => {
-     let soundInstance = this.soundManager.play(this.id, this.currentOptions);
-     console.log('soundInstance', soundInstance);
-    }, 1000);
+    // setTimeout(() => {
+    //  let soundInstance = this.soundManager.play(this.id, this.currentOptions);
+    //  console.log('soundInstance', soundInstance);
+    // }, 1000);
     
-
+    console.log('curernt options', this.currentOptions);
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
-      let soundInstance2 = this.soundManager.play(this.id, this.currentOptions);
-      console.log('soundInstance2', soundInstance2);
+      console.log('curernt options', this.currentOptions);//
+      this.soundManager.play(this.id, this.currentOptions);
+     // let soundInstance2 = this.soundManager.play(this.id, this.currentOptions);
+     // console.log('soundInstance2', soundInstance2);
       //  this.soundManager.play(this.id, this.currentOptions); // this.currentOptions);
       // setTimeout(() => {
       //   this.soundManager.play(this.id, this.currentOptions);
@@ -768,7 +808,7 @@ export class SoundControl {
   
     // Only set maxLoops to -1 if it is not already defined
     if (shouldLoop && this.currentOptions.maxLoops === undefined) {
-      this.currentOptions.maxLoops = -1;
+      this.updateCurrentOptions({ maxLoops: -1 });
     }
   
     const initialMaxLoops = this.currentOptions.maxLoops ?? (shouldLoop ? -1 : undefined);
@@ -784,15 +824,15 @@ export class SoundControl {
     }
   
     this.loopCheckbox.addEventListener("change", () => {
-      this.currentOptions.loop = this.loopCheckbox.checked;
+      this.updateCurrentOptions({ loop: this.loopCheckbox.checked });
       this.loopSettings.style.display = this.loopCheckbox.checked ? "block" : "none";
   
       if (this.loopCheckbox.checked) {
-        this.currentOptions.maxLoops = -1;
+        this.updateCurrentOptions({ maxLoops: -1 });
         this.maxLoopsSelect.value = "-1";
         this.maxLoopsInput.style.display = "none";
       } else {
-        delete this.currentOptions.maxLoops;
+        this.updateCurrentOptions({ maxLoops: undefined });
       }
   
       this.soundManager.updateSoundOptions(this.id, {
@@ -803,11 +843,11 @@ export class SoundControl {
   
     this.maxLoopsSelect.addEventListener("change", () => {
       if (this.maxLoopsSelect.value === "-1") {
-        this.currentOptions.maxLoops = -1;
+        this.updateCurrentOptions({ maxLoops: -1 });
         this.maxLoopsInput.style.display = "none";
       } else {
         this.maxLoopsInput.style.display = "inline";
-        this.currentOptions.maxLoops = parseInt(this.maxLoopsInput.value);
+        this.updateCurrentOptions({ maxLoops: parseInt(this.maxLoopsInput.value) });
       }
   
       this.soundManager.updateSoundOptions(this.id, {
@@ -818,7 +858,7 @@ export class SoundControl {
     this.maxLoopsInput.addEventListener("change", () => {
       const value = parseInt(this.maxLoopsInput.value);
       if (value > 0) {
-        this.currentOptions.maxLoops = value;
+        this.updateCurrentOptions({ maxLoops: value });
       }
       this.soundManager.updateSoundOptions(this.id, {
         maxLoops: this.currentOptions.maxLoops || 0,
@@ -906,11 +946,9 @@ export class SoundControl {
       content.classList.toggle("collapsed");
       button.style.transform = isCollapsed ? "rotate(180deg)" : "rotate(0deg)";
 
-      // Store the state in localStorage (optional)
-      localStorage.setItem(`spatial-panel-${this.id}-collapsed`, (!isCollapsed).toString());
+      LocalStorageManagerManager.setItem(`spatial-panel-${this.id}-collapsed`, (!isCollapsed).toString());
     };
 
-    // Add click handler to both header and button
     header.addEventListener("click", toggleCollapse);
 
     // Prevent double-triggering when clicking the button
@@ -919,15 +957,14 @@ export class SoundControl {
       toggleCollapse();
     });
 
-    // Restore state from localStorage (optional)
-    const savedState = localStorage.getItem(`spatial-panel-${this.id}-collapsed`);
+    const savedState = LocalStorageManagerManager.getItem(`spatial-panel-${this.id}-collapsed`);
     if (savedState === "false") {
       toggleCollapse();
     }
   }
 
   public destroy(): void {
-    // prevent any updates if it was removed from the DOM
+
     this.isUpdatingUI = true;
     try {
       this.soundManager.resetSound(this.id);
@@ -977,7 +1014,6 @@ export class SoundControl {
 
           if (this.progressSlider) {
             this.progressSlider.removeEventListener("mousedown", this.boundHandlers.setDragging);
-            // this.progressSlider.removeEventListener("input", this.boundHandlers.progressDrag);
             this.progressSlider.removeEventListener("change", this.boundHandlers.progressSeek);
           }
 

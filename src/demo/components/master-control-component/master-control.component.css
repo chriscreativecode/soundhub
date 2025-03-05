@@ -13,8 +13,20 @@ body.dark-theme .master-controls {
   background-color: var(--color-surface);
 }
 
-.control-group.sticky.master-controls {
-  background: #afdcff85;
+body .control-group.sticky.master-controls.is-stuck {
+  backdrop-filter: blur(8px);
+  border-color: rgba(255, 117, 25, 0.729);
+  box-shadow: 1px 1px 20px 1px rgba(0, 0, 0, 0.8)
+}
+
+body.dark-theme .control-group.sticky.master-controls.is-stuck {
+  backdrop-filter: blur(8px);
+}
+
+#masterControlContainer {
+  top: 10px;
+  z-index:100;
+  position: sticky;
 }
 
 .control-group.master-controls input[type="range"]::-webkit-slider-runnable-track {

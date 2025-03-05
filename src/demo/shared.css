@@ -232,22 +232,6 @@ input[type="range"]::-moz-range-thumb:active {
   flex-wrap: wrap;
 }
 
-.control-group.sticky {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.control-group.is-stuck {
-  background: rgb(255 255 255 / 70%);
-  backdrop-filter: blur(8px);
-  border-radius: 0;
-  position: fixed;
-  right: 0;
-  left: 0;
-  z-index: 20;
-}
-
 .control-group:not(.control-group .control-group) {
   border: 5px solid rgb(51 95 143 / 48%);
   border-radius: 5px;

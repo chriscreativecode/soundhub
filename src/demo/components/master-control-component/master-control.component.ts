@@ -127,10 +127,7 @@ export class MasterControl {
       this.spatialGrid = new SpatialGrid(this.containerElement.querySelector(".spatial-grid-container-wrapper")!, this.soundManager);
       this.initializeSpatialSettings();
       this.initializeSpatialControls();
-
-      document.querySelectorAll(".control-group.sticky").forEach((element) => {
-        this.createStickyObserver(element as HTMLElement);
-      });
+      this.createStickyObserver();
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
     }
@@ -388,27 +385,38 @@ export class MasterControl {
   }
 
 
-  private createStickyObserver(element: HTMLElement): () => void {
-    const originalTop = element.getBoundingClientRect().top + window.scrollY;
+  private createStickyObserver(): () => void {
     const soundControlsContainer = document.getElementById("masterControlContainer") as HTMLElement;
+    const childContainer = soundControlsContainer.querySelector(".master-controls") as HTMLElement;
+
+    // Get the initial position of the container
+    const containerRect = soundControlsContainer.getBoundingClientRect();
+    const originalTop = containerRect.top + window.scrollY;
+
+    // Get the sticky top offset from CSS
+    const stickyTop = parseInt(window.getComputedStyle(soundControlsContainer).top) || 0;
+
+    let ticking = false;
 
     const checkStuck = () => {
-      const rect = element.getBoundingClientRect();
-      const isStuck = rect.top <= 0 && window.scrollY >= originalTop;
-      element.classList.toggle("is-stuck", isStuck);
+      const currentTop = soundControlsContainer.getBoundingClientRect().top;
+      // Check if we've scrolled past the point where the container becomes sticky
+      const isStuck = currentTop <= stickyTop && window.scrollY >= (originalTop - stickyTop);
+      childContainer.classList.toggle('is-stuck', isStuck);
+      ticking = false;
+    };
 
-      if (isStuck) {
-        const stickyDivHeight = element.offsetHeight;
-        soundControlsContainer.style.marginTop = `${stickyDivHeight + 50}px`;
-      } else {
-        soundControlsContainer.style.marginTop = "0";
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(checkStuck);
+        ticking = true;
       }
     };
 
-    window.addEventListener("scroll", checkStuck, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     checkStuck();
 
-    return () => window.removeEventListener("scroll", checkStuck);
+    return () => window.removeEventListener("scroll", onScroll);
   }
 
   private setGlobalVolume(volume: number): void {
