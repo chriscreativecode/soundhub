@@ -141,15 +141,16 @@ export class SoundControl {
 
   private initializeCurrentOptions(): void {
     this.currentOptions = {
-      loop: false, // this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
+      loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
       maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
-    //  trackProgress: true,
+      trackProgress: false,
+      pauseAtDurationReached: true,
       createNewInstance: false,
       startTime: 2,
-      duration: 2,
+      duration: 4,
     };
     this.applyCurrentOptions();
   }

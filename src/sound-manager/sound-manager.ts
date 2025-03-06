@@ -289,7 +289,7 @@ export class SoundManager implements SoundManagerInterface {
     // Set up onended handler
     source.onended = () => {
       this.debugLog(`Sound ${sound.id} ended naturally`);
-      console.log(`sound ${sound.id} ended naturally`);	
+      console.log(`sound ${sound.id} ended naturally`);
       if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
         this.handleLoopIteration(sound);
       } else {
@@ -358,22 +358,29 @@ export class SoundManager implements SoundManagerInterface {
     if (sound.state === SoundState.Stopped) {
       return;
     }
-
+    if (sound.playOptions?.pauseAtDurationReached && sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
+       this.pause(sound.id);
+       sound.startTime = undefined;
+       sound.pausedAt = sound.playOptions?.startTime ?? 0;
+       sound.currentTime = 0;
+       return;
+    }
+    
     sound.state = SoundState.Stopped;
-    sound.startTime = sound.startTime = this.context.currentTime;
+    sound.startTime = undefined;
     sound.pausedAt = sound.playOptions?.startTime ?? 0;
     sound.currentTime = 0;
 
     console.log('start time after handle sound ended', sound.startTime);
 
-   if(sound.playOptions?.createNewInstance) {
-    // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
-    // because of the disconnectNodes method in the cleanupSound method
-    this.cleanupExistingSource(sound.id);
-   } else {
-    this.cleanupSound(sound.id);
-   }
-  
+    if (sound.playOptions?.createNewInstance) {
+      // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
+      // because of the disconnectNodes method in the cleanupSound method
+      this.cleanupExistingSource(sound.id);
+    } else {
+      this.cleanupSound(sound.id);
+    }
+
     this.stopProgressTracking(sound.id);
 
     // Clean up the sound
@@ -408,18 +415,21 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime } = this.getSoundState(id);
+      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime, playbackRate } = this.getSoundState(id);
       const progress = duration ? (elapsedTime / duration) : 0;
 
+
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-        if (adjustedElapsedTime >= sound.playOptions.duration) {
+        if (adjustedElapsedTime >= sound.playOptions.duration * (playbackRate || 1) + (sound.playOptions.startTime ?? 0)) {
           if (sound.playOptions.pauseAtDurationReached) {
             this.pause(id);
           } else {
             if (sound.playOptions?.loop) {
               this.handleLoopIteration(sound);
             } else {
-             this.stop(id);
+              //             this.stop(id);
+              console.log('trigger sound ended in progress tracking');
+              this.handleSoundEnded(sound);
             }
           }
           return;
@@ -601,7 +611,7 @@ export class SoundManager implements SoundManagerInterface {
         ...options, // New options passed to the play method (overwrites existing properties)
       };
       originalSound.playOptions = mergedOptions;
-    
+
       console.log('merged playOptions', originalSound.playOptions);
 
       const createNewInstance = mergedOptions.createNewInstance ?? this.config.createNewInstance ?? false;
@@ -617,7 +627,7 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       if (createNewInstance) {
-         instance = {
+        instance = {
           ...originalSound,
           id: actualId,
           gainNode: this.context.createGain(),
@@ -638,7 +648,7 @@ export class SoundManager implements SoundManagerInterface {
 
       // Use the instance-specific sound if it exists, otherwise use the original sound
       const sound = instance || originalSound;
-      
+
       this.cleanupExistingSource(actualId);
 
       // Add to group if specified
@@ -654,33 +664,35 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       const playbackRate = mergedOptions?.playbackRate || 1;
-      let startTime = 0;
+      let startOffset = 0;
       if (sound.pausedAt !== undefined && sound.pausedAt !== 0) {
-        // Use pausedAt without playbackRate adjustment since it's stored in raw time
-        startTime = sound.pausedAt;
+        startOffset = sound.pausedAt;
       } else if (mergedOptions.startTime !== undefined) {
-        startTime = mergedOptions.startTime;
-      }
-      console.log('new startTime', startTime);
-      // Update timing information
-      const currentTime = this.context.currentTime;
-      sound.currentTime = startTime;
-      if(mergedOptions.startTime !== undefined) {
-        sound.startTime = startTime / playbackRate;
-      } else {
-        sound.startTime = currentTime - (startTime / playbackRate);
-
+        startOffset = mergedOptions.startTime;
       }
 
+      // Set startTime when actually starting playback
+      sound.startTime = this.context.currentTime - (startOffset / playbackRate);
 
       console.log(`playing sound ${sound.id} with a offset: `, sound.startTime, 'rate', playbackRate);
 
       this.reconnectAudioNodes(id);
 
-      // @TODO use the duration also for the start method (when progressTracking is off)
-     // source.start(0, startTime, (options.duration ?? sound.buffer.duration) * (playbackRate ?? 1));
-      source.start(0, startTime);
+      //  if(mergedOptions.duration !== undefined && mergedOptions.duration > 0) {
+      //   if(mergedOptions.trackProgress) {
+      //     source.start(0, startOffset);
+      //   } else {
+      //     source.start(0, startOffset, mergedOptions.duration * playbackRate);
+      //   }
+      //  } else {
+      //   source.start(0, startOffset);
+      //  }
 
+      source.start(0, startOffset,
+        (mergedOptions.duration !== undefined && mergedOptions.duration > 0)
+          ? mergedOptions.duration * playbackRate
+          : undefined
+      );
       sound.state = SoundState.Playing;;
 
       if (mergedOptions.trackProgress || this.config.trackProgressOnNewInstance) {
@@ -1154,7 +1166,7 @@ export class SoundManager implements SoundManagerInterface {
             buffer: audioBuffer,
             gainNode,
             source: this.context.createBufferSource(),
-            // startTime: 0,
+            startTime: undefined,
             currentTime: 0,
             // pausedAt: 0,
             // state: SoundState.Stopped,
@@ -1511,16 +1523,14 @@ export class SoundManager implements SoundManagerInterface {
     let currentTime = 0;
     let elapsedTime = 0;
 
-    if (sound.state === SoundState.Playing) {
-      // Calculate elapsed time in raw seconds
-      elapsedTime = (this.context.currentTime - (sound.startTime || 0)) * playbackRate;
+    if (sound.state === SoundState.Playing && sound.startTime !== undefined) {
+      elapsedTime = (this.context.currentTime - sound.startTime) * playbackRate;
       currentTime = elapsedTime;
 
       if (sound.playOptions?.loop) {
         currentTime = currentTime % rawDuration;
       }
     } else {
-      // For non-playing states, use the stored position
       currentTime = sound.pausedAt || sound.currentTime || 0;
       elapsedTime = currentTime;
     }
@@ -1532,14 +1542,12 @@ export class SoundManager implements SoundManagerInterface {
     const adjustedElapsedTime = elapsedTime / playbackRate;
     const adjustedCurrentTime = currentTime / playbackRate;
 
-
-    console.log('getSoundState progress', progressRatio, 'elapsedTime', elapsedTime);
-
     this.debugLog(`Sound state for ${id}:
       State: ${sound.state}
       Progress: ${progressRatio}
-      Initial offset: ${sound.playOptions?.startTime || 0}ms
+      Initial offset: ${sound.playOptions?.startTime || 0}s
       Sound currentTime: ${sound.currentTime}s
+      Adjusted currentTime: ${this.roundValue(adjustedCurrentTime, 4)}s
       Elapsed time: ${sound.state === SoundState.Playing ? elapsedTime : 0}s
       Current time: ${currentTime}s
       Raw Duration: ${rawDuration}s
