@@ -15,7 +15,7 @@ import { Ticker } from "./ticker";
 
 interface EventListener {
   callback: (event: SoundEvent) => void;
-  filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp };
+  filter?: { originalId?: string; instancePattern?: RegExp };
 }
 
 export class SoundManager implements SoundManagerInterface {
@@ -29,6 +29,7 @@ export class SoundManager implements SoundManagerInterface {
   private isMuted: boolean = false;
   private previousGlobalPan: number = 0;
   private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
+  //  private eventListeners: Map<SoundEventsEnum, Set<(event: SoundEvent) => void>> = new Map();
   private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
   private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
   private activeFadeCallbacks: Map<string, () => void> = new Map();
@@ -39,7 +40,6 @@ export class SoundManager implements SoundManagerInterface {
   private masterSpatialPosition: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private readonly DEFAULT_PRECISION: number = 2;
   private soundGroups: Map<string, SoundGroup> = new Map();
-  private instanceCounters: Map<string, number> = new Map();
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
@@ -104,6 +104,27 @@ export class SoundManager implements SoundManagerInterface {
     this.debugLog("Initialized with config:", this.config);
   }
 
+  public dispatchEvent(event: SoundEvent): void {
+    const listeners = this.eventListeners.get(event.type);
+    if (!listeners) return;
+
+    listeners.forEach(({ callback, filter }) => {
+      // Apply filter if provided
+      if (filter) {
+        if (filter.originalId && event.originalId !== filter.originalId) return;
+        if (event.soundId) {
+          if (filter.instancePattern && !filter.instancePattern.test(event.soundId)) return;
+        }
+      }
+
+      try {
+        callback(event);
+      } catch (error) {
+        console.error(`Error in event listener for ${event.type}:`, error);
+      }
+    });
+  }
+
   private setupVisibilityHandling(): void {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
@@ -128,18 +149,25 @@ export class SoundManager implements SoundManagerInterface {
 
 
   // Logic for the Sound Group -------------------------------------------------------------------------------------------
-  public createGroup(id: string, options: { maxInstances?: number; volume?: number } = {}): void {
+  public createGroup(
+    id: string, 
+    options: { 
+      maxInstances?: number; 
+      playOptions?: PlayOptions; // Add playOptions to the group
+    } = {}
+  ): void {
     if (this.soundGroups.has(id)) {
       this.debugLog(`Group with id ${id} already exists.`);
       return;
     }
-
+  
     this.soundGroups.set(id, {
       id,
       sounds: new Set(),
-      ...options,
+      maxInstances: options.maxInstances,
+      playOptions: options.playOptions, 
     });
-
+  
     this.debugLog(`Created group ${id} with options:`, options);
   }
 
@@ -149,17 +177,26 @@ export class SoundManager implements SoundManagerInterface {
       this.debugLog(`Group ${groupId} not found.`);
       return;
     }
-
+  
     // Check if the group has reached its max instances limit
     if (group.maxInstances && group.sounds.size >= group.maxInstances) {
       this.debugLog(`Group ${groupId} has reached its max instances limit (${group.maxInstances}).`);
       return;
     }
-
+  
+    const sound = this.sounds.get(soundId);
+    if (sound) {
+      sound.groupId = groupId;
+    }
+    if (sound && group.playOptions) {
+      sound.playOptions = { ...group.playOptions, ...sound.playOptions };
+    }
+  
     group.sounds.add(soundId);
     this.debugLog(`Added sound ${soundId} to group ${groupId}.`);
   }
 
+ 
   public removeFromGroup(groupId: string, soundId: string): void {
     const group = this.soundGroups.get(groupId);
     if (!group) {
@@ -282,6 +319,7 @@ export class SoundManager implements SoundManagerInterface {
     const source = this.context.createBufferSource();
     source.buffer = sound.buffer;
     sound.source = source;
+    //sound.volume = sound.playOptions?.volume ?? sound.volume ?? this.config.defaultVolume ?? 1;
     source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
     this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
@@ -289,7 +327,6 @@ export class SoundManager implements SoundManagerInterface {
     // Set up onended handler
     source.onended = () => {
       this.debugLog(`Sound ${sound.id} ended naturally`);
-      console.log(`sound ${sound.id} ended naturally`);
       if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
         this.handleLoopIteration(sound);
       } else {
@@ -304,44 +341,26 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private handleLoopIteration(sound: Sound): void {
-    this.debugLog(`Handling loop iteration for sound ${sound.id}`);
+    this.debugLog(`Restarting loop for sound ${sound.id}`);
 
     // Check if we've reached max loops (0 means infinite)
     if (
       sound.playOptions?.maxLoops !== undefined &&
       sound.playOptions?.maxLoops > 0 &&
-      (sound.currentLoopCount ?? 0) >= sound.playOptions?.maxLoops - 1
+      (sound.currentLoopCount ?? 0) >= sound.playOptions?.maxLoops - 1  // Subtract 1 to account for initial play
     ) {
-      this.debugLog(`Max loops reached for ${sound.id}, stopping`);
+      // Reset loop count and stop the sound
       sound.currentLoopCount = 0;
       this.stop(sound.id);
       return;
     }
 
-    // Increment the loop count
+    // Increment the loop count after checking
     sound.currentLoopCount = (sound.currentLoopCount ?? 0) + 1;
-    this.debugLog(`Loop count: ${sound.currentLoopCount}`);
 
-    // If createNewInstance is true, create a new instance
-    if (sound.playOptions?.createNewInstance) {
-      const baseId = sound.id.split(':')[0];
-
-      // Stop the current instance first
-      this.stop(sound.id);
-
-      // Create new instance with same options but reset startTime
-      const newOptions = {
-        ...sound.playOptions,
-        startTime: 0
-      };
-
-      // Play new instance using the base ID
-      this.play(baseId, newOptions);
-      return;
-    }
-
-    // Otherwise, restart the current instance
+    // Reset currentTime to startTime at the start of each loop
     const startTime = (sound.playOptions?.startTime ?? 0) / (sound.playOptions?.playbackRate ?? 1);
+
     this.seek(sound.id, startTime, true);
 
     this.dispatchEvent({
@@ -353,41 +372,24 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private handleSoundEnded(sound: Sound): void {
-    console.log('handle sound ended', sound.id);
     // If the sound is already stopped, do nothing
     if (sound.state === SoundState.Stopped) {
       return;
     }
-    if (sound.playOptions?.pauseAtDurationReached && sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-       this.pause(sound.id);
-       sound.startTime = undefined;
-       sound.pausedAt = sound.playOptions?.startTime ?? 0;
-       sound.currentTime = 0;
-       return;
-    }
-    
+
+    // Update the sound state
     sound.state = SoundState.Stopped;
-    sound.startTime = undefined;
-    sound.pausedAt = sound.playOptions?.startTime ?? 0;
+    sound.startTime = sound.startTime = this.context.currentTime;
+    sound.pausedAt = 0;
     sound.currentTime = 0;
 
-    console.log('start time after handle sound ended', sound.startTime);
-
-    if (sound.playOptions?.createNewInstance) {
-      // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
-      // because of the disconnectNodes method in the cleanupSound method
-      this.cleanupExistingSource(sound.id);
-    } else {
-      this.cleanupSound(sound.id);
-    }
-
+    // Clean up the existing source and stop progress tracking
+    this.cleanupExistingSource(sound.id);
     this.stopProgressTracking(sound.id);
 
     // Clean up the sound
-    if (sound.playOptions?.createNewInstance) {
-      this.removeEventListenersForInstance(sound.id);
-    }
-
+    this.cleanupSound(sound.id);
+    // Dispatch the ENDED event
     this.dispatchEvent({
       type: SoundEventsEnum.ENDED,
       soundId: sound.id,
@@ -415,21 +417,18 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime, playbackRate } = this.getSoundState(id);
+      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime } = this.getSoundState(id);
       const progress = duration ? (elapsedTime / duration) : 0;
 
-
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-        if (adjustedElapsedTime >= sound.playOptions.duration * (playbackRate || 1) + (sound.playOptions.startTime ?? 0)) {
+        if (adjustedElapsedTime >= sound.playOptions.duration) {
           if (sound.playOptions.pauseAtDurationReached) {
             this.pause(id);
           } else {
             if (sound.playOptions?.loop) {
               this.handleLoopIteration(sound);
             } else {
-              //             this.stop(id);
-              console.log('trigger sound ended in progress tracking');
-              this.handleSoundEnded(sound);
+              this.stop(id);
             }
           }
           return;
@@ -499,29 +498,6 @@ export class SoundManager implements SoundManagerInterface {
   private setValidatedVolume(volume: number): number {
     return Math.max(0, Math.min(1, volume));
   }
-
-
-  private cleanupSound(id: string): void {
-    const sound = this.sounds.get(id);
-    if (!sound) return;
-    console.log('cleanup Sound', id);
-    this.debugLog(`Cleaning up sound ${id}`);
-
-    this.cancelFadeAnimation(id);
-
-    this.stopProgressTracking(id);
-
-    this.removeEventListenersForInstance(id);
-
-    this.audioNodeConnector.disconnectNodes(sound);
-
-    // sound.state = SoundState.Stopped;
-    //  sound.pausedAt = sound.playOptions?.startTime ?? 0;
-    // sound.pausedAt = 0;
-    // sound.currentTime = 0;
-
-  }
-
 
   private cleanup(): void {
     // Clean up all sounds
@@ -598,64 +574,57 @@ export class SoundManager implements SoundManagerInterface {
 
   // Playback control-----------------------------------------------------------------------------------------------------------
   public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
-    console.log('play sound', id, 'options', options);
     try {
       const originalSound = this.getValidatedSound(id);
       if (!originalSound) {
         this.debugLog(`Sound ${id} not found`);
       }
-      console.log('original sound', originalSound);
 
-      const mergedOptions = {
-        ...originalSound.playOptions, // Base options from the original sound
-        ...options, // New options passed to the play method (overwrites existing properties)
-      };
-      originalSound.playOptions = mergedOptions;
-
-      console.log('merged playOptions', originalSound.playOptions);
-
-      const createNewInstance = mergedOptions.createNewInstance ?? this.config.createNewInstance ?? false;
-
-      // Generate a new instance ID if needed
-      let actualId = id;
-      let instance: Sound | undefined;
-      if (createNewInstance) {
-        const baseId = id.split(':')[0];
-        const instanceNumber = this.getInstanceCounter(baseId);
-        actualId = `${baseId}:${instanceNumber}`;
-        this.debugLog(`Creating new instance with ID: ${actualId}`);
-      }
+      let mergedPlayOptions = { ...originalSound.playOptions, ...options };
+      const createNewInstance = options.createNewInstance ?? false;
+      // @TODO instead of creating a new date increment this value
+      const actualId = createNewInstance ? `${id}_${Date.now()}` : id;
 
       if (createNewInstance) {
-        instance = {
+        const instance: Sound = {
           ...originalSound,
           id: actualId,
           gainNode: this.context.createGain(),
           state: SoundState.Stopped,
           currentTime: 0,
-          startTime: mergedOptions?.startTime ?? 0,
+          startTime: options?.startTime ?? 0,
           pausedAt: 0,
           currentLoopCount: 0,
-          playOptions: {
-            ...mergedOptions,
-            createNewInstance
-          }
         };
 
+        this.reconnectAudioNodes(actualId);
         this.sounds.set(actualId, instance);
-        this.debugLog(`Created new instance: ${actualId} with options:`, instance.playOptions);
       }
 
-      // Use the instance-specific sound if it exists, otherwise use the original sound
-      const sound = instance || originalSound;
-
+      const sound = this.sounds.get(actualId);
+      if (!sound) {
+        this.debugLog(`Failed to create sound instance for ${id}`);
+        return;
+      }
       this.cleanupExistingSource(actualId);
 
-      // Add to group if specified
-      if (mergedOptions.groupId) {
-        this.addToGroup(mergedOptions.groupId, actualId);
+      // Add to group if groupId is specified in options
+      let groupId: string | undefined = options.groupId || sound.groupId;
+      if (groupId) { 
+        let group = this.soundGroups.get(groupId);
+        if(!group) {  
+         this.addToGroup(groupId, actualId);
+         group = this.soundGroups.get(groupId);
+        }
+         console.log('added to group', groupId, 'groupOptions', group?.playOptions);
+        if (group?.playOptions) {
+          mergedPlayOptions = {...sound.playOptions, ...group.playOptions, ...options };
+        }
       }
 
+      sound.playOptions = mergedPlayOptions;
+
+      console.log('play options:', sound.playOptions);
       // Rest of your existing play logic...
       const source: AudioBufferSourceNode = this.setupAudioSource(sound);
       if (!source) {
@@ -663,39 +632,49 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      const playbackRate = mergedOptions?.playbackRate || 1;
-      let startOffset = 0;
+      const playbackRate = sound.playOptions?.playbackRate || 1;
+      let startTime = 0;
       if (sound.pausedAt !== undefined && sound.pausedAt !== 0) {
-        startOffset = sound.pausedAt;
-      } else if (mergedOptions.startTime !== undefined) {
-        startOffset = mergedOptions.startTime;
+        // Use pausedAt without playbackRate adjustment since it's stored in raw time
+        startTime = sound.pausedAt;
+      } else if (options.startTime !== undefined) {
+        startTime = options.startTime;
       }
 
-      // Set startTime when actually starting playback
-      sound.startTime = this.context.currentTime - (startOffset / playbackRate);
+      // Update timing information
+      const currentTime = this.context.currentTime;
+      sound.currentTime = startTime;
+      sound.startTime = currentTime - (startTime / playbackRate);
 
-      console.log(`playing sound ${sound.id} with a offset: `, sound.startTime, 'rate', playbackRate);
+      this.reconnectAudioNodes(actualId);
 
-      this.reconnectAudioNodes(id);
+      if(sound.playOptions?.volume !== undefined) {
+        this.setSoundVolume(actualId, sound.playOptions.volume, true);
+      }
+      if(sound.playOptions?.pan !== undefined) {
+        this.setPan(actualId, sound.playOptions.pan, true);
+      }
+      if(sound.playOptions?.panSpatialPosition !== undefined) {
+        this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, actualId, undefined, true);
+      }
+      if(sound.playOptions?.fadeIn !== undefined) {
+        this.fadeIn(actualId, sound.playOptions.fadeIn, sound.playOptions.fadeInStartVolume);
+      }
+      if(sound.playOptions?.fadeOut !== undefined) {
+        this.fadeOut(actualId, sound.playOptions.fadeOut);
+      }
+      if(sound.playOptions?.playbackRate !== undefined) {
+        this.setPlaybackRate(actualId, playbackRate, true); 
+      }
+      if(sound.playOptions?.loop !== undefined) {
+        this.setLoop(actualId, sound.playOptions.loop, sound.playOptions.maxLoops);
+      }
 
-      //  if(mergedOptions.duration !== undefined && mergedOptions.duration > 0) {
-      //   if(mergedOptions.trackProgress) {
-      //     source.start(0, startOffset);
-      //   } else {
-      //     source.start(0, startOffset, mergedOptions.duration * playbackRate);
-      //   }
-      //  } else {
-      //   source.start(0, startOffset);
-      //  }
+      source.start(0, startTime);
 
-      source.start(0, startOffset,
-        (mergedOptions.duration !== undefined && mergedOptions.duration > 0)
-          ? mergedOptions.duration * playbackRate
-          : undefined
-      );
       sound.state = SoundState.Playing;;
 
-      if (mergedOptions.trackProgress || this.config.trackProgressOnNewInstance) {
+      if (options.trackProgress) {
         this.startProgressTracking(actualId);
       }
 
@@ -767,8 +746,8 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public resume(id: string, skipDispatchEvent: boolean = false): void {
+    this.play(id);
     let sound = this.getValidatedSound(id);
-    this.play(id, sound?.playOptions);
     try {
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -801,14 +780,9 @@ export class SoundManager implements SoundManagerInterface {
 
       // Reset state after source cleanup
       sound.state = SoundState.Stopped;
-      sound.startTime = sound.playOptions?.startTime ?? 0;
+      sound.startTime = 0;
       sound.pausedAt = 0;
       sound.currentTime = 0;
-
-      this.removeEventListenersForInstance(id);
-
-      this.resetCounterForSound(id);
-
 
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -860,14 +834,13 @@ export class SoundManager implements SoundManagerInterface {
         sound.source.onended = null;
         sound.source.disconnect();
         this.activeSources.delete(id);
-        console.log('cleanup existing source', id, sound.id);
         sound.source = null;
+        this.activeSources.delete(id);
       }
     } catch (error) {
       this.debugLog(`Error cleaning up source for ${id}: ${error}`);
     }
   }
-
 
   public setPlaybackRate(id: string, rate: number, skipDispatchEvent: boolean = false): void {
     if (!id || typeof rate !== "number" || isNaN(rate) || rate <= 0) {
@@ -882,7 +855,6 @@ export class SoundManager implements SoundManagerInterface {
         ...sound.playOptions,
         playbackRate: rate,
       };
-      console.log('update playback rate on sound? ', sound);
 
       if (!sound) {
         this.debugLog(`Sound ${id} not found for playback rate change`);
@@ -1166,7 +1138,7 @@ export class SoundManager implements SoundManagerInterface {
             buffer: audioBuffer,
             gainNode,
             source: this.context.createBufferSource(),
-            startTime: undefined,
+            // startTime: 0,
             currentTime: 0,
             // pausedAt: 0,
             // state: SoundState.Stopped,
@@ -1180,7 +1152,7 @@ export class SoundManager implements SoundManagerInterface {
               playbackRate: this.config.defaultPlaybackRate || 1,
               pan: this.config.defaultPan || 0,
               volume: this.config.defaultVolume || 1,
-              trackProgress: true
+              trackProgress: this.config.trackProgress || this.config.createNewInstance ? false : true
             },
             panSpatialPosition: this.config.defaultPanSpatialPosition || { x: 0, y: 0, z: 0 },
             pan: this.config.defaultPan || 0,
@@ -1231,7 +1203,6 @@ export class SoundManager implements SoundManagerInterface {
 
     this.stop(id, false);
     this.cleanupSound(id);
-    this.resetCounterForSound(id);
 
     this.dispatchEvent({
       type: SoundEventsEnum.UNLOADED,
@@ -1523,14 +1494,16 @@ export class SoundManager implements SoundManagerInterface {
     let currentTime = 0;
     let elapsedTime = 0;
 
-    if (sound.state === SoundState.Playing && sound.startTime !== undefined) {
-      elapsedTime = (this.context.currentTime - sound.startTime) * playbackRate;
+    if (sound.state === SoundState.Playing) {
+      // Calculate elapsed time in raw seconds
+      elapsedTime = (this.context.currentTime - (sound.startTime || 0)) * playbackRate;
       currentTime = elapsedTime;
 
       if (sound.playOptions?.loop) {
         currentTime = currentTime % rawDuration;
       }
     } else {
+      // For non-playing states, use the stored position
       currentTime = sound.pausedAt || sound.currentTime || 0;
       elapsedTime = currentTime;
     }
@@ -1542,12 +1515,14 @@ export class SoundManager implements SoundManagerInterface {
     const adjustedElapsedTime = elapsedTime / playbackRate;
     const adjustedCurrentTime = currentTime / playbackRate;
 
+
+    console.log('getSoundState progress', progressRatio, 'elapsedTime', elapsedTime);
+
     this.debugLog(`Sound state for ${id}:
       State: ${sound.state}
       Progress: ${progressRatio}
-      Initial offset: ${sound.playOptions?.startTime || 0}s
+      Initial offset: ${sound.playOptions?.startTime || 0}ms
       Sound currentTime: ${sound.currentTime}s
-      Adjusted currentTime: ${this.roundValue(adjustedCurrentTime, 4)}s
       Elapsed time: ${sound.state === SoundState.Playing ? elapsedTime : 0}s
       Current time: ${currentTime}s
       Raw Duration: ${rawDuration}s
@@ -1569,9 +1544,9 @@ export class SoundManager implements SoundManagerInterface {
       duration: this.roundValue(adjustedDuration, 4), // Adjusted for UI
       rawDuration: this.roundValue(rawDuration, 4),
       state: sound.state || SoundState.Stopped,
-      volume: sound.volume || sound?.playOptions?.volume || this.config.defaultVolume || 1,
+      volume: sound.volume ?? sound?.playOptions?.volume ?? this.config.defaultVolume ?? 1,
       playbackRate: playbackRate,
-      pan: sound.pan || sound?.playOptions?.pan || 0,
+      pan: sound.pan ?? sound?.playOptions?.pan ?? 0,
       panSpatialPosition: sound?.panSpatialPosition || { x: 0, y: 0, z: 0 },
     };
   }
@@ -1691,7 +1666,7 @@ export class SoundManager implements SoundManagerInterface {
 
     // Reset basic sound properties
     sound.state = SoundState.Stopped;
-    sound.startTime = sound.playOptions?.startTime ?? 0;
+    sound.startTime = 0;
     sound.pausedAt = 0;
     sound.currentTime = 0;
 
@@ -1762,31 +1737,6 @@ export class SoundManager implements SoundManagerInterface {
 
     this.debugLog("Sound manager reset completed");
   }
-
-  private getInstanceCounter(id: string): number {
-    // Extract the base ID (without any instance suffixes)
-    const baseId = id.split(':')[0]; // Use ':' as separator
-
-    // Get or initialize the counter for the base ID
-    let counter = this.instanceCounters.get(baseId) || 0;
-
-    // Increment the counter and store it
-    this.instanceCounters.set(baseId, counter + 1);
-
-    return counter + 1;
-  }
-
-  private resetCounterForSound(id: string): void {
-    const baseId = id.split(':')[0];
-    this.instanceCounters.delete(baseId);
-    this.debugLog(`Counter reset for sound ${baseId}`);
-  }
-
-  public resetAllCounters(): void {
-    this.instanceCounters.clear();
-    this.debugLog("All instance counters reset");
-  }
-
   // End Master / Global batch operations-------------------------------------------------------------------------------------------
 
   // Fading ------------------------------------------------------------------------------------------------------------------------
@@ -2554,6 +2504,23 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  private cleanupSound(id: string): void {
+    console.log('cleanup sound', id);
+    const sound = this.sounds.get(id);
+    if (!sound) return;
+
+    this.cancelFadeAnimation(id);
+    this.cleanupExistingSource(id);
+    this.stopProgressTracking(id);
+
+    this.audioNodeConnector.disconnectNodes(sound);
+
+    sound.state = SoundState.Stopped;
+    sound.startTime = sound.playOptions?.startTime ?? 0;
+    sound.pausedAt = 0;
+    sound.currentTime = 0;
+  }
+
   public hasEventListener(type: SoundEventsEnum): boolean {
     return this.eventListeners.has(type) && this.eventListeners.get(type)!.size > 0;
   }
@@ -2571,31 +2538,10 @@ export class SoundManager implements SoundManagerInterface {
   // End Utility methods-------------------------------------------------------------------------------------------------------------------
 
   // Listeners-----------------------------------------------------------------------------------------------------------------------------
-
-  public dispatchEvent(event: SoundEvent): void {
-    const listeners = this.eventListeners.get(event.type);
-    if (!listeners) return;
-
-    listeners.forEach(({ callback, filter }) => {
-      // Apply filter if provided
-      if (filter) {
-        if (filter.originalId && event.originalId !== filter.originalId) return;
-        if (filter.instanceId && event.instanceId !== filter.instanceId) return;
-        if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
-      }
-
-      try {
-        callback(event);
-      } catch (error) {
-        console.error(`Error in event listener for ${event.type}:`, error);
-      }
-    });
-  }
-
   public addEventListener(
     type: SoundEventsEnum,
     callback: (event: SoundEvent) => void,
-    filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
+    filter?: { originalId?: string; instancePattern?: RegExp }
   ): void {
     if (!this.eventListeners.has(type)) {
       this.eventListeners.set(type, new Set());
@@ -2621,17 +2567,6 @@ export class SoundManager implements SoundManagerInterface {
       }
     });
   }
-
-  public removeEventListenersForInstance(instanceId: string): void {
-    this.eventListeners.forEach((listeners) => {
-      listeners.forEach((listener) => {
-        if (listener.filter?.instanceId === instanceId) {
-          listeners.delete(listener);
-        }
-      });
-    });
-  }
-
 
   // End Listeners----------------------------------------------------------------------------------------------------------------------
 }
