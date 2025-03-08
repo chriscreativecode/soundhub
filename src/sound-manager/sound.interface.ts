@@ -8,6 +8,7 @@ export interface Sound {
   positionTracker?: ConstantSourceNode;
   currentLoopCount?: number;
   gainNode: GainNode;
+  groupId?: string;
   id: string;
   isFadingIn?: boolean;
   isFadingOut?: boolean;
