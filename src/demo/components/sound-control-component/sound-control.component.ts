@@ -83,35 +83,41 @@ export class SoundControl {
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
     // // Testing Sound Group
-    // this.soundManager.createGroup('test-group', { maxInstances: 4});
+    this.soundManager.createGroup('test-group', { maxInstances: 4, playOptions: { volume: 0.5, pan: -0.5 }});
 
-    // // Play a new sound instance on key press
-    // document.addEventListener('keydown', (e) => {
-    //   if (e.key === 'c') {
-    //     const sound = this.soundManager.play(this.id, {
-    //       groupId: 'test-group',
-    //       trackProgress: true, // Enable progress tracking
-    //       loop: true,
-    //       createNewInstance: true
-    //     });
+    // Play a new sound instance on key press
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'c') {
+
+        soundManager.addToGroup('test-group', this.id);
+
+        const sound = this.soundManager.play(this.id, {
+        //  groupId: 'test-group',
+          trackProgress: false, // Enable progress tracking
+          loop: false,
+          // volume: 0.8,
+           pan: 0.5,
+          createNewInstance: true
+        });
+
     
-    //     if (sound) {
-    //       // Store the sound instance in the activeSounds map
-    //       this.activeSounds.set(sound.id, sound);
+        if (sound) {
+          // Store the sound instance in the activeSounds map
+          this.activeSounds.set(sound.id, sound);
     
-    //       // Add a listener to clean up the instance when it ends
-    //       this.soundManager.addEventListener(
-    //         SoundEventsEnum.ENDED,
-    //         (event) => {
-    //           if (event.instanceId === sound.id) {
-    //             this.activeSounds.delete(sound.id); // Remove the instance when it ends
-    //             console.log(`Sound instance ${sound.id} ended and was removed.`);
-    //           }
-    //         }
-    //       );
-    //     }
-    //   }
-    // });
+          // Add a listener to clean up the instance when it ends
+          this.soundManager.addEventListener(
+            SoundEventsEnum.ENDED,
+            (event) => {
+              if (event.instanceId === sound.id) {
+                this.activeSounds.delete(sound.id); 
+                console.debug(`Sound instance ${sound.id} ended and was removed.`);
+              }
+            }
+          );
+        }
+      }
+    });
     
     // Track progress for specific sound instances
     this.soundManager.addEventListener(
@@ -126,11 +132,7 @@ export class SoundControl {
       { originalId: this.id } // Optional: Filter by originalId
     );
     
-
-
-    // Initialize currentOptions with default values from soundManagerConfig and HTML inputs
     this.initializeCurrentOptions();
-
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
@@ -146,11 +148,11 @@ export class SoundControl {
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
-      trackProgress: false,
+      trackProgress: this.soundManagerConfig.trackProgress ?? true,
       pauseAtDurationReached: true,
-      createNewInstance: false,
-      startTime: 2,
-      duration: 4,
+      createNewInstance: this.soundManagerConfig.createNewInstance ?? false,
+      startTime: this.soundManagerConfig.defaultStartTime ?? 0,
+      duration: this.soundManagerConfig.defaultDuration,
     };
     this.applyCurrentOptions();
   }
@@ -172,11 +174,10 @@ export class SoundControl {
     if (this.currentOptions.loop !== undefined || this.currentOptions.maxLoops !== undefined) {
       this.soundManager.setLoop(
         this.id,
-        this.currentOptions.loop ?? false, // Default to false if loop is undefined
-        this.currentOptions.maxLoops // Can be undefined, which is fine
+        this.currentOptions.loop ?? false,
+        this.currentOptions.maxLoops 
       );
     
-      // Update the checkbox if loop is defined
       if (this.currentOptions.loop !== undefined) {
         this.loopCheckbox.checked = this.currentOptions.loop;
       }
