@@ -13,12 +13,15 @@ export class SpatialGrid {
     private coordsDisplay: HTMLElement;
     private isDragging = false;
     private soundState: SoundStateInfo | null;
+    private onPositionChange?: (position: { x: number; y: number; z: number }) => void;
 
     constructor(
         private container: HTMLElement,
         private soundManager: SoundManager,
-        private soundId?: string
+        private soundId?: string,
+        onPositionChange?: (position: { x: number; y: number; z: number }) => void
     ) {
+        this.onPositionChange = onPositionChange;
         if (this.soundId) {
             this.soundState = this.soundManager.getSoundState(this.soundId);
         }
@@ -136,7 +139,14 @@ export class SpatialGrid {
                 skipEvent
             );
         }
-
+           // Notify the parent component of the position change
+           if (this.onPositionChange) {
+            this.onPositionChange({
+                x: x / 50 - 1,
+                y: y,
+                z: z / 50 - 1
+            });
+        }
         this.coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${y.toFixed(2)},<br/>Z: ${(z / 50 - 1).toFixed(2)}`;
     }
 
