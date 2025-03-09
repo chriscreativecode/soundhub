@@ -89,13 +89,13 @@ export class SoundControl {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'c') {
 
-        soundManager.addToGroup('test-group', this.id);
+      //  soundManager.addToGroup('test-group', this.id);
 
         const sound = this.soundManager.play(this.id, {
-        //  groupId: 'test-group',
+          groupId: 'test-group',
           trackProgress: false, // Enable progress tracking
-          loop: false,
-          // volume: 0.8,
+          loop: true,
+           volume: 0.8,
            pan: 0.5,
           createNewInstance: true
         });
@@ -136,20 +136,27 @@ export class SoundControl {
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
-    this.spatialGrid = new SpatialGrid(this.element.querySelector(".spatial-grid-container-wrapper")!, this.soundManager, this.id);
+    this.spatialGrid = new SpatialGrid(this.element.querySelector(".spatial-grid-container-wrapper")!, this.soundManager, this.id, (position) => {
+      console.log('this', this);
+      this.currentOptions.panSpatialPosition = position;
+      console.log('Updated currentOptions.panSpatialPosition:', position, this.currentOptions.panSpatialPosition);
+    });
     this.container.appendChild(this.element);
     this.updateState();
   }
 
   private initializeCurrentOptions(): void {
+
+ //   const soundState = this.soundManager.getSoundState(this.id);
     this.currentOptions = {
       loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
       maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
+      panSpatialPosition: this.soundManagerConfig.defaultPanSpatialPosition ?? { x: 0, y: 0, z: 0 },
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
       trackProgress: this.soundManagerConfig.trackProgress ?? true,
-      pauseAtDurationReached: true,
+      pauseAtDurationReached: false,
       createNewInstance: this.soundManagerConfig.createNewInstance ?? false,
       startTime: this.soundManagerConfig.defaultStartTime ?? 0,
       duration: this.soundManagerConfig.defaultDuration,
@@ -292,6 +299,8 @@ export class SoundControl {
     if (this.state) {
       const currentPosition = this.spatialGrid.getCurrentPosition();
       const statePosition = this.spatialGrid.getPositionFromState(this.state);
+
+      console.log('current position', currentPosition, statePosition);
 
       this.log('Position comparison:', {
         current: {
@@ -482,6 +491,7 @@ export class SoundControl {
     this.updatePlaybackRateDisplay(value);
     this.updateCurrentOptions({ playbackRate: value });
     this.soundManager.setPlaybackRate(this.id, value);
+    this.currentOptions.playbackRate = value;
     this.updateState();
   }
 
@@ -525,6 +535,7 @@ export class SoundControl {
   private handleVolumeInput = (e: Event): void => {
     const value = parseFloat((e.target as HTMLInputElement).value);
     this.updateVolumeDisplay(value);
+    this.currentOptions.volume = value;
     this.soundManager.setSoundVolume(this.id, value);
   };
 
@@ -545,6 +556,7 @@ export class SoundControl {
   private handlePanInput = (e: Event): void => {
     const value = parseFloat((e.target as HTMLInputElement).value);
     this.updatePanDisplay(value);
+    this.currentOptions.pan = value;
     this.soundManager.setPan(this.id, value);
   };
 
@@ -567,7 +579,7 @@ export class SoundControl {
 
 
   private handleSoundEvent(event: SoundEvent): void {
-    console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+    console.log(`handle Sound Event for instance ${event.instanceId}: ${event.progress}`);
     // Or track by original sound ID
     if (event.originalId === 'piano_c') {
       console.log(`Progress for a piano_c instance: ${event.progress}`);
@@ -649,6 +661,7 @@ export class SoundControl {
 
       case SoundEventsEnum.SPATIAL_POSITION_CHANGED:
         this.log("Spatial position changed", event);
+        console.log('Spatial position changed', event);
         break;
 
       case SoundEventsEnum.RESET:
@@ -770,10 +783,12 @@ export class SoundControl {
     if (state.volume === 0) {
       this.soundManager.setSoundVolume(this.id, this.previousVolume);
       this.soundManager.unmute(this.id);
+      this.currentOptions.volume = this.previousVolume;
     } else {
       this.previousVolume = state.volume;
       this.soundManager.mute(this.id);
       this.handleRangeInput(this.volumeSlider, 0);
+      this.currentOptions.volume = 0;
     }
     this.updateState();
   }
@@ -925,7 +940,7 @@ export class SoundControl {
         [property]: value,
       };
 
-      this.spatialGrid.setSpatialPositionWithConfig(newConfig)
+      this.spatialGrid.setSpatialPositionWithConfig(newConfig);
 
     };
 

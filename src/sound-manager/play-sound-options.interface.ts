@@ -10,7 +10,7 @@ export interface PlayOptions {
   maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
   playbackRate?: number;
   duration?:number; // in seconds
-  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached
+  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached (when loop is false)
   isSeeking?: boolean; // used internally for the seek method
   trackProgress?: boolean;
   groupId?: string;
