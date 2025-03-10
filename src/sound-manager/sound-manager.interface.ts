@@ -74,9 +74,9 @@ export interface SoundManagerInterface {
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
-  setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipEvent?: boolean): void;
+  setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipDispatchEvent?: boolean): void;
   getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null;
-  setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig, skipEvent?: boolean): void;
+  setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig, skipDispatchEvent?: boolean): void;
   resetSpatialPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;

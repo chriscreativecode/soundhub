@@ -140,7 +140,7 @@ export class SpatialGrid {
             );
         }
            // Notify the parent component of the position change
-           if (this.onPositionChange) {
+           if (this.onPositionChange && !visuallyOnly) {
             this.onPositionChange({
                 x: x / 50 - 1,
                 y: y,

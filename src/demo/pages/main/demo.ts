@@ -127,7 +127,7 @@ export class SoundManagerDemo {
       const soundsToLoad = [
         { id: "intro-speach", url: introSpeach},
       //   { id: "sound-surfer-constellations", url: song },
-      //  { id: "game-sound", url: gameSounds },
+       { id: "game-sound", url: gameSounds },
         // { id: "birds", url: birds },
         // { id: "rain", url: rain },
         // { id: "crickets", url: crickets },

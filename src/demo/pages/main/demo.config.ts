@@ -19,5 +19,5 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   maxLoops: -1, // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Panner settings for 3D sound
   spatialAudio: true, // Enable spatial audio features
-  trackProgress: false, // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
+  trackProgress: true, // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
 };
