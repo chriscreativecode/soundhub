@@ -85,8 +85,6 @@ export class SoundManagerDemo {
   private initializeTheme(): void {
     const body = document.body;
     const themeToggle = document.getElementById('themeToggle') as HTMLInputElement;
-    const themeIconMoon = document.getElementsByClassName('theme-icon--moon')[0];
-    const themeIconSun = document.getElementsByClassName('theme-icon--sun')[0];
 
     const storedTheme = LocalStorageManagerManager.getItem('sound-manager-ts-demo-theme');
   
@@ -125,7 +123,7 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
-        { id: "intro-speach", url: introSpeach},
+       { id: "intro-speach", url: introSpeach},
       //   { id: "sound-surfer-constellations", url: song },
        { id: "game-sound", url: gameSounds },
         // { id: "birds", url: birds },

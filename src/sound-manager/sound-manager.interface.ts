@@ -65,6 +65,7 @@ export interface SoundManagerInterface {
   // Sprite logic
   setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void;
   getSpriteConfig(id: string): { [key: string]: [number, number] } | undefined;
+  removeSpriteSound(id: string): void;
   removeSpriteConfig(id: string): void 
 
   // Context management

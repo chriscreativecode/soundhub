@@ -204,7 +204,7 @@ export class SoundManager implements SoundManagerInterface {
 
   private handleLoopIteration(sound: Sound): void {
     this.debugLog(`Restarting loop for sound ${sound.id}`);
-;
+    ;
     // Check if we've reached max loops (0 means infinite)
     if (
       sound.playOptions?.maxLoops !== undefined &&
@@ -549,7 +549,7 @@ export class SoundManager implements SoundManagerInterface {
       if (sound.playOptions?.panSpatialPosition !== undefined && sound.lastPanningType === 'spatial') {
         this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, actualId, undefined, true);
       }
-      if (sound.playOptions?.fadeInDuration !== undefined) { 
+      if (sound.playOptions?.fadeInDuration !== undefined) {
         this.fadeIn(actualId, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
       }
       if (sound.playOptions?.fadeOutDuration !== undefined) {
@@ -821,7 +821,7 @@ export class SoundManager implements SoundManagerInterface {
 
     this.fadeSound(id, effectiveStartVolume, endVolume, duration, () => {
       // Update after sound callback is complete
-     sound.volume = endVolume;
+      sound.volume = endVolume;
       if (sound.playOptions) {
         sound.playOptions.volume = endVolume;
       }
@@ -1589,6 +1589,29 @@ export class SoundManager implements SoundManagerInterface {
     } catch (error) {
       this.handleError("getting sprite config", error, id);
       return undefined;
+    }
+  }
+
+  public removeSpriteSound(spriteKey: string): void {
+    try {
+      // Find all sprite instances that match the spriteKey
+      const spriteInstances = Array.from(this.sounds.keys()).filter(key => key.includes(`_${spriteKey}`));
+
+      if (spriteInstances.length === 0) {
+        this.debugLog(`No sprite instances found for key: ${spriteKey}`);
+        return;
+      }
+
+      // Stop and remove each sprite instance
+      spriteInstances.forEach(instanceId => {
+        this.stop(instanceId); // Stop the instance
+        this.cleanupSound(instanceId); // Clean up resources
+        this.sounds.delete(instanceId); // Remove from the sounds map
+        this.debugLog(`Removed sprite instance: ${instanceId}`);
+      });
+      this.debugLog(`All instances of sprite ${spriteKey} removed`);
+    } catch (error) {
+      this.handleError("removing sprite sound", error, spriteKey);
     }
   }
 
