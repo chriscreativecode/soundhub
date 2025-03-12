@@ -981,6 +981,10 @@ export class SoundControl {
     try {
       this.soundManager.resetSound(this.id);
 
+      if(this.isSprite) {
+        this.soundManager.removeSpriteSound(this.id);
+      }
+
       const cleanupTasks: (() => void)[] = [
         // Remove sound event listeners
         () => {
