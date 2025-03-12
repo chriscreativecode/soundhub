@@ -13,8 +13,8 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   defaultPlaybackRate: 1, // The default playbackRate is 1
   defaultStartTime: 0, // Default start time for new sounds
   defaultVolume: 1, // Default volume for new sounds (0-1)
-  fadeInDuration: 0.5, // Default fade-in duration in seconds
-  fadeOutDuration: 0.5, // Default fade-out duration in seconds
+  fadeInDuration: 1, // Default fade-in duration in seconds
+  fadeOutDuration: 1, // Default fade-out duration in seconds
   loopSounds: true, // Loop all sounds by default
   maxLoops: -1, // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Panner settings for 3D sound

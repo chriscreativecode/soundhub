@@ -83,13 +83,13 @@ export class SoundControl {
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
     // // Testing Sound Group
-    this.soundManager.createGroup('test-group', { maxInstances: 4, playOptions: { volume: 0.5, pan: -0.5 }});
+    this.soundManager.createSoundGroup('test-group', { maxInstances: 4, playOptions: { volume: 0.5, pan: -0.5 }});
 
     // Play a new sound instance on key press
     document.addEventListener('keydown', (e) => {
       if (e.key === 'c') {
 
-      //  soundManager.addToGroup('test-group', this.id);
+      //  soundManager.addToSoundGroup('test-group', this.id);
 
         const sound = this.soundManager.play(this.id, {
           groupId: 'test-group',
@@ -137,9 +137,7 @@ export class SoundControl {
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
     this.spatialGrid = new SpatialGrid(this.element.querySelector(".spatial-grid-container-wrapper")!, this.soundManager, this.id, (position) => {
-      console.log('this', this);
       this.currentOptions.panSpatialPosition = position;
-      console.log('Updated currentOptions.panSpatialPosition:', position, this.currentOptions.panSpatialPosition);
     });
     this.container.appendChild(this.element);
     this.updateState();
@@ -264,7 +262,7 @@ export class SoundControl {
       progress: soundState.progress * 100 || 0,
       playbackRate: soundState.playbackRate || 1
     };
-    console.log('new State', newState, soundState);
+   // console.log('new State', newState, soundState);
 
     this.state = newState;
     this.updateUIFromState();
@@ -299,8 +297,6 @@ export class SoundControl {
     if (this.state) {
       const currentPosition = this.spatialGrid.getCurrentPosition();
       const statePosition = this.spatialGrid.getPositionFromState(this.state);
-
-      console.log('current position', currentPosition, statePosition);
 
       this.log('Position comparison:', {
         current: {
@@ -579,7 +575,7 @@ export class SoundControl {
 
 
   private handleSoundEvent(event: SoundEvent): void {
-    console.log(`handle Sound Event for instance ${event.instanceId}: ${event.progress}`);
+    // console.log(`handle Sound Event for instance ${event.instanceId}: ${event.progress}`);
     // Or track by original sound ID
     if (event.originalId === 'piano_c') {
       console.log(`Progress for a piano_c instance: ${event.progress}`);
@@ -640,6 +636,8 @@ export class SoundControl {
 
       case SoundEventsEnum.FADE_IN_COMPLETED:
         this.log("Fade in completed", event);
+        console.log('Fade in completed event:', event.sound);
+       this.currentOptions.volume = event.sound?.volume;
         break;
 
       case SoundEventsEnum.FADE_OUT_COMPLETED:
@@ -661,7 +659,6 @@ export class SoundControl {
 
       case SoundEventsEnum.SPATIAL_POSITION_CHANGED:
         this.log("Spatial position changed", event);
-        console.log('Spatial position changed', event);
         break;
 
       case SoundEventsEnum.RESET:
@@ -718,7 +715,6 @@ export class SoundControl {
   }
 
   private updateTimeDisplay(currentTime: number): void {
-    console.log('update Time Display', currentTime);
     const timeDisplay = this.element.querySelector(".time-display");
     const state = this.soundManager.getSoundState(this.id);
     if (timeDisplay) {
@@ -750,11 +746,10 @@ export class SoundControl {
     //  console.log('soundInstance', soundInstance);
     // }, 1000);
     
-    console.log('curernt options', this.currentOptions);
+    console.log('play with options', this.currentOptions);
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
-      console.log('curernt options', this.currentOptions);//
       this.soundManager.play(this.id, this.currentOptions);
      // let soundInstance2 = this.soundManager.play(this.id, this.currentOptions);
      // console.log('soundInstance2', soundInstance2);
@@ -804,12 +799,12 @@ export class SoundControl {
   }
 
   private fadeIn(): void {
-    this.soundManager.fadeIn(this.id, 2);
+    this.soundManager.fadeIn(this.id, this.currentOptions.fadeInDuration ?? this.soundManagerConfig.fadeInDuration ?? 1);
     this.updateState();
   }
 
   private fadeOut(): void {
-    this.soundManager.fadeOut(this.id, 2);
+    this.soundManager.fadeOut(this.id, this.currentOptions.fadeOutDuration ?? this.soundManagerConfig.fadeOutDuration ?? 1);
     this.updateState();
   }
 

@@ -1,7 +1,7 @@
 export interface PlayOptions {
-  fadeIn?: number; // in seconds
+  fadeInDuration?: number; // in seconds
   fadeInStartVolume?: number; // 0 to 1
-  fadeOut?: number; // in seconds
+  fadeOutDuration?: number; // in seconds
   pan?: number; // -1 (left) to 1 (right)
   panSpatialPosition?: { x: number; y: number; z: number };
   startTime?: number; // in seconds
