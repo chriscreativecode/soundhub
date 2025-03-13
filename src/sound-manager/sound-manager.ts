@@ -189,6 +189,7 @@ export class SoundManager implements SoundManagerInterface {
     this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
 
     source.onended = () => {
+      console.log('sound ended', sound.id);
       this.debugLog(`Sound ${sound.id} ended naturally`);
       if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
         this.handleLoopIteration(sound);
@@ -204,7 +205,7 @@ export class SoundManager implements SoundManagerInterface {
 
   private handleLoopIteration(sound: Sound): void {
     this.debugLog(`Restarting loop for sound ${sound.id}`);
-    ;
+
     // Check if we've reached max loops (0 means infinite)
     if (
       sound.playOptions?.maxLoops !== undefined &&
@@ -219,29 +220,16 @@ export class SoundManager implements SoundManagerInterface {
 
     // Increment the loop count
     sound.currentLoopCount = (sound.currentLoopCount ?? 0) + 1;
+
+    console.log(`handle loop ${sound.id}`, sound.currentLoopCount);
     this.debugLog(`Loop count: ${sound.currentLoopCount}`);
 
-    // If createNewInstance is true, create a new instance
+    // Restart the current instance
+    const startTime = (sound.playOptions?.startTime ?? 0) / (sound.playOptions?.playbackRate ?? 1);
     if (sound.playOptions?.createNewInstance) {
-      const baseId = sound.id.split(':')[0];
-
-      // Stop the current instance first
-      this.stop(sound.id);
-
-      // Create new instance with same options but reset startTime
-      const newOptions = {
-        ...sound.playOptions,
-        startTime: 0
-      };
-
-      // Play new instance using the base ID
-      this.play(baseId, newOptions);
-      return;
+      sound.playOptions.createNewInstance = false;
     }
 
-    console.log('handle loop iterartion', sound.playOptions);
-    // Otherwise, restart the current instance
-    const startTime = (sound.playOptions?.startTime ?? 0) / (sound.playOptions?.playbackRate ?? 1);
     this.seek(sound.id, startTime, true);
 
     this.dispatchEvent({
@@ -273,7 +261,7 @@ export class SoundManager implements SoundManagerInterface {
     if (sound.playOptions?.createNewInstance) {
       // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
       // because of the disconnectNodes method in the cleanupSound method
-      this.cleanupExistingSource(sound.id);
+       this.cleanupExistingSource(sound.id);
     } else {
       this.cleanupSound(sound.id);
     }
@@ -421,7 +409,7 @@ export class SoundManager implements SoundManagerInterface {
   private cleanupExistingSource(id: string): void {
     try {
       let sound = this.getValidatedSound(id);
-      if (sound.source) {
+      if (sound.source && sound.state === SoundState.Playing) {
         sound.source.stop();
         sound.source.onended = null;
         sound.source.disconnect();
@@ -460,7 +448,7 @@ export class SoundManager implements SoundManagerInterface {
 
   // Playback control-----------------------------------------------------------------------------------------------------------
   public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
-    console.log('play sound', id, 'options', options);
+    //    console.log('play sound', id);
     try {
       const originalSound = this.getValidatedSound(id);
       if (!originalSound) {
@@ -468,32 +456,60 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       let mergedPlayOptions = { ...originalSound.playOptions, ...options };
-      console.log('merged play options:', mergedPlayOptions);
       const createNewInstance = mergedPlayOptions.createNewInstance ?? this.config.createNewInstance ?? false;
 
       let actualId = id;
       let instance: Sound | undefined;
-      if (createNewInstance) {
-        const baseId = id.split(':')[0];
-        const instanceNumber = this.getInstanceCounter(baseId);
-        actualId = `${baseId}:${instanceNumber}`;
-        this.debugLog(`Creating new instance with ID: ${actualId}`);
-        instance = {
-          ...originalSound,
-          id: actualId,
-          gainNode: this.context.createGain(),
-          state: SoundState.Stopped,
-          currentTime: 0,
-          startTime: mergedPlayOptions?.startTime ?? 0,
-          pausedAt: 0,
-          currentLoopCount: 0,
-          playOptions: {
-            ...mergedPlayOptions,
-            createNewInstance
+
+      // Add to group if groupId is specified in options
+      let groupId: string | undefined = options.groupId || originalSound.groupId;
+      if (groupId) {
+          let group = this.soundGroups.get(groupId);
+          if (!group) {
+              this.debugLog(`Group ${groupId} not found.`);
+              return;
           }
-        }
-        this.reconnectAudioNodes(actualId);
-        this.sounds.set(actualId, instance);
+
+          this.debugLog(`Group ${groupId} has ${group.sounds.size} instances. Max instances: ${group.maxInstances}`);
+
+          // Enforce maxInstances before creating the new instance
+          if (group.maxInstances && group.sounds.size >= group.maxInstances) {
+              const oldestSoundId = Array.from(group.sounds)[0];
+              this.debugLog(`Max instances reached. Stopping oldest instance: ${oldestSoundId}`);
+              this.stop(oldestSoundId);
+              group.sounds.delete(oldestSoundId);
+              this.debugLog(`Stopped and removed oldest instance ${oldestSoundId} from group ${groupId}.`);
+          }
+      }
+
+      if (createNewInstance) {
+          const baseId = id.split(':')[0];
+          const instanceNumber = this.getInstanceCounter(baseId);
+          actualId = `${baseId}:${instanceNumber}`;
+          this.debugLog(`Creating new instance with ID: ${actualId}`);
+
+          instance = {
+              ...originalSound,
+              id: actualId,
+              gainNode: this.context.createGain(),
+              state: SoundState.Stopped,
+              currentTime: 0,
+              startTime: mergedPlayOptions?.startTime ?? 0,
+              pausedAt: 0,
+              currentLoopCount: 0,
+              playOptions: {
+                  ...mergedPlayOptions,
+                  createNewInstance: false,
+              },
+          };
+
+          this.sounds.set(actualId, instance);
+
+          // Add the new instance to the group
+          if (groupId) {
+              this.addToSoundGroup(groupId, actualId);
+              this.debugLog(`Added new instance ${actualId} to group ${groupId}.`);
+          }
       }
 
       const sound = instance || originalSound;
@@ -505,19 +521,6 @@ export class SoundManager implements SoundManagerInterface {
       sound.playOptions = mergedPlayOptions;
 
       this.cleanupExistingSource(actualId);
-
-      // Add to group if groupId is specified in options
-      let groupId: string | undefined = options.groupId || sound.groupId;
-      if (groupId) {
-        let group = this.soundGroups.get(groupId);
-        if (!group) {
-          this.addToSoundGroup(groupId, actualId);
-          group = this.soundGroups.get(groupId);
-        }
-        if (group?.playOptions) {
-          mergedPlayOptions = { ...sound.playOptions, ...group.playOptions, ...options };
-        }
-      }
 
       // Rest of your existing play logic...
       const source: AudioBufferSourceNode = this.setupAudioSource(sound);
@@ -1439,10 +1442,14 @@ export class SoundManager implements SoundManagerInterface {
 
     // Check if the group has reached its max instances limit
     if (group.maxInstances && group.sounds.size >= group.maxInstances) {
-      this.debugLog(`Group ${groupName} has reached its max instances limit (${group.maxInstances}).`);
-      return;
+      // Stop the oldest instance to make room for the new one
+      const oldestSoundId = Array.from(group.sounds)[0];
+      this.stop(oldestSoundId); // Stop the oldest instance
+      group.sounds.delete(oldestSoundId); // Remove it from the group
+      this.debugLog(`Stopped oldest instance ${oldestSoundId} to make room for new instance in group ${groupName}.`);
     }
 
+    // Add the new instance to the group
     const sound = this.sounds.get(soundId);
     if (sound) {
       sound.groupId = groupName;
