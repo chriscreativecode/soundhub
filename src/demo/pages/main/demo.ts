@@ -4,6 +4,8 @@ import "./demo.css";
 // @ts-ignore
 import introSpeach from "../../../sounds/intro-text-speach.mp3";
 // @ts-ignore
+import pianoTone from "../../../sounds/piano-tone.mp3";
+// @ts-ignore
 import song from "../../../sounds/sound-surfer-constellations.mp3";
 // @ts-ignore
 import song2 from "../../../sounds/little-wonders.mp3";
@@ -123,9 +125,10 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
-       { id: "intro-speach", url: introSpeach},
-      //   { id: "sound-surfer-constellations", url: song },
-       { id: "game-sound", url: gameSounds },
+      // { id: "intro-speach", url: introSpeach},
+       { id: "piano-tone", url: pianoTone},
+       //   { id: "sound-surfer-constellations", url: song },
+        //  { id: "game-sound", url: gameSounds },
         // { id: "birds", url: birds },
         // { id: "rain", url: rain },
         // { id: "crickets", url: crickets },

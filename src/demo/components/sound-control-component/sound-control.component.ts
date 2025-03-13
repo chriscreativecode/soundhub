@@ -83,39 +83,21 @@ export class SoundControl {
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
     // // Testing Sound Group
-    this.soundManager.createSoundGroup('test-group', { maxInstances: 4, playOptions: { volume: 0.5, pan: -0.5 }});
+    this.soundManager.createSoundGroup('test-group', { maxInstances: 2, playOptions: { volume: 0.5, pan: -0.5 }});
 
     // Play a new sound instance on key press
     document.addEventListener('keydown', (e) => {
       if (e.key === 'c') {
 
       //  soundManager.addToSoundGroup('test-group', this.id);
-
         const sound = this.soundManager.play(this.id, {
           groupId: 'test-group',
           trackProgress: false, // Enable progress tracking
-          loop: true,
-           volume: 0.8,
-           pan: 0.5,
+          loop: false,
+          volume: 0.5,
+          pan: 0,
           createNewInstance: true
         });
-
-    
-        if (sound) {
-          // Store the sound instance in the activeSounds map
-          this.activeSounds.set(sound.id, sound);
-    
-          // Add a listener to clean up the instance when it ends
-          this.soundManager.addEventListener(
-            SoundEventsEnum.ENDED,
-            (event) => {
-              if (event.instanceId === sound.id) {
-                this.activeSounds.delete(sound.id); 
-                console.debug(`Sound instance ${sound.id} ended and was removed.`);
-              }
-            }
-          );
-        }
       }
     });
     
