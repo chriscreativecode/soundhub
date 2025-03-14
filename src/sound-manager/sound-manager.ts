@@ -187,18 +187,26 @@ export class SoundManager implements SoundManagerInterface {
     source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
     this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+    this.activeSources.set(sound.id, source);
 
     source.onended = () => {
       console.log('sound ended', sound.id);
       this.debugLog(`Sound ${sound.id} ended naturally`);
-      if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
-        this.handleLoopIteration(sound);
-      } else {
-        this.handleSoundEnded(sound);
+      // if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
+      //   this.handleLoopIteration(sound);
+      // } else {
+      //   this.handleSoundEnded(sound);
+
+      // }
+
+      if (sound.state === SoundState.Playing) {
+        if (sound.playOptions?.loop) {
+          this.handleLoopIteration(sound);
+        } else {
+          this.handleSoundEnded(sound);
+        }
       }
     };
-
-    this.activeSources.set(sound.id, source);
 
     return source;
   }
@@ -258,10 +266,12 @@ export class SoundManager implements SoundManagerInterface {
     sound.pausedAt = sound.playOptions?.startTime ?? 0;
     sound.currentTime = 0;
 
+    console.log('created with new Instance', sound.playOptions?.createNewInstance);
+
     if (sound.playOptions?.createNewInstance) {
       // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
       // because of the disconnectNodes method in the cleanupSound method
-       this.cleanupExistingSource(sound.id);
+      this.cleanupExistingSource(sound.id);
     } else {
       this.cleanupSound(sound.id);
     }
@@ -407,11 +417,28 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private cleanupExistingSource(id: string): void {
+    console.log('cleanupExistingSource', id);
     try {
       let sound = this.getValidatedSound(id);
-      if (sound.source && sound.state === SoundState.Playing) {
-        sound.source.stop();
+      if (!sound.source) return;
+
+      // Check if the sound has been restarted
+      const currentTime = this.context.currentTime;
+      const soundStartTime = sound.startTime || 0;
+      const hasBeenRestarted = currentTime - soundStartTime < (sound.buffer?.duration || 0);
+
+      if (hasBeenRestarted) {
+        console.log(`Sound ${id} has been restarted, skipping cleanup`);
+        return;
+      }
+
+      // Remove the onended handler before stopping to prevent it from firing
+      if (sound.source.onended) {
         sound.source.onended = null;
+      }
+
+      if (sound.state === SoundState.Playing) {
+        sound.source.stop();
         sound.source.disconnect();
         this.activeSources.delete(id);
         sound.source = null;
@@ -464,52 +491,52 @@ export class SoundManager implements SoundManagerInterface {
       // Add to group if groupId is specified in options
       let groupId: string | undefined = options.groupId || originalSound.groupId;
       if (groupId) {
-          let group = this.soundGroups.get(groupId);
-          if (!group) {
-              this.debugLog(`Group ${groupId} not found.`);
-              return;
-          }
+        let group = this.soundGroups.get(groupId);
+        if (!group) {
+          this.debugLog(`Group ${groupId} not found.`);
+          return;
+        }
 
-          this.debugLog(`Group ${groupId} has ${group.sounds.size} instances. Max instances: ${group.maxInstances}`);
+        this.debugLog(`Group ${groupId} has ${group.sounds.size} instances. Max instances: ${group.maxInstances}`);
 
-          // Enforce maxInstances before creating the new instance
-          if (group.maxInstances && group.sounds.size >= group.maxInstances) {
-              const oldestSoundId = Array.from(group.sounds)[0];
-              this.debugLog(`Max instances reached. Stopping oldest instance: ${oldestSoundId}`);
-              this.stop(oldestSoundId);
-              group.sounds.delete(oldestSoundId);
-              this.debugLog(`Stopped and removed oldest instance ${oldestSoundId} from group ${groupId}.`);
-          }
+        // Enforce maxInstances before creating the new instance
+        if (group.maxInstances && group.sounds.size >= group.maxInstances) {
+          const oldestSoundId = Array.from(group.sounds)[0];
+          this.debugLog(`Max instances reached. Stopping oldest instance: ${oldestSoundId}`);
+          this.stop(oldestSoundId);
+          group.sounds.delete(oldestSoundId);
+          this.debugLog(`Stopped and removed oldest instance ${oldestSoundId} from group ${groupId}.`);
+        }
       }
 
       if (createNewInstance) {
-          const baseId = id.split(':')[0];
-          const instanceNumber = this.getInstanceCounter(baseId);
-          actualId = `${baseId}:${instanceNumber}`;
-          this.debugLog(`Creating new instance with ID: ${actualId}`);
+        const baseId = id.split(':')[0];
+        const instanceNumber = this.getInstanceCounter(baseId);
+        actualId = `${baseId}:${instanceNumber}`;
+        this.debugLog(`Creating new instance with ID: ${actualId}`);
 
-          instance = {
-              ...originalSound,
-              id: actualId,
-              gainNode: this.context.createGain(),
-              state: SoundState.Stopped,
-              currentTime: 0,
-              startTime: mergedPlayOptions?.startTime ?? 0,
-              pausedAt: 0,
-              currentLoopCount: 0,
-              playOptions: {
-                  ...mergedPlayOptions,
-                  createNewInstance: false,
-              },
-          };
+        instance = {
+          ...originalSound,
+          id: actualId,
+          gainNode: this.context.createGain(),
+          state: SoundState.Stopped,
+          currentTime: 0,
+          startTime: mergedPlayOptions?.startTime ?? 0,
+          pausedAt: 0,
+          currentLoopCount: 0,
+          playOptions: {
+            ...mergedPlayOptions,
+            createNewInstance: false,
+          },
+        };
 
-          this.sounds.set(actualId, instance);
+        this.sounds.set(actualId, instance);
 
-          // Add the new instance to the group
-          if (groupId) {
-              this.addToSoundGroup(groupId, actualId);
-              this.debugLog(`Added new instance ${actualId} to group ${groupId}.`);
-          }
+        // Add the new instance to the group
+        if (groupId) {
+          this.addToSoundGroup(groupId, actualId);
+          this.debugLog(`Added new instance ${actualId} to group ${groupId}.`);
+        }
       }
 
       const sound = instance || originalSound;
@@ -2076,6 +2103,11 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
+    // Skip if position hasn't changed
+    if (sound.panSpatialPosition && sound.panSpatialPosition.x === x && sound.panSpatialPosition.y === y && sound.panSpatialPosition.z === z) {
+      return;
+    }
+
     const source = sound.source;
 
     // If stereo panning is active, reset it without dispatching PAN_CHANGED
@@ -2109,9 +2141,7 @@ export class SoundManager implements SoundManagerInterface {
         sound.pannerNode.coneInnerAngle = mergedConfig.coneInnerAngle!;
         sound.pannerNode.coneOuterAngle = mergedConfig.coneOuterAngle!;
         sound.pannerNode.coneOuterGain = mergedConfig.coneOuterGain!;
-
-
-      } else if (soundPannerConfig) {
+      } else if (soundPannerConfig && Object.keys(soundPannerConfig).length !== 0) {
         // If panner exists and new config is provided, update only the provided values
         Object.entries(soundPannerConfig).forEach(([key, value]) => {
           if (value !== undefined) {
@@ -2138,7 +2168,7 @@ export class SoundManager implements SoundManagerInterface {
       sound.pannerNode.positionY.setValueAtTime(y, this.context.currentTime);
       sound.pannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
       sound.panSpatialPosition = { x, y, z };
-      ;
+
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,

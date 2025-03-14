@@ -153,6 +153,11 @@ export class SoundControl {
       this.soundManager.setPan(this.id, this.currentOptions.pan, true);
       this.panSlider.value = this.currentOptions.pan.toString();
     }
+
+    if( this.currentOptions.panSpatialPosition !== undefined) {
+      this.soundManager.setSpatialPosition(this.currentOptions.panSpatialPosition.x, this.currentOptions.panSpatialPosition.y, this.currentOptions.panSpatialPosition.z, this.id, this.soundManagerConfig.pannerNodeConfig, false);
+    }
+
     if (this.currentOptions.playbackRate !== undefined) {
       this.soundManager.setPlaybackRate(this.id, this.currentOptions.playbackRate, true);
       this.playbackRateInput.value = this.currentOptions.playbackRate.toString();
@@ -276,27 +281,10 @@ export class SoundControl {
     this.updateProgress(this.state.progress); 
     this.updateTimeDisplay(this.state.elapsedTime);
 
-    if (this.state) {
+    if (this.state && this.currentOptions.panSpatialPosition) {
+
       const currentPosition = this.spatialGrid.getCurrentPosition();
       const statePosition = this.spatialGrid.getPositionFromState(this.state);
-
-      this.log('Position comparison:', {
-        current: {
-          x: currentPosition.x.toFixed(4),
-          y: currentPosition.y.toFixed(4),
-          z: currentPosition.z.toFixed(4)
-        },
-        state: {
-          x: statePosition.x.toFixed(4),
-          y: statePosition.y.toFixed(4),
-          z: statePosition.z.toFixed(4)
-        },
-        differences: {
-          x: Math.abs(currentPosition.x - statePosition.x),
-          y: Math.abs(currentPosition.y - statePosition.y),
-          z: Math.abs(currentPosition.z - statePosition.z)
-        }
-      });
 
       if (this.spatialGrid.isSamePostion(statePosition, currentPosition)) {
         this.log('same position no need to update!!');
