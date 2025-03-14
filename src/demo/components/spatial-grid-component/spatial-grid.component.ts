@@ -75,15 +75,26 @@ export class SpatialGrid {
         this.isDragging = false;
     }
 
-    private handleMouseMove(e: MouseEvent): void {
+    private throttle(func: (...args: any[]) => void, limit: number): (...args: any[]) => void {
+        let inThrottle = false;
+        return (...args: any[]) => {
+            if (!inThrottle) {
+                func(...args);
+                inThrottle = true;
+                setTimeout(() => (inThrottle = false), limit);
+            }
+        };
+    }
+
+    private handleMouseMove = this.throttle((e: MouseEvent) => {
         if (!this.isDragging) return;
         const rect = this.grid.getBoundingClientRect();
         const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
         const z = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
         const y = parseFloat(this.verticalSlider.value);
         this.updatePosition(x, y, z);
-    }
-
+    }, 25); // Throttle to 25ms
+    
     private handleTouchStart(e: TouchEvent): void {
         this.isDragging = true;
         // Prevent scrolling while dragging
@@ -116,18 +127,22 @@ export class SpatialGrid {
     }
 
     public updatePosition(x: number, y: number, z: number, skipEvent: boolean = false, visuallyOnly: boolean = false): void {
-
+        const currentPosition = this.getCurrentPosition();
+        if (currentPosition.x === x && currentPosition.y === y && currentPosition.z === z) {
+            return; // Skip if position hasn't changed
+        }
+    
         this.circle.style.left = `${x}%`;
         this.circle.style.top = `${z}%`;
         this.verticalSlider.value = y.toString();
-
+    
         if (this.soundId && skipEvent === false && visuallyOnly === false) {
             this.soundManager.setSpatialPosition(
                 x / 50 - 1,
                 y,
                 z / 50 - 1,
                 this.soundId,
-                {},
+                undefined,
                 true
             );
         } else if(visuallyOnly === false) {
@@ -139,17 +154,17 @@ export class SpatialGrid {
                 skipEvent
             );
         }
-           // Notify the parent component of the position change
-           if (this.onPositionChange && !visuallyOnly) {
+    
+        if (this.onPositionChange && !visuallyOnly) {
             this.onPositionChange({
                 x: x / 50 - 1,
                 y: y,
                 z: z / 50 - 1
             });
         }
+    
         this.coordsDisplay.innerHTML = `<strong>Position:</strong><br/>X: ${(x / 50 - 1).toFixed(2)},<br/> Y: ${y.toFixed(2)},<br/>Z: ${(z / 50 - 1).toFixed(2)}`;
     }
-
 
     public getCurrentPosition(): { x: number; y: number; z: number } {
         return {
