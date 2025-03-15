@@ -83,7 +83,7 @@ export class SoundControl {
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
     // // Testing Sound Group
-    this.soundManager.createSoundGroup('test-group', { maxInstances: 2, playOptions: { volume: 0.5, pan: -0.5 }});
+    this.soundManager.createSoundGroup('test-group', { maxInstances: 12, playOptions: { volume: 0.5, pan: -0.5 }});
 
     // Play a new sound instance on key press
     document.addEventListener('keydown', (e) => {
@@ -92,9 +92,10 @@ export class SoundControl {
       //  soundManager.addToSoundGroup('test-group', this.id);
         const sound = this.soundManager.play(this.id, {
           groupId: 'test-group',
-          trackProgress: false, // Enable progress tracking
-          loop: false,
-          volume: 0.5,
+          trackProgress: true, // Enable progress tracking
+          loop: true,
+          volume: 1,
+          playbackRate: 1,
           pan: 0,
           createNewInstance: true
         });
@@ -105,11 +106,7 @@ export class SoundControl {
     this.soundManager.addEventListener(
       SoundEventsEnum.PROGRESS,
       (event) => {
-        const soundInstance = event.instanceId ? this.activeSounds.get(event.instanceId) : undefined;
-        if (soundInstance) {
           console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
-          console.log(`check progress for  ${soundInstance.id} :  ${event.progress}`);
-        }
       },
       { originalId: this.id } // Optional: Filter by originalId
     );
@@ -606,7 +603,6 @@ export class SoundControl {
 
       case SoundEventsEnum.FADE_IN_COMPLETED:
         this.log("Fade in completed", event);
-        console.log('Fade in completed event:', event.sound);
        this.currentOptions.volume = event.sound?.volume;
         break;
 
@@ -702,31 +698,11 @@ export class SoundControl {
   private play(): void {
     const state = this.soundManager.getSoundState(this.id);
     const isPaused = state?.state === SoundState.Paused;
-
-    // Create a pool for the piano note
-   // this.soundManager.createSoundPool('little-wonders-song', 5);
-
-    // this.currentOptions.loop = true;
-    // this.currentOptions.duration = 4;
-    //  this.currentOptions.startTime = 3;
-    //  this.currentOptions.pan = -0.75;
-    //  this.currentOptions.pauseAtDurationReached = true;
-    // setTimeout(() => {
-    //  let soundInstance = this.soundManager.play(this.id, this.currentOptions);
-    //  console.log('soundInstance', soundInstance);
-    // }, 1000);
     
-    console.log('play with options', this.currentOptions);
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
       this.soundManager.play(this.id, this.currentOptions);
-     // let soundInstance2 = this.soundManager.play(this.id, this.currentOptions);
-     // console.log('soundInstance2', soundInstance2);
-      //  this.soundManager.play(this.id, this.currentOptions); // this.currentOptions);
-      // setTimeout(() => {
-      //   this.soundManager.play(this.id, this.currentOptions);
-      // }, 1000);
     }
     this.updateState();
   }

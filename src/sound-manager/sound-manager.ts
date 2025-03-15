@@ -192,13 +192,6 @@ export class SoundManager implements SoundManagerInterface {
     source.onended = () => {
       console.log('sound ended', sound.id);
       this.debugLog(`Sound ${sound.id} ended naturally`);
-      // if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
-      //   this.handleLoopIteration(sound);
-      // } else {
-      //   this.handleSoundEnded(sound);
-
-      // }
-
       if (sound.state === SoundState.Playing) {
         if (sound.playOptions?.loop) {
           this.handleLoopIteration(sound);
@@ -427,7 +420,7 @@ export class SoundManager implements SoundManagerInterface {
       const soundStartTime = sound.startTime || 0;
       const hasBeenRestarted = currentTime - soundStartTime < (sound.buffer?.duration || 0);
 
-      if (hasBeenRestarted) {
+      if (hasBeenRestarted && sound.playOptions?.createNewInstance) {
         console.log(`Sound ${id} has been restarted, skipping cleanup`);
         return;
       }
@@ -508,8 +501,10 @@ export class SoundManager implements SoundManagerInterface {
           this.debugLog(`Stopped and removed oldest instance ${oldestSoundId} from group ${groupId}.`);
         }
       }
+      console.log('createNewInstance', createNewInstance, id);
 
       if (createNewInstance) {
+        // If createNewInstance is true, create a new instance
         const baseId = id.split(':')[0];
         const instanceNumber = this.getInstanceCounter(baseId);
         actualId = `${baseId}:${instanceNumber}`;
@@ -1816,7 +1811,7 @@ export class SoundManager implements SoundManagerInterface {
     this.stopProgressTracking(id);
 
     // Extract original ID if this is an instance
-    const originalId = id.includes('_') ? id.split('_')[0] : id;
+    const originalId = id.includes(':') ? id.split(':')[0] : id;
 
     const trackProgress = () => {
       const sound = this.sounds.get(id);
@@ -2728,11 +2723,11 @@ export class SoundManager implements SoundManagerInterface {
     if (!listeners) return;
 
     listeners.forEach(({ callback, filter }) => {
-      // Apply filter if provided
-      if (filter) {
-        if (filter.originalId && event.originalId !== filter.originalId) return;
-        if (filter.instanceId && event.instanceId !== filter.instanceId) return;
-        if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
+        // Apply filter if provided
+        if (filter) {
+          if (filter.originalId && event.originalId !== filter.originalId) return;
+          if (filter.instanceId && event.instanceId !== filter.instanceId) return;
+          if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
       }
 
       try {
