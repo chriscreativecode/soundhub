@@ -1,5 +1,6 @@
 
 import { PlayOptions } from "./play-sound-options.interface";
+import { SoundPanType } from "./sound-pan-type.enum";
 import { SoundState } from "./sound-state.interface";
 
 export interface Sound {
@@ -16,7 +17,7 @@ export interface Sound {
   pannerNode?: PannerNode | null; // for 3D panning
   pan?: number; // Normal panning value -1 to 1
   panSpatialPosition? : { x: number; y: number; z: number };
-  lastPanningType?: 'stereo' | 'spatial';
+  panType?: SoundPanType; 
   pausedAt?: number;
   playOptions?: PlayOptions;
   previousVolume?: number;

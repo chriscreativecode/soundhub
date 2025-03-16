@@ -128,7 +128,7 @@ export class SoundManagerDemo {
       // { id: "intro-speach", url: introSpeach},
        { id: "piano-tone", url: pianoTone},
         //  { id: "sound-surfer-constellations", url: song },
-        //  { id: "game-sound", url: gameSounds },
+     //   { id: "game-sound", url: gameSounds },
         // { id: "birds", url: birds },
         // { id: "rain", url: rain },
         // { id: "crickets", url: crickets },

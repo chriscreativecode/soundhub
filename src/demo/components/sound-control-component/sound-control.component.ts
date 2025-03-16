@@ -12,6 +12,7 @@ import soundControlComponentHtml from "./sound-control.component.html?raw";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 import { Sound } from "../../../sound-manager/sound.interface";
 import { LocalStorageManagerManager } from "../../services/local-storage-manager";
+import { SoundPanType } from "../../../sound-manager/sound-pan-type.enum";
 
 export interface SoundControlState {
   isPlaying: boolean;
@@ -92,12 +93,14 @@ export class SoundControl {
       //  soundManager.addToSoundGroup('test-group', this.id);
         const sound = this.soundManager.play(this.id, {
           groupId: 'test-group',
-          trackProgress: true, // Enable progress tracking
+          trackProgress: false, // Enable progress tracking
           loop: true,
-          volume: 1,
+          volume: 1, // Math.random(),
           playbackRate: 1,
-          pan: 0,
-          createNewInstance: true
+          pan: Math.random() * 2 - 1,
+          panSpatialPosition: { x: 0, y: 0, z: 0},
+        //  panType: SoundPanType.Spatial,
+          createNewInstance: true,
         });
       }
     });
@@ -151,7 +154,7 @@ export class SoundControl {
       this.panSlider.value = this.currentOptions.pan.toString();
     }
 
-    if( this.currentOptions.panSpatialPosition !== undefined) {
+    if( this.currentOptions.panSpatialPosition !== undefined && this.currentOptions.panType === SoundPanType.Spatial) {
       this.soundManager.setSpatialPosition(this.currentOptions.panSpatialPosition.x, this.currentOptions.panSpatialPosition.y, this.currentOptions.panSpatialPosition.z, this.id, this.soundManagerConfig.pannerNodeConfig, false);
     }
 

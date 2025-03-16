@@ -1,3 +1,4 @@
+import { SoundPanType } from "./sound-pan-type.enum";
 import { Sound } from "./sound.interface";
 
 export class AudioNodeConnector {
@@ -10,7 +11,7 @@ export class AudioNodeConnector {
     this.disconnectNodes(sound);
 
     // Connect based on panning type
-    if (sound.lastPanningType === 'spatial' && sound.pannerNode) {
+    if (sound.panType === SoundPanType.Spatial && sound.pannerNode) {
       // Spatial audio chain
       sound.source.connect(sound.pannerNode);
       sound.pannerNode.connect(sound.gainNode);

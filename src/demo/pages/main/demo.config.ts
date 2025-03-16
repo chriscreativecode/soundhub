@@ -1,4 +1,5 @@
 import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
+import { SoundPanType } from "../../../sound-manager/sound-pan-type.enum";
 import { DEFAULT_PANNER_CONFIG } from '../../../sound-manager/sound-panner-config';
 
 export const DEMO_CONFIG: SoundManagerConfig = {
@@ -10,6 +11,7 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   defaultDuration: undefined, // Default duration for new sounds, default is undefined (full length of the sound)
   defaultPan: 0, // The default pan value = 0, in the center. Posiible values are (-1 to 1)
   defaultPanSpatialPosition: { x: 0, y: 0, z: 0 },
+  defaultPanType: SoundPanType.Stereo, // Default pan type
   defaultPlaybackRate: 1, // The default playbackRate is 1
   defaultStartTime: 0, // Default start time for new sounds
   defaultVolume: 1, // Default volume for new sounds (0-1)

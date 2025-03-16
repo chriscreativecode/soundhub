@@ -6,6 +6,7 @@ import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundGroup } from "./sound-group";
 import { DEFAULT_CONFIG, SoundManagerConfig } from "./sound-manager-config";
 import { SoundManagerInterface } from "./sound-manager.interface";
+import { SoundPanType } from "./sound-pan-type.enum";
 import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "./sound-panner-config";
 import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
@@ -186,6 +187,21 @@ export class SoundManager implements SoundManagerInterface {
     sound.source = source;
     source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
+    // Apply panning settings if needed
+    if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
+      this.setPan(sound.id, sound.playOptions.pan, true);
+    }
+
+    // Apply spatial position if needed
+    if (sound.playOptions?.panSpatialPosition &&
+      (sound.playOptions.panSpatialPosition.x !== 0 ||
+        sound.playOptions.panSpatialPosition.y !== 0 ||
+        sound.playOptions.panSpatialPosition.z !== 0)) {
+
+      const pos = sound.playOptions.panSpatialPosition;
+      this.setSpatialPosition(pos.x, pos.y, pos.z, sound.id, undefined, true);
+    }
+
     this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
     this.activeSources.set(sound.id, source);
 
@@ -258,8 +274,6 @@ export class SoundManager implements SoundManagerInterface {
     sound.startTime = undefined;
     sound.pausedAt = sound.playOptions?.startTime ?? 0;
     sound.currentTime = 0;
-
-    console.log('created with new Instance', sound.playOptions?.createNewInstance);
 
     if (sound.playOptions?.createNewInstance) {
       // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
@@ -410,7 +424,6 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private cleanupExistingSource(id: string): void {
-    console.log('cleanupExistingSource', id);
     try {
       let sound = this.getValidatedSound(id);
       if (!sound.source) return;
@@ -420,7 +433,11 @@ export class SoundManager implements SoundManagerInterface {
       const soundStartTime = sound.startTime || 0;
       const hasBeenRestarted = currentTime - soundStartTime < (sound.buffer?.duration || 0);
 
-      if (hasBeenRestarted && sound.playOptions?.createNewInstance) {
+      // Only skip cleanup for playing sounds that have been restarted with createNewInstance
+      // For paused sounds, we should always stop the source
+      if (sound.state === SoundState.Playing &&
+        hasBeenRestarted &&
+        sound.playOptions?.createNewInstance) {
         console.log(`Sound ${id} has been restarted, skipping cleanup`);
         return;
       }
@@ -430,12 +447,11 @@ export class SoundManager implements SoundManagerInterface {
         sound.source.onended = null;
       }
 
-      if (sound.state === SoundState.Playing) {
-        sound.source.stop();
-        sound.source.disconnect();
-        this.activeSources.delete(id);
-        sound.source = null;
-      }
+      // Always stop the source if we've reached this point
+      sound.source.stop();
+      sound.source.disconnect();
+      this.activeSources.delete(id);
+      sound.source = null;
     } catch (error) {
       this.debugLog(`Error cleaning up source for ${id}: ${error}`);
     }
@@ -468,7 +484,6 @@ export class SoundManager implements SoundManagerInterface {
 
   // Playback control-----------------------------------------------------------------------------------------------------------
   public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
-    //    console.log('play sound', id);
     try {
       const originalSound = this.getValidatedSound(id);
       if (!originalSound) {
@@ -501,28 +516,46 @@ export class SoundManager implements SoundManagerInterface {
           this.debugLog(`Stopped and removed oldest instance ${oldestSoundId} from group ${groupId}.`);
         }
       }
-      console.log('createNewInstance', createNewInstance, id);
 
       if (createNewInstance) {
-        // If createNewInstance is true, create a new instance
         const baseId = id.split(':')[0];
         const instanceNumber = this.getInstanceCounter(baseId);
         actualId = `${baseId}:${instanceNumber}`;
         this.debugLog(`Creating new instance with ID: ${actualId}`);
 
+        // Create a DEEP copy of the original sound's playOptions
+        const newPlayOptions = JSON.parse(JSON.stringify({
+          ...originalSound.playOptions,
+          ...options,
+          createNewInstance: false,
+        }));
+
+        // Create a new gain node for this instance
+        const gainNode = this.context.createGain();
+
+        // Set the volume based on options, original sound, or default
+        const volume = options.volume ?? originalSound.volume ?? this.config.defaultVolume ?? 1;
+        gainNode.gain.value = volume;
+
+        // Create the instance with its own properties
         instance = {
           ...originalSound,
           id: actualId,
-          gainNode: this.context.createGain(),
+          gainNode: gainNode,
           state: SoundState.Stopped,
           currentTime: 0,
-          startTime: mergedPlayOptions?.startTime ?? 0,
+          startTime: newPlayOptions?.startTime ?? 0,
           pausedAt: 0,
           currentLoopCount: 0,
-          playOptions: {
-            ...mergedPlayOptions,
-            createNewInstance: false,
-          },
+          playOptions: newPlayOptions,
+          volume: volume,
+          originalVolume: volume,
+          pan: 0,
+          panSpatialPosition: { x: 0, y: 0, z: 0 },
+          panType: newPlayOptions.panType ?? SoundPanType.Stereo,
+          source: null,
+          stereoPanner: null,
+          pannerNode: null
         };
 
         this.sounds.set(actualId, instance);
@@ -540,9 +573,12 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      sound.playOptions = mergedPlayOptions;
+      // Update the sound playOptions if we're not creating a new instance
+      if (instance === undefined) {
+        sound.playOptions = mergedPlayOptions;
+      }
 
-      this.cleanupExistingSource(actualId);
+      this.cleanupExistingSource(sound.id);
 
       // Rest of your existing play logic...
       const source: AudioBufferSourceNode = this.setupAudioSource(sound);
@@ -551,52 +587,52 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      const playbackRate = mergedPlayOptions?.playbackRate || 1;
+      const playbackRate = sound.playOptions?.playbackRate || 1;
       let startOffset = 0;
       if (sound.pausedAt !== undefined && sound.pausedAt !== 0) {
         startOffset = sound.pausedAt;
-      } else if (mergedPlayOptions.startTime !== undefined) {
-        startOffset = mergedPlayOptions.startTime;
+      } else if (sound.playOptions?.startTime !== undefined) {
+        startOffset = sound.playOptions.startTime;
       }
 
       sound.startTime = this.context.currentTime - (startOffset / playbackRate);
 
       console.log(`playing sound ${sound.id} with a offset: `, sound.startTime, 'rate', playbackRate);
 
-      this.reconnectAudioNodes(actualId);
+      this.reconnectAudioNodes(sound.id);
 
       if (sound.playOptions?.volume !== undefined) {
-        this.setSoundVolume(actualId, sound.playOptions.volume, true);
+        this.setSoundVolume(sound.id, sound.playOptions.volume, true);
       }
-      if (sound.playOptions?.pan !== undefined && sound.lastPanningType !== 'spatial') {
-        this.setPan(actualId, sound.playOptions.pan, true);
+      if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
+        this.setPan(sound.id, sound.playOptions.pan, true);
       }
-      if (sound.playOptions?.panSpatialPosition !== undefined && sound.lastPanningType === 'spatial') {
-        this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, actualId, undefined, true);
+      if (sound.playOptions?.panSpatialPosition !== undefined && sound.panType === SoundPanType.Spatial) {
+        this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, sound.id, undefined, true);
       }
       if (sound.playOptions?.fadeInDuration !== undefined) {
-        this.fadeIn(actualId, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
+        this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
       }
       if (sound.playOptions?.fadeOutDuration !== undefined) {
-        this.fadeOut(actualId, sound.playOptions.fadeOutDuration);
+        this.fadeOut(sound.id, sound.playOptions.fadeOutDuration);
       }
       if (sound.playOptions?.playbackRate !== undefined) {
-        this.setPlaybackRate(actualId, playbackRate, true);
+        this.setPlaybackRate(sound.id, playbackRate, true);
       }
       if (sound.playOptions?.loop !== undefined) {
-        this.setLoop(actualId, sound.playOptions.loop, sound.playOptions.maxLoops);
+        this.setLoop(sound.id, sound.playOptions.loop, sound.playOptions.maxLoops);
       }
 
       source.start(0, startOffset,
-        (mergedPlayOptions.duration !== undefined && mergedPlayOptions.duration > 0)
-          ? mergedPlayOptions.duration * playbackRate
+        (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0)
+          ? sound.playOptions.duration * playbackRate
           : undefined
       );
 
       sound.state = SoundState.Playing;
 
-      if (mergedPlayOptions.trackProgress || this.config.trackProgress) {
-        this.startProgressTracking(actualId);
+      if (sound.playOptions?.trackProgress === true ) {
+        this.startProgressTracking(sound.id);
       }
 
       if (!skipDispatchEvent) {
@@ -607,7 +643,9 @@ export class SoundManager implements SoundManagerInterface {
           sound,
         });
       }
+
       return sound;
+
     } catch (error) {
       this.handleError("playing sound", error, id);
     }
@@ -621,6 +659,7 @@ export class SoundManager implements SoundManagerInterface {
   public pause(id: string, skipDispatchEvent: boolean = false): void {
     try {
       const sound = this.getValidatedSound(id);
+
       if (!this.isPlaying(id) || this.isPaused(id)) return;
 
 
@@ -645,9 +684,9 @@ export class SoundManager implements SoundManagerInterface {
 
       sound.state = SoundState.Paused;
 
-      this.cleanupExistingSource(id);
-
       this.stopProgressTracking(id);
+
+      this.cleanupExistingSource(id);
 
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -1325,10 +1364,11 @@ export class SoundManager implements SoundManagerInterface {
               playbackRate: this.config.defaultPlaybackRate ?? 1,
               pan: this.config.defaultPan ?? 0,
               volume: this.config.defaultVolume ?? 1,
-              trackProgress: this.config.trackProgress || this.config.createNewInstance ? false : true
+              trackProgress: this.config.trackProgress ?? false
             },
             panSpatialPosition: this.config.defaultPanSpatialPosition || { x: 0, y: 0, z: 0 },
             pan: this.config.defaultPan ?? 0,
+            panType: this.config.defaultPanType ?? SoundPanType.Stereo,
           });
 
           this.debugLog(`Sound ${id} loaded successfully`);
@@ -1885,7 +1925,7 @@ export class SoundManager implements SoundManagerInterface {
       if (this.isSpatialAudioActive(id)) {
         this.debugLog(`Removed 3D spatial audio, and overwritten with stereo panner for sound ${id}`);
         this.removeSpatialEffect(id);
-        sound.lastPanningType = 'stereo';
+        sound.panType = SoundPanType.Stereo;
 
         // Reset spatial position without dispatching SPATIAL_POSITION_CHANGED
         const restoredPanSpatialPosition = { x: 0, y: 0, z: 0 };
@@ -1902,12 +1942,12 @@ export class SoundManager implements SoundManagerInterface {
 
       // Store the pan value and update the panner
       sound.pan = clampedValue;
-      sound.playOptions = {
-        ...sound.playOptions,
-        pan: clampedValue,
-      };
 
-      sound.lastPanningType = 'stereo';
+      if (sound.playOptions) {
+        sound.playOptions.pan = clampedValue;
+      }
+
+      sound.panType = SoundPanType.Stereo;
       if (sound.stereoPanner) {
         sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
       }
@@ -2098,11 +2138,6 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    // Skip if position hasn't changed
-    if (sound.panSpatialPosition && sound.panSpatialPosition.x === x && sound.panSpatialPosition.y === y && sound.panSpatialPosition.z === z) {
-      return;
-    }
-
     const source = sound.source;
 
     // If stereo panning is active, reset it without dispatching PAN_CHANGED
@@ -2110,7 +2145,7 @@ export class SoundManager implements SoundManagerInterface {
       this.removePan(soundId);
       this.debugLog(`Removed stereo panner, and overwritten with spatial panning for sound ${soundId}`);
     }
-    sound.lastPanningType = 'spatial';
+    sound.panType = SoundPanType.Spatial;
 
     sound.playOptions = {
       ...sound.playOptions,
@@ -2144,7 +2179,6 @@ export class SoundManager implements SoundManagerInterface {
           }
         });
       }
-
 
       // Reconnect the audio nodes with the panner
       source?.disconnect();
@@ -2481,7 +2515,7 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    if (sound.lastPanningType === 'spatial') {
+    if (sound.panType === SoundPanType.Spatial) {
       this.resetSpatialPosition(id);
     } else {
       if (!options.keepPanning) {
@@ -2497,7 +2531,7 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     // Clean up audio routing first
-    if (!options.keepSpatial && sound.lastPanningType === 'spatial') {
+    if (!options.keepSpatial && sound.panType === SoundPanType.Spatial) {
       // Properly remove spatial audio
       this.removeSpatialEffect(id);
 
@@ -2508,7 +2542,7 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       // Update panning type
-      sound.lastPanningType = 'stereo';
+      sound.panType = SoundPanType.Stereo;
 
       // Ensure proper stereo setup
       if (sound.source) {
@@ -2517,7 +2551,7 @@ export class SoundManager implements SoundManagerInterface {
       }
     }
 
-    if (!options.keepPanning && sound.lastPanningType === 'stereo') {
+    if (!options.keepPanning && sound.panType === SoundPanType.Stereo) {
       this.removePan(id);
     }
 
@@ -2723,11 +2757,11 @@ export class SoundManager implements SoundManagerInterface {
     if (!listeners) return;
 
     listeners.forEach(({ callback, filter }) => {
-        // Apply filter if provided
-        if (filter) {
-          if (filter.originalId && event.originalId !== filter.originalId) return;
-          if (filter.instanceId && event.instanceId !== filter.instanceId) return;
-          if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
+      // Apply filter if provided
+      if (filter) {
+        if (filter.originalId && event.originalId !== filter.originalId) return;
+        if (filter.instanceId && event.instanceId !== filter.instanceId) return;
+        if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
       }
 
       try {
