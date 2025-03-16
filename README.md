@@ -18,7 +18,7 @@ A powerful and lightweight (11KB gzipped) sound management system I crafted to m
 - Built on the latest Web Audio API
 - Only 11 KB gzipped
 - Zero dependencies
-- High performance with low latency
+- Easy to connect to a UI interface.
 
 🎮 **Perfect for Games & Apps**
 
@@ -47,9 +47,9 @@ A powerful and lightweight (11KB gzipped) sound management system I crafted to m
 
 ## Note
 
-- Development Status: This sound manager is currently under active development and is not yet finalized. While it is functional, some features may still be refined or added in future updates.
+- Development Status: This sound manager has undergone significant recent enhancements, with numerous additional features including sound groups, sprites, and more. After extensive testing and resolving various edge cases, version 5.0.0 now appears stable with most features and scenarios thoroughly validated.
 
-- Availability: Once completed, the sound manager will be published on GitHub. In the meantime, feel free to use it in its current state and provide feedback or suggestions for improvement.
+- The demo page will be published on GitHub within the next month or so.
 
 - Contribution: If you encounter any issues or have ideas for enhancements, please don't hesitate to share them. Your input is valuable and will help shape the final version!
 
@@ -90,7 +90,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
-    - [5.0.0 (Major udpate)](#500-major-udpate)
+    - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
     - [4.0.0 (Major update)](#400-major-update)
     - [3.2.0](#320)
       - [🎉 Added features](#-added-features)
@@ -754,7 +754,8 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 5.0.0 (Major udpate)
+### 5.0.0 (Major & critical udpate )
+ - Fixed a lot of bugs, because I did not test most scenario's.
  - Changed configuration values from miliseconds to seconds. 
  - Added more utility methods for better sound state management and control.
  - Renamed the following methods
@@ -768,52 +769,77 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 - Added new methods
 
   ```typescript
-  getVolume(id: string): number;
-
-    // Loop control
+  // Playback Control
   setLoop(id: string, loop: boolean): void
   getLoop(id: string): boolean
 
-  loadSound(id: string, url: string): Promise<void>;
+  //Sound Loading and Management
+  loadSound(id: string, url: string): Promise<void>
+  loadSounds (renamed from preloadSounds)
   unloadSound(id: string): void
   removeSound(id: string): void
 
-  // State checks
-  getSoundCount(): number;
-  isReady(): boolean;
+  //Group Management (entirely new)
+  createSoundGroup(groupName: string, options: SoundGroup): void
+  addToSoundGroup(groupName: string, soundId: string): void
+  removeFromSoundGroup(groupName: string, soundId: string): void
+  getGroup(groupName: string): SoundGroup | undefined
+  removeSoundGroup(groupName: string): void
 
-  // Progress tracking
-  getDuration(id: string): number;
-  startProgressTracking(id: string): void;
-  stopProgressTracking(id: string): void;
+  //Sprite Logic (expanded)
+  getSpriteConfig(id: string): { [key: string]: [number, number] } | undefined
+  removeSpriteSound(id: string): void
+  removeSpriteConfig(id: string): void
 
-  // Spatial audio
-  setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipEvent?: boolean): void;
-  getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null;
+  //Context Management (new)
+  suspendContext(): Promise<void>
+  resumeContext(): Promise<void>
+  getContext(): AudioContext
 
-  // Context management
-  suspendContext(): Promise<void>;
-  resumeContext(): Promise<void>;
-  getContext(): AudioContext;
+  //Progress Tracking (expanded)
+  getDuration(id: string): number
+  startProgressTracking(id: string): void
+  stopProgressTracking(id: string): void
+  setProgressUpdateInterval(interval: number): void
 
-  // Utilities
-  getSound(id: string): Sound | undefined;
-  getBuffer(id: string): AudioBuffer | undefined;
-  getSource(id: string): AudioBufferSourceNode | undefined;
-  getGainNode(id: string): GainNode | undefined;
-  getSoundIds(): string[];
-  getLastError(): Error | null;
-  roundValue(value: number, decimals: number): number; // Default precision is this.DEFAULT_PRECISION
+  //Spatial Audio (expanded)
+  isSpatialAudioSupported(): boolean
+  getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null
+  getMasterSpatialPosition(): { x: number; y: number; z: number } | null
+  resetMasterSpatialPosition(): void
+ 
+  // renamed from setSoundPosition
+  setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipDispatchEvent?: boolean): void;
 
-  // Listeners / Event handling
-  dispatchEvent(event: SoundEvent): void;
-  hasEventListener(type: SoundEventsEnum): boolean;
+  //Reset Operations (expanded)
+  resetSound(id: string, options?: SoundResetOptions): void
+  resetPan(id?: string): void
+
+  //Sound/Buffer/Source/GainNode Retrieval (new)
+  getBuffer(id: string): AudioBuffer | undefined
+  getSource(id: string): AudioBufferSourceNode | undefined
+  getGainNode(id: string): GainNode | undefined
   
-  }
+  //Utilities (expanded)
+  isReady(): boolean
+  getSoundCount(): number
+  getLastError(): Error | null
+  roundValue(value: number, decimals: number): number
+ 
+  //Event Handling (expanded)
+  removeEventListenersForInstance(instanceId: string): void
+  dispatchEvent(event: SoundEvent): void
+  hasEventListener(type: SoundEventsEnum): boolean
+
 ```
 
 - Added more PlayOptions
-  * newSoundInstance (if false, it will use the previously instance of the sound)
+  * fadeIn -> renamded to fadeInDuration
+  * fadeOut -> renamed to fadeOutDuration
+  * panSpatialPosition?: { x: number; y: number; z: number }
+  * PanType?: SoundPanType (stereo or spatial)
+  * trackProgress?: boolean (wheter to track playback progress)
+  * createNewInstance (if false, it will use the previously instance of the sound)
   * playbackRate
   * isSeeking
   * duration (seconds)
@@ -833,10 +859,14 @@ This project is developed by Chris Schardijn. It is free to use in your project.
   
 - Bug fixes
   * startTime in PlayOptions was not working correctly.
+  * fix issues with the PlayOptions 
   * fix issues with spatial audio
   * fix reset method
-  * playBackRate
+  * fix playBackRate issues
   * fadeIn / fadeOut
+  * fix issues with new instances
+  * fix issues with Sprites
+  * fixed typescript support .d.ts files
 
 
 ### 4.0.0 (Major update)
@@ -1065,8 +1095,4 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 - Core feature implementation
 
 ## 🚀 Upcoming Features
-
-- Add setPlaybackRate to the demo for adjustable audio speed
-- Add showcase of the sound sprite to play multiple effects from a single file
-- Improvements on various sound logic
-- Spatial Recording & Playback
+- More interactive demo pages showcasing advanced use cases of the SoundManager.
