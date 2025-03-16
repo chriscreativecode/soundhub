@@ -27,6 +27,22 @@
   gap: 0.75rem;
 }
 
+.sound-title h4 {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--color-text-title);
+  font-weight: 500;
+}
+
+.sound-title-content {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.music-note {
+  color: var(--color-music-note);
+}
+
 .sprite-badge {
   display: flex;
   align-items: center;
@@ -44,18 +60,15 @@
   height: 14px;
 }
 
-.sound-title h4 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--color-text);
-}
-
 .icon-button.close-btn {
   top: -5px;
   right: -5px;
   position: relative;
   transform: scale(0.8);
   background: var(--color-warning);
+}
+.close-icon {
+  color: var(--color-close-icon);
 }
 
 .icon-button.close-btn:hover:not(:disabled) {
