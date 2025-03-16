@@ -77,15 +77,20 @@ Transform your web audio experience with just a few lines of code!
       - [Install the package](#install-the-package)
     - [2. Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
   - [Usage](#usage)
-  - [Interfaces](#interfaces)
-  - [Public methods on the SoundManager](#public-methods-on-the-soundmanager)
-  - [PlayOptions](#playoptions)
-  - [SoundEvent](#soundevent)
-  - [SoundEventsEnum](#soundeventsenum)
-  - [SoundManagerConfig](#soundmanagerconfig)
-  - [Sound State Information](#sound-state-information)
-  - [SoundState](#soundstate)
-    - [SoundProgressStateInfo](#soundprogressstateinfo)
+  - [The SoundManager API](#the-soundmanager-api)
+    - [Public methods on the SoundManager](#public-methods-on-the-soundmanager)
+    - [PlayOptions](#playoptions)
+    - [SoundEvent](#soundevent)
+    - [SoundEventsEnum](#soundeventsenum)
+    - [SoundGroup](#soundgroup)
+    - [SoundManagerConfig](#soundmanagerconfig)
+    - [Sound State Information](#sound-state-information)
+    - [SoundState](#soundstate)
+      - [The Sound Object](#the-sound-object)
+      - [SoundProgressStateInfo](#soundprogressstateinfo)
+    - [SoundPanType](#soundpantype)
+    - [Spatial Audio](#spatial-audio)
+    - [Reset options](#reset-options)
   - [Demo included](#demo-included)
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
@@ -132,7 +137,7 @@ npm install sound-manager-ts
 import { SoundManager } from "sound-manager-ts";
 
 const soundManager = new SoundManager();
-await soundManager.preloadSounds([{ id: "music", url: "/sounds/music.mp3" }]);
+await soundManager.loadSounds([{ id: "music", url: "/sounds/music.mp3" }]);
 soundManager.play("music");
 ```
 
@@ -175,7 +180,7 @@ const soundsToLoad = [
 
 // Preload sounds
 soundManager
-  .preloadSounds(soundsToLoad)
+  .loadSounds(soundsToLoad)
   .then(() => {
     console.log("All sounds loaded successfully");
   })
@@ -186,7 +191,7 @@ soundManager
 // Play a sound
 soundManager.play("background-music", {
   volume: 0.7,
-  fadeIn: 2,
+  fadeInDuration: 2,
 });
 ```
 
@@ -226,14 +231,14 @@ If you prefer to include Sound Manager directly as a library file in your projec
       // Method 1: Preload sounds using Promises (then/catch)
       // ====================================================================
       soundManager
-        .preloadSounds(soundsToLoad)
+        .loadSounds(soundsToLoad)
         .then(() => {
           console.log("All sounds loaded successfully");
 
           // Play a sound
           soundManager.play("background-music", {
             volume: 0.7,
-            fadeIn: 2,
+            fadeInDuration: 2,
           });
 
           // Control individual sounds
@@ -249,13 +254,13 @@ If you prefer to include Sound Manager directly as a library file in your projec
       async function loadAndPlaySounds() {
         try {
           // Preload sounds
-          await soundManager.preloadSounds(soundsToLoad);
+          await soundManager.loadSounds(soundsToLoad);
           console.log("All sounds loaded successfully");
 
           // Play a sound
           soundManager.play("background-music", {
             volume: 0.7,
-            fadeIn: 2,
+            fadeInDuration: 2,
           });
 
           // Control individual sounds
@@ -308,7 +313,7 @@ const soundsToLoad = [
 
 // Preload sounds (recommended)
 try {
-    await soundManager.preloadSounds(soundsToLoad);
+    await soundManager.loadSounds(soundsToLoad);
     console.log('All sounds loaded successfully');
 } catch (error) {
     console.error('Error loading sounds:', error);
@@ -326,8 +331,8 @@ soundManager.addEventListener(SoundEventsEnum.ENDED, (event) => {
 // Play a sound with options
 soundManager.play('background-music', {
     volume: 0.7,
-    fadeIn: 2000,
-    fadeOut: 1,
+    fadeInDuration: 2,
+    fadeOutDuration: 1,
     pan: -0.5,
     startTime: 0
 });
@@ -360,7 +365,7 @@ const soundsToLoad = [
 	{ id: "game-sound", url: gameSounds },        
 ];
 
-await this.soundManager.preloadSounds(soundsToLoad);
+await this.soundManager.loadSounds(soundsToLoad);
 
 let mySprite: any = {
 	intro: [0, 2],
@@ -371,9 +376,9 @@ let mySprite: any = {
 
 this.soundManager.setSoundSprite("game-sound", mySprite);
 
-this.soundManager.playSprite("game-sound", "intro", { fadeIn: 1, pan: 0.8, playbackRate: 1.5});
+this.soundManager.playSprite("game-sound", "intro", { fadeInDuration: 1, pan: 0.8, playbackRate: 1.5});
 this.soundManager.playSprite("game-sound", "jump", { loop: true});
-this.soundManager.playSprite("game-sound", "levelup", { fadeOut: 1, pan: -0.8});
+this.soundManager.playSprite("game-sound", "levelup", { fadeOutDuration: 1, pan: -0.8});
 
 setTimeout( ()=> {
     this.soundManager.playSprite(this.id, "fail", { pan: 0.8});
@@ -435,9 +440,10 @@ soundManager.destroy();
 
 ```
 
-## Interfaces
+## The SoundManager API 
 
-## Public methods on the SoundManager
+
+### Public methods on the SoundManager
 
 ```typescript
 export interface SoundManagerInterface {
@@ -559,29 +565,33 @@ export interface SoundManagerInterface {
 
 ```
 
-## PlayOptions
+### PlayOptions
 
 Options for playing a sound
 
 ```typescript
 export interface PlayOptions {
-  fadeIn?: number; // in seconds
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously.
+  duration?:number; // in seconds
+  fadeInDuration?: number; // in seconds
   fadeInStartVolume?: number; // 0 to 1
-  fadeOut?: number; // in seconds
-  pan?: number; // -1 (left) to 1 (right)
-  panSpatialPosition?: { x: number; y: number; z: number };
-  startTime?: number; // in seconds
-  volume?: number; // 0 to 1
+  fadeOutDuration?: number; // in seconds
+  groupId?: string; // Group ID for the sounds that will be in this group. 
+  isSeeking?: boolean; // used internally for the seek method
   loop?: boolean; // default: false
   maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
-  playbackRate?: number;
-  duration?:number; // in seconds
-  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached
-  isSeeking?: boolean; // used internally for the seek method
+  pan?: number; // -1 (left) to 1 (right)
+  panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
+  panType?: SoundPanType; // 'stereo' or 'spatial' (default is 'stereo') 
+  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached (when loop is false)
+  playbackRate?: number; // 0.5 to 4 (normal speed is 1) 
+  startTime?: number; // in seconds
+  trackProgress?: boolean; // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
+  volume?: number; // 0 to 1
 }
 ```
 
-## SoundEvent
+### SoundEvent
 
 Event object dispatched by the sound manager:
 
@@ -590,9 +600,11 @@ export interface SoundEvent {
   currentTime?: number;
   duration?:number;
   error?: Error;
+  instanceId?: string; // Add this for instance tracking
   isMaster?: boolean;
   isMuted?: boolean;
   options?: PlayOptions;
+  originalId?: string; // Add this to track the original sound ID
   pan?: number;
   pannerConfig?: SoundPannerConfig;
   playbackRate?: number;
@@ -609,7 +621,7 @@ export interface SoundEvent {
 }
 ```
 
-## SoundEventsEnum
+### SoundEventsEnum
 
 Available event types:
 
@@ -641,15 +653,27 @@ export enum SoundEventsEnum {
   SPRITE_SET = 'sprite_set',
   STARTED = 'started',
   STOPPED = 'stopped',
+  UNLOADED = 'unloaded',
   UNMUTE_GLOBAL = 'unmute_global',
   UNMUTED = 'unmuted',
-  UNLOADED = 'unloaded',
   UPDATED_URL = 'updated_url',
   VOLUME_CHANGED = 'volume_changed',
 }
 ```
 
-## SoundManagerConfig
+### SoundGroup
+
+```typescript
+export interface SoundGroup {
+  id: string; // internal usage (groupName)
+  sounds: Set<string>; // Stores sound IDs belonging to this group
+  maxInstances?: number; // Maximum number of concurrent instances allowed in the group
+  playOptions?: PlayOptions; // Add playOptions to the group
+}
+```
+
+
+### SoundManagerConfig
 
 Configuration options:
 
@@ -657,61 +681,201 @@ Configuration options:
 export interface SoundManagerConfig {
   autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
   autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
   crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
   debug?: boolean; // Enable debug logging
-  defaultPlaybackRate?: number // The default playbackRate is 1
+  defaultDuration?: number; // Default duration for new sounds, default is undefined (full length of the sound)
   defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
+  defaultPanSpatialPosition?: { x: number; y: number; z: number };
+  defaultPanType?: SoundPanType; // Default pan type
+  defaultPlaybackRate?: number // The default playbackRate is 1
+  defaultStartTime?: number; // Default start time for new sounds
   defaultVolume?: number; // Default volume for new sounds (0-1)
   fadeInDuration?: number; // Default fade-in duration in seconds
   fadeOutDuration?: number; // Default fade-out duration in seconds
-  defaultStartTime?: number; // Default start time for new sounds
-  spatialAudio?: boolean; // Enable spatial audio features
   loopSounds?: boolean // Loop all sounds by default
   maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
-  defaultPanSpatialPosition?: { x: number; y: number; z: number };
+  spatialAudio?: boolean; // Enable spatial audio features
+  trackProgress?: boolean; // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
 }
-
 ```
 
-## Sound State Information
+### Sound State Information
 
 Information about a sound's current state:
 
 ```typescript
-interface SoundStateInfo {
-  currentTime: number; // Current playback position in seconds
-  duration: number | null; // Total duration of the sound
-  state: SoundState; // Current state (playing/paused/stopped)
-  volume: number; // Current volume level
+export interface SoundStateInfo {
+  progress: number; // ratio from 0 to 1
+  startTime: number; // in seconds
+  currentTime: number; // in seconds
+  elapsedTime: number; // in seconds
+  adjustedElapsedTime: number; // Elapsed time adjusted for playback rate
+  duration: number; // in seconds
+  rawDuration: number | null; // in seconds
+  playbackRate: number | null;
+  state: SoundState;
+  volume: number; // value from 0 to 1
+  pan: number; // value form 0 to 1
+  panSpatialPosition: { x: number; y: number; z: number };
 }
 ```
 
-## SoundState
+### SoundState
 
 Possible states of a sound:
 
 ```typescript
-enum SoundState {
+export enum SoundState {
   Playing = "playing",
   Paused = "paused",
   Stopped = "stopped",
 }
 ```
 
-### SoundProgressStateInfo
+#### The Sound Object
+
+```typescript
+export interface Sound {
+  buffer: AudioBuffer;
+  source: AudioBufferSourceNode | null;
+  positionTracker?: ConstantSourceNode;
+  currentLoopCount?: number;
+  gainNode: GainNode;
+  groupId?: string;
+  id: string;
+  isFadingIn?: boolean;
+  isFadingOut?: boolean;
+  originalVolume?: number;
+  pannerNode?: PannerNode | null; // for 3D panning
+  pan?: number; // Normal panning value -1 to 1
+  panSpatialPosition? : { x: number; y: number; z: number };
+  panType?: SoundPanType; 
+  pausedAt?: number;
+  playOptions?: PlayOptions;
+  previousVolume?: number;
+  sprite?: { [key: string]: [number, number] }; // Sprite support
+  startTime?: number; // in seconds
+  state?: SoundState;
+  stereoPanner?: StereoPannerNode | null; // just plain left to right panning
+  volume?: number; // values from 0 to 1
+  duration?: number; // in seconds
+  currentTime?:number; // in seconds
+  instanceId?:string;
+  instanceCount?:number;
+  baseId?: string; // Base sound ID (e.g., "game-sound_jump")
+}
+```
+
+#### SoundProgressStateInfo
 
 Sound progress information, is connected to the sound event ->progressInfo
 
 ```typescript
-  export interface SoundProgressStateInfo {
-    soundId: string;
-    currentTime: number;
-    duration: number;
-    progress: number; // 0-1
-  }
+export interface SoundProgressStateInfo {
+  soundId: string;
+  currentTime: number;
+  duration: number;
+  rawDuration: number;
+  progress: number; // 0-1
+}
 ```
 
+### SoundPanType
+
+```typescript
+export enum SoundPanType {
+    Stereo = 'stereo',
+    Spatial = 'spatial'
+}
+```
+
+### Spatial Audio
+
+```typescript
+export enum PanningModel {
+  HRTF = "HRTF",
+  EqualPower = "equalpower",
+}
+
+export enum DistanceModel {
+  Linear = "linear",
+  Inverse = "inverse",
+  Exponential = "exponential",
+}
+
+export interface SoundPannerConfig {
+  /**
+   * Determines which spatialisation algorithm to use to position the audio in 3D space.
+   * - 'HRTF': More accurate, head-related transfer function (default)
+   * - 'equalpower': Basic equal-power panning
+   */
+  panningModel?: PanningModel;
+
+  /**
+   * Determines how the volume of the audio source decreases as it moves away from the listener.
+   * - 'linear': Volume reduces linearly with distance
+   * - 'inverse': Volume reduces inversely with distance (realistic, default)
+   * - 'exponential': Volume reduces exponentially with distance
+   */
+  distanceModel?: DistanceModel;
+
+  /**
+   * The reference distance for reducing volume as the audio source moves further from the listener.
+   * Default is 1 meter.
+   * @min 0
+   */
+  refDistance?: number;
+
+  /**
+   * The maximum distance between the audio source and the listener, after which the volume will not be reduced any further.
+   * Default is 10000 meters.
+   * @min refDistance
+   */
+  maxDistance?: number;
+
+  /**
+   * Describes how quickly the volume reduces as the source moves away from the listener.
+   * - For 'linear': Valid range [0, 1], default 1
+   * - For 'inverse': Valid range [0, ∞], default 1
+   * - For 'exponential': Valid range [0, ∞], default 1
+   */
+  rolloffFactor?: number;
+
+  /**
+   * The angle, in degrees, of a cone inside which there will be no volume reduction.
+   * Default is 360 (no cone).
+   * @range [0, 360]
+   */
+  coneInnerAngle?: number;
+
+  /**
+   * The angle, in degrees, of a cone outside which the volume will be reduced by a constant value.
+   * Default is 360 (no cone).
+   * @range [0, 360]
+   */
+  coneOuterAngle?: number;
+
+  /**
+   * The amount of volume reduction outside the outer cone.
+   * Default is 0.
+   * @range [0, 1]
+   */
+  coneOuterGain?: number;
+}
+```
+
+### Reset options
+```typescript
+export interface SoundResetOptions {
+  keepVolumes?: boolean; // Keep current volume settings
+  keepPanning?: boolean; // Keep current panning settings
+  keepSpatial?: boolean; // Keep spatial audio settings
+  keepPlaybackRate?: boolean // Keep playback rate
+  unloadSounds?: boolean; // Unload all sounds
+}
+```
 
 ## Demo included
 
