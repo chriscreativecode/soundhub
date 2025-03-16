@@ -1,9 +1,12 @@
+import { SoundPanType } from "./sound-pan-type.enum";
+
 export interface PlayOptions {
   fadeInDuration?: number; // in seconds
   fadeInStartVolume?: number; // 0 to 1
   fadeOutDuration?: number; // in seconds
   pan?: number; // -1 (left) to 1 (right)
-  panSpatialPosition?: { x: number; y: number; z: number };
+  panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
+  panType?: SoundPanType;
   startTime?: number; // in seconds
   volume?: number; // 0 to 1
   loop?: boolean; // default: false
