@@ -39,6 +39,8 @@ body {
   --color-surface-secondary: #f0f0f0;
   --color-border: #ddd;
   --color-text: #000;
+  --color-text-title: #0e8ee8;
+  --color-close-icon: #fff;
   --color-white: #fff;
 
   /* Spacing */
@@ -66,6 +68,7 @@ body {
   --controls-shadow: inset 0 2px 4px 0px rgb(170 170 170);
 
   --color-grid-circle: rgba(227, 16, 72, 0.658);
+  --color-music-note: #2196F3;
   --color-grid-line: #ddddddb5;
 }
 
@@ -434,11 +437,14 @@ body.dark-theme {
   --color-surface-secondary: #2d2d2d;
   --color-border: #404040;
   --color-text: #ecebeb;
+  --color-text-title: #ffc061;
+  --color-close-icon: #000;
   --color-text-secondary: #b0b0b0;
   --panel-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   --controls-shadow: inset 0 2px 4px 0px rgba(0, 0, 0, 0.2);
   --panel-background: #00000052;
   --color-grid-circle: rgba(227, 16, 72, 1);
+  --color-music-note: rgb(182, 104, 1);
 }
 
 body.dark-theme .theme-icon--moon {

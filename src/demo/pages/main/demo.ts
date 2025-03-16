@@ -89,12 +89,12 @@ export class SoundManagerDemo {
     const themeToggle = document.getElementById('themeToggle') as HTMLInputElement;
 
     const storedTheme = LocalStorageManagerManager.getItem('sound-manager-ts-demo-theme');
-  
+
     if (!storedTheme) {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       LocalStorageManagerManager.setItem('sound-manager-ts-demo-theme', systemTheme);
     }
-  
+
     if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       body.classList.add('dark-theme');
       if (themeToggle) themeToggle.checked = true;
@@ -102,7 +102,7 @@ export class SoundManagerDemo {
       body.classList.remove('dark-theme');
       if (themeToggle) themeToggle.checked = false;
     }
-  
+
     if (themeToggle) {
       themeToggle.addEventListener('change', function () {
         if (this.checked) {
@@ -125,16 +125,16 @@ export class SoundManagerDemo {
       this.updateLoadingState(true);
 
       const soundsToLoad = [
-      // { id: "intro-speach", url: introSpeach},
-       { id: "piano-tone", url: pianoTone},
-        //  { id: "sound-surfer-constellations", url: song },
-     //   { id: "game-sound", url: gameSounds },
-        // { id: "birds", url: birds },
-        // { id: "rain", url: rain },
-        // { id: "crickets", url: crickets },
-        // { id: "brook", url: brook },
-        // { id: "magma", url: magma },
-        // { id: "little-wonders-song", url: song2 },
+        { id: "intro-speach", url: introSpeach },
+        { id: "piano-tone", url: pianoTone },
+        { id: "sound-surfer-constellations", url: song },
+        { id: "game-sound", url: gameSounds },
+        { id: "birds", url: birds },
+        { id: "rain", url: rain },
+        { id: "crickets", url: crickets },
+        { id: "brook", url: brook },
+        { id: "magma", url: magma },
+        { id: "little-wonders-song", url: song2 },
       ];
 
       await this.soundManager.loadSounds(soundsToLoad);
