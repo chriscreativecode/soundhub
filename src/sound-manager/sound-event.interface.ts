@@ -9,9 +9,11 @@ export interface SoundEvent {
   currentTime?: number;
   duration?:number;
   error?: Error;
+  instanceId?: string; // Add this for instance tracking
   isMaster?: boolean;
   isMuted?: boolean;
   options?: PlayOptions;
+  originalId?: string; // Add this to track the original sound ID
   pan?: number;
   pannerConfig?: SoundPannerConfig;
   playbackRate?: number;
@@ -22,8 +24,6 @@ export interface SoundEvent {
   resetOptions?: SoundResetOptions;
   sound?: Sound;
   soundId?: string;
-  originalId?: string; // Add this to track the original sound ID
-  instanceId?: string; // Add this for instance tracking
   timestamp?: number;
   type: SoundEventsEnum;
   volume?: number;

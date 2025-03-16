@@ -25,9 +25,9 @@ export enum SoundEventsEnum {
     SPRITE_SET = 'sprite_set',
     STARTED = 'started',
     STOPPED = 'stopped',
+    UNLOADED = 'unloaded',
     UNMUTE_GLOBAL = 'unmute_global',
     UNMUTED = 'unmuted',
-    UNLOADED = 'unloaded',
     UPDATED_URL = 'updated_url',
     VOLUME_CHANGED = 'volume_changed',
   }
