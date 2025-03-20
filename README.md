@@ -38,18 +38,59 @@ A powerful and lightweight (11KB gzipped) sound management system I crafted to m
 
 ## Features
 
-- 🎚️ Volume control & fading
-- 🎯 Spatial audio positioning
-- ⏯️ Play, pause, resume, and stop
-- 🎛️ Pan and balance adjustment
-- ⚡ Event-driven architecture
-- 📱 Mobile-friendly
+- 🎚️ **Volume Control & Fading**  
+  Easily adjust volume levels for individual sounds or globally. Supports smooth fade-in and fade-out effects.  
+
+- 🎯 **Spatial Audio Positioning**  
+  Create immersive 3D audio experiences with spatial audio positioning (x, y, z coordinates).
+
+- ⏯️ **Playback Control** 
+  Play, pause, resume, and stop sounds with precision. Supports seamless looping and custom start/end times.
+
+- 🎛️ **Pan & Balance Adjustment**  
+  Adjust stereo panning for individual sounds or globally. Supports both stereo and spatial panning.
+
+- ⚡ **Event-Driven Architecture** 
+  Built with an event-driven design, allowing you to hook into sound events like play, pause, volume changes, and more.
+
+- 📱 **Mobile-Friendly**  
+Optimized for mobile devices with support for auto-resume on focus and auto-mute on page hidden.
+
+- 🎚️ **Sound Groups**  
+Organize sounds into groups for easier management. Apply volume, pan, and playback rate adjustments to entire groups.
+
+- ⏩ **Playback Rate Control**  
+Adjust the playback speed of sounds without affecting pitch. Perfect for slow-motion or fast-forward effects.
+
+- 🔁 **Looping & Max Loops**  
+Loop sounds indefinitely or set a maximum number of loops for controlled playback.
+
+- 🎶 **Sound Sprites**  
+Split audio files into smaller segments (sprites) for precise playback of specific sections.
+
+- 📊 **Progress Tracking**  
+Track playback progress in real-time with events for progress updates, duration changes, and more.
+
+- 🔇 **Mute & Unmute**  
+Mute or unmute individual sounds, groups, or the entire audio context.
+
+- 🔄 **Reset & Cleanup**  
+Reset individual sounds or the entire sound manager to their initial state. Clean up resources when no longer needed.
+
+- 📡 **Cross-Origin Support**  
+Load sounds from external sources with cross-origin support.
+
+- 🔧 **Debug Mode**  
+Enable debug mode for detailed logging and troubleshooting.
+
+- 🎧 **Audio Context Management**  
+Automatically handle audio context suspension and resumption for better performance and compatibility.
 
 ## Note
 
 - Development Status: This sound manager has undergone significant recent enhancements, with numerous additional features including sound groups, sprites, and more. After extensive testing and resolving various edge cases, version 5.0.0 now appears stable with most features and scenarios thoroughly validated.
 
-- The demo page will be published on GitHub within the next month or so.
+- The documentation page will be published on GitHub within the next month or so.
 
 - Contribution: If you encounter any issues or have ideas for enhancements, please don't hesitate to share them. Your input is valuable and will help shape the final version!
 
@@ -285,21 +326,28 @@ import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager
 
 // Optional configuration
 export interface SoundManagerConfig {
-  autoMuteOnHidden: true; // Automatically mute when page or tab of your browser is not active
-  autoResumeOnFocus: true; // Automatically resume when page or tab of your browser gets focus
-  autoMuteOnHidden: true, // When the page is hidden, all sounds are muted
-  autoResumeOnFocus: true, // when the page is focused again, all sounds are resumed
-  crossOrigin: null, // CORS setting for audio files
-  debug: false,  //  Enable debug logging
-  defaultPlaybackRate: 1, // Default playback rate for new sounds
-  defaultPan: 0, //  Default pan for new sounds (0-1)
-  defaultVolume: 1, // Default volume for new sounds (0-1)
-  fadeInDuration: 1, // Default fade-in duration in seconds
-  fadeOutDuration: 1, // Default fade-out duration in seconds
-  spatialAudio: true, //  Enable spatial audio features
-  loopSounds: false, // Loop all sounds by default
-  maxLoops: -1,// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
-  pannerNodeConfig: DEFAULT_PANNER_CONFIG, // Default panner settings
+  autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
+  autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it.    
+  // By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
+  crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
+  debug?: boolean; // Enable debug logging
+  defaultDuration?: number; // Default duration for new sounds, default is undefined (full length of the sound)
+  defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
+  defaultPanSpatialPosition?: { x: number; y: number; z: number };
+  defaultPanType?: SoundPanType; // Default pan type
+  defaultPlaybackRate?: number // The default playbackRate is 1
+  defaultStartTime?: number; // Default start time for new sounds
+  defaultVolume?: number; // Default volume for new sounds (0-1)
+  fadeInDuration?: number; // Default fade-in duration in seconds
+  fadeOutDuration?: number; // Default fade-out duration in seconds
+  loopSounds?: boolean // Loop all sounds by default
+  maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
+  spatialAudio?: boolean; // Enable spatial audio features
+  trackProgress?: boolean; // Track progress of the sound playback.  
+  // This will keep track of the process and will dispatch the 'progress' event.   
+  // This is useful when you want to show the progress of the sound playback.
 }
 
 // Initialize sound manager with config
@@ -331,8 +379,10 @@ soundManager.addEventListener(SoundEventsEnum.ENDED, (event) => {
 // Play a sound with options
 soundManager.play('background-music', {
     volume: 0.7,
+    loop: true,
     fadeInDuration: 2,
-    fadeOutDuration: 1,
+    fadeOutDuration: 2,
+    playbackRate: 0.5,
     pan: -0.5,
     startTime: 0
 });
@@ -341,7 +391,7 @@ soundManager.play('background-music', {
 soundManager.pauseSound('background-music');
 soundManager.resume('background-music');
 soundManager.stop('background-music');
-soundManager.seek('background-music', 30); // Seek to 30 seconds
+soundManager.seek('background-music', 12); // Seek to 12 seconds
 
 // Volume control
 soundManager.setSoundVolume('background-music', 0.5);
@@ -368,8 +418,8 @@ const soundsToLoad = [
 await this.soundManager.loadSounds(soundsToLoad);
 
 let mySprite: any = {
-	intro: [0, 2],
-	levelup: [2.4, 4],
+	intro: [0, 2], // 0,2 means start from 0 seconds until 2 seconds.
+	levelup: [2.4, 4], // start from 2.4 seconds till 4 seconds.
 	jump: [4, 5],
 	fail: [5, 7]
 };
@@ -383,6 +433,51 @@ this.soundManager.playSprite("game-sound", "levelup", { fadeOutDuration: 1, pan:
 setTimeout( ()=> {
     this.soundManager.playSprite(this.id, "fail", { pan: 0.8});
 }, 500);
+
+
+// Sound Group example.
+// 
+// In this example, when pressing the letter c, a piano note is triggerd. These piano notes are
+// played in the sound group 'pian-group' where volume, paning and more can be managed.
+
+// First, we create a Sound Group called piano-group.  
+// This group will manage up to 12 sound instances and set default options like volume and panning.
+
+this.soundManager.createSoundGroup('piano-group', {
+  maxInstances: 12, // Limit the group to 12 simultaneous sounds
+  playOptions: {
+    volume: 0.8, // Default volume for sounds in this group
+    pan: 0, // Default panning (center)
+  },
+});
+
+// Next, we set up an event listener to play a new sound instance whenever a key is pressed. 
+// In this case, pressing the C key will play the piano-note sound.
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'c') {
+    // Play the "piano-note" sound with custom options
+    const sound = this.soundManager.play('piano-note', {
+      // groupId: 'piano-group', // Optionally, you can add the sound to a group here
+      trackProgress: true, // Enable progress tracking for this instance
+      loop: true, // Loop the sound
+      volume: 1, // Set volume (overrides group default)
+      playbackRate: 1, // Playback speed (1 = normal speed)
+      pan: Math.random() * 2 - 1, // Random panning between left (-1) and right (1)
+      createNewInstance: true, // Create a new instance of the sound
+    });
+  }
+});
+
+// To track the progress of each sound instance, we add an event listener for the PROGRESS event. 
+// This allows you to monitor how far along each sound is in its playback.
+this.soundManager.addEventListener(
+  SoundEventsEnum.PROGRESS,
+  (event) => {
+      console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+  },
+  { originalId: "piano-note" } // Optional: Filter by originalId
+);
 
 
 // 3D Spatial Audio
@@ -672,7 +767,6 @@ export interface SoundGroup {
 }
 ```
 
-
 ### SoundManagerConfig
 
 Configuration options:
@@ -922,7 +1016,8 @@ This project is developed by Chris Schardijn. It is free to use in your project.
  - Fixed a lot of bugs, because I did not test most scenario's.
  - Changed configuration values from miliseconds to seconds. 
  - Added more utility methods for better sound state management and control.
- - Renamed the following methods
+ - Renamed the following methods  
+
 | Old Method                               | New Method                                |
 | ---------------------------------------- | ----------------------------------------- |
 | `soundManager.setSoundPosition(id)`      | `soundManager.setSpatialPosition(id)`     |

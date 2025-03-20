@@ -125,12 +125,70 @@
 </ul>
 <h2 id="features" tabindex="-1">Features</h2>
 <ul>
-<li>🎚️ Volume control &amp; fading</li>
-<li>🎯 Spatial audio positioning</li>
-<li>⏯️ Play, pause, resume, and stop</li>
-<li>🎛️ Pan and balance adjustment</li>
-<li>⚡ Event-driven architecture</li>
-<li>📱 Mobile-friendly</li>
+<li>
+<p>🎚️ <strong>Volume Control &amp; Fading</strong><br>
+Easily adjust volume levels for individual sounds or globally. Supports smooth fade-in and fade-out effects.</p>
+</li>
+<li>
+<p>🎯 <strong>Spatial Audio Positioning</strong><br>
+Create immersive 3D audio experiences with spatial audio positioning (x, y, z coordinates).</p>
+</li>
+<li>
+<p>⏯️ <strong>Playback Control</strong>
+Play, pause, resume, and stop sounds with precision. Supports seamless looping and custom start/end times.</p>
+</li>
+<li>
+<p>🎛️ <strong>Pan &amp; Balance Adjustment</strong><br>
+Adjust stereo panning for individual sounds or globally. Supports both stereo and spatial panning.</p>
+</li>
+<li>
+<p>⚡ <strong>Event-Driven Architecture</strong>
+Built with an event-driven design, allowing you to hook into sound events like play, pause, volume changes, and more.</p>
+</li>
+<li>
+<p>📱 <strong>Mobile-Friendly</strong><br>
+Optimized for mobile devices with support for auto-resume on focus and auto-mute on page hidden.</p>
+</li>
+<li>
+<p>🎚️ <strong>Sound Groups</strong><br>
+Organize sounds into groups for easier management. Apply volume, pan, and playback rate adjustments to entire groups.</p>
+</li>
+<li>
+<p>⏩ <strong>Playback Rate Control</strong><br>
+Adjust the playback speed of sounds without affecting pitch. Perfect for slow-motion or fast-forward effects.</p>
+</li>
+<li>
+<p>🔁 <strong>Looping &amp; Max Loops</strong><br>
+Loop sounds indefinitely or set a maximum number of loops for controlled playback.</p>
+</li>
+<li>
+<p>🎶 <strong>Sound Sprites</strong><br>
+Split audio files into smaller segments (sprites) for precise playback of specific sections.</p>
+</li>
+<li>
+<p>📊 <strong>Progress Tracking</strong><br>
+Track playback progress in real-time with events for progress updates, duration changes, and more.</p>
+</li>
+<li>
+<p>🔇 <strong>Mute &amp; Unmute</strong><br>
+Mute or unmute individual sounds, groups, or the entire audio context.</p>
+</li>
+<li>
+<p>🔄 <strong>Reset &amp; Cleanup</strong><br>
+Reset individual sounds or the entire sound manager to their initial state. Clean up resources when no longer needed.</p>
+</li>
+<li>
+<p>📡 <strong>Cross-Origin Support</strong><br>
+Load sounds from external sources with cross-origin support.</p>
+</li>
+<li>
+<p>🔧 <strong>Debug Mode</strong><br>
+Enable debug mode for detailed logging and troubleshooting.</p>
+</li>
+<li>
+<p>🎧 <strong>Audio Context Management</strong><br>
+Automatically handle audio context suspension and resumption for better performance and compatibility.</p>
+</li>
 </ul>
 <h2 id="note" tabindex="-1">Note</h2>
 <ul>
@@ -138,7 +196,7 @@
 <p>Development Status: This sound manager has undergone significant recent enhancements, with numerous additional features including sound groups, sprites, and more. After extensive testing and resolving various edge cases, version 5.0.0 now appears stable with most features and scenarios thoroughly validated.</p>
 </li>
 <li>
-<p>The demo page will be published on GitHub within the next month or so.</p>
+<p>The documentation page will be published on GitHub within the next month or so.</p>
 </li>
 <li>
 <p>Contribution: If you encounter any issues or have ideas for enhancements, please don’t hesitate to share them. Your input is valuable and will help shape the final version!</p>
@@ -373,21 +431,28 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 
 <span class="hljs-comment">// Optional configuration</span>
 <span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerConfig</span> {
-  <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>; <span class="hljs-comment">// Automatically mute when page or tab of your browser is not active</span>
-  <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>; <span class="hljs-comment">// Automatically resume when page or tab of your browser gets focus</span>
-  <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// When the page is hidden, all sounds are muted</span>
-  <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// when the page is focused again, all sounds are resumed</span>
-  <span class="hljs-attr">crossOrigin</span>: <span class="hljs-literal">null</span>, <span class="hljs-comment">// CORS setting for audio files</span>
-  <span class="hljs-attr">debug</span>: <span class="hljs-literal">false</span>,  <span class="hljs-comment">//  Enable debug logging</span>
-  <span class="hljs-attr">defaultPlaybackRate</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Default playback rate for new sounds</span>
-  <span class="hljs-attr">defaultPan</span>: <span class="hljs-number">0</span>, <span class="hljs-comment">//  Default pan for new sounds (0-1)</span>
-  <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Default volume for new sounds (0-1)</span>
-  <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Default fade-in duration in seconds</span>
-  <span class="hljs-attr">fadeOutDuration</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Default fade-out duration in seconds</span>
-  <span class="hljs-attr">spatialAudio</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">//  Enable spatial audio features</span>
-  <span class="hljs-attr">loopSounds</span>: <span class="hljs-literal">false</span>, <span class="hljs-comment">// Loop all sounds by default</span>
-  <span class="hljs-attr">maxLoops</span>: -<span class="hljs-number">1</span>,<span class="hljs-comment">// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)</span>
-  <span class="hljs-attr">pannerNodeConfig</span>: <span class="hljs-variable constant_">DEFAULT_PANNER_CONFIG</span>, <span class="hljs-comment">// Default panner settings</span>
+  <span class="hljs-attr">autoMuteOnHidden</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Automatically mute when page or tab of your browser is not active</span>
+  <span class="hljs-attr">autoResumeOnFocus</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Automatically resume when page or tab of your browser gets focus</span>
+  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it.    </span>
+  <span class="hljs-comment">// By default this is false. This is useful when you want to play the same sound multiple times simultaneously. </span>
+  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-string">&quot;anonymous&quot;</span> | <span class="hljs-string">&quot;use-credentials&quot;</span> | <span class="hljs-literal">null</span>; <span class="hljs-comment">// CORS setting for audio files</span>
+  <span class="hljs-attr">debug</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable debug logging</span>
+  <span class="hljs-attr">defaultDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default duration for new sounds, default is undefined (full length of the sound)</span>
+  <span class="hljs-attr">defaultPan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// The default pan value = 0, in the center. Posiible values are (-1 to 1)</span>
+  <span class="hljs-attr">defaultPanSpatialPosition</span>?: { <span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span> };
+  <span class="hljs-attr">defaultPanType</span>?: <span class="hljs-title class_">SoundPanType</span>; <span class="hljs-comment">// Default pan type</span>
+  <span class="hljs-attr">defaultPlaybackRate</span>?: <span class="hljs-built_in">number</span> <span class="hljs-comment">// The default playbackRate is 1</span>
+  <span class="hljs-attr">defaultStartTime</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default start time for new sounds</span>
+  <span class="hljs-attr">defaultVolume</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default volume for new sounds (0-1)</span>
+  <span class="hljs-attr">fadeInDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default fade-in duration in seconds</span>
+  <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default fade-out duration in seconds</span>
+  <span class="hljs-attr">loopSounds</span>?: <span class="hljs-built_in">boolean</span> <span class="hljs-comment">// Loop all sounds by default</span>
+  <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span> <span class="hljs-comment">// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)</span>
+  <span class="hljs-attr">pannerNodeConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>; <span class="hljs-comment">// Panner settings for 3D sound</span>
+  <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable spatial audio features</span>
+  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback.  </span>
+  <span class="hljs-comment">// This will keep track of the process and will dispatch the &#x27;progress&#x27; event.   </span>
+  <span class="hljs-comment">// This is useful when you want to show the progress of the sound playback.</span>
 }
 
 <span class="hljs-comment">// Initialize sound manager with config</span>
@@ -419,8 +484,10 @@ soundManager.<span class="hljs-title function_">addEventListener</span>(<span cl
 <span class="hljs-comment">// Play a sound with options</span>
 soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, {
     <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
+    <span class="hljs-attr">loop</span>: <span class="hljs-literal">true</span>,
     <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">2</span>,
-    <span class="hljs-attr">fadeOutDuration</span>: <span class="hljs-number">1</span>,
+    <span class="hljs-attr">fadeOutDuration</span>: <span class="hljs-number">2</span>,
+    <span class="hljs-attr">playbackRate</span>: <span class="hljs-number">0.5</span>,
     <span class="hljs-attr">pan</span>: -<span class="hljs-number">0.5</span>,
     <span class="hljs-attr">startTime</span>: <span class="hljs-number">0</span>
 });
@@ -429,7 +496,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 soundManager.<span class="hljs-title function_">pauseSound</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">resume</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">stop</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
-soundManager.<span class="hljs-title function_">seek</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">30</span>); <span class="hljs-comment">// Seek to 30 seconds</span>
+soundManager.<span class="hljs-title function_">seek</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">12</span>); <span class="hljs-comment">// Seek to 12 seconds</span>
 
 <span class="hljs-comment">// Volume control</span>
 soundManager.<span class="hljs-title function_">setSoundVolume</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">0.5</span>);
@@ -456,8 +523,8 @@ soundManager.<span class="hljs-title function_">setPlaybackRate</span>(<span cla
 <span class="hljs-keyword">await</span> <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">loadSounds</span>(soundsToLoad);
 
 <span class="hljs-keyword">let</span> <span class="hljs-attr">mySprite</span>: <span class="hljs-built_in">any</span> = {
-	<span class="hljs-attr">intro</span>: [<span class="hljs-number">0</span>, <span class="hljs-number">2</span>],
-	<span class="hljs-attr">levelup</span>: [<span class="hljs-number">2.4</span>, <span class="hljs-number">4</span>],
+	<span class="hljs-attr">intro</span>: [<span class="hljs-number">0</span>, <span class="hljs-number">2</span>], <span class="hljs-comment">// 0,2 means start from 0 seconds until 2 seconds.</span>
+	<span class="hljs-attr">levelup</span>: [<span class="hljs-number">2.4</span>, <span class="hljs-number">4</span>], <span class="hljs-comment">// start from 2.4 seconds till 4 seconds.</span>
 	<span class="hljs-attr">jump</span>: [<span class="hljs-number">4</span>, <span class="hljs-number">5</span>],
 	<span class="hljs-attr">fail</span>: [<span class="hljs-number">5</span>, <span class="hljs-number">7</span>]
 };
@@ -471,6 +538,51 @@ soundManager.<span class="hljs-title function_">setPlaybackRate</span>(<span cla
 <span class="hljs-built_in">setTimeout</span>( <span class="hljs-function">()=&gt;</span> {
     <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">playSprite</span>(<span class="hljs-variable language_">this</span>.<span class="hljs-property">id</span>, <span class="hljs-string">&quot;fail&quot;</span>, { <span class="hljs-attr">pan</span>: <span class="hljs-number">0.8</span>});
 }, <span class="hljs-number">500</span>);
+
+
+<span class="hljs-comment">// Sound Group example.</span>
+<span class="hljs-comment">// </span>
+<span class="hljs-comment">// In this example, when pressing the letter c, a piano note is triggerd. These piano notes are</span>
+<span class="hljs-comment">// played in the sound group &#x27;pian-group&#x27; where volume, paning and more can be managed.</span>
+
+<span class="hljs-comment">// First, we create a Sound Group called piano-group.  </span>
+<span class="hljs-comment">// This group will manage up to 12 sound instances and set default options like volume and panning.</span>
+
+<span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">createSoundGroup</span>(<span class="hljs-string">&#x27;piano-group&#x27;</span>, {
+  <span class="hljs-attr">maxInstances</span>: <span class="hljs-number">12</span>, <span class="hljs-comment">// Limit the group to 12 simultaneous sounds</span>
+  <span class="hljs-attr">playOptions</span>: {
+    <span class="hljs-attr">volume</span>: <span class="hljs-number">0.8</span>, <span class="hljs-comment">// Default volume for sounds in this group</span>
+    <span class="hljs-attr">pan</span>: <span class="hljs-number">0</span>, <span class="hljs-comment">// Default panning (center)</span>
+  },
+});
+
+<span class="hljs-comment">// Next, we set up an event listener to play a new sound instance whenever a key is pressed. </span>
+<span class="hljs-comment">// In this case, pressing the C key will play the piano-note sound.</span>
+
+<span class="hljs-variable language_">document</span>.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&#x27;keydown&#x27;</span>, <span class="hljs-function">(<span class="hljs-params">e</span>) =&gt;</span> {
+  <span class="hljs-keyword">if</span> (e.<span class="hljs-property">key</span> === <span class="hljs-string">&#x27;c&#x27;</span>) {
+    <span class="hljs-comment">// Play the &quot;piano-note&quot; sound with custom options</span>
+    <span class="hljs-keyword">const</span> sound = <span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">play</span>(<span class="hljs-string">&#x27;piano-note&#x27;</span>, {
+      <span class="hljs-comment">// groupId: &#x27;piano-group&#x27;, // Optionally, you can add the sound to a group here</span>
+      <span class="hljs-attr">trackProgress</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Enable progress tracking for this instance</span>
+      <span class="hljs-attr">loop</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Loop the sound</span>
+      <span class="hljs-attr">volume</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Set volume (overrides group default)</span>
+      <span class="hljs-attr">playbackRate</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Playback speed (1 = normal speed)</span>
+      <span class="hljs-attr">pan</span>: <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">random</span>() * <span class="hljs-number">2</span> - <span class="hljs-number">1</span>, <span class="hljs-comment">// Random panning between left (-1) and right (1)</span>
+      <span class="hljs-attr">createNewInstance</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Create a new instance of the sound</span>
+    });
+  }
+});
+
+<span class="hljs-comment">// To track the progress of each sound instance, we add an event listener for the PROGRESS event. </span>
+<span class="hljs-comment">// This allows you to monitor how far along each sound is in its playback.</span>
+<span class="hljs-variable language_">this</span>.<span class="hljs-property">soundManager</span>.<span class="hljs-title function_">addEventListener</span>(
+  <span class="hljs-title class_">SoundEventsEnum</span>.<span class="hljs-property">PROGRESS</span>,
+  <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Progress for instance <span class="hljs-subst">${event.instanceId}</span>: <span class="hljs-subst">${event.progress}</span>`</span>);
+  },
+  { <span class="hljs-attr">originalId</span>: <span class="hljs-string">&quot;piano-note&quot;</span> } <span class="hljs-comment">// Optional: Filter by originalId</span>
+);
 
 
 <span class="hljs-comment">// 3D Spatial Audio</span>
@@ -961,24 +1073,38 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="version-history" tabindex="-1">📋 Version History</h2>
 <h3 id="5-0-0-major-critical-udpate" tabindex="-1">5.0.0 (Major &amp; critical udpate )</h3>
 <ul>
-<li>
-<p>Fixed a lot of bugs, because I did not test most scenario’s.</p>
-</li>
-<li>
-<p>Changed configuration values from miliseconds to seconds.</p>
-</li>
-<li>
-<p>Added more utility methods for better sound state management and control.</p>
-</li>
-<li>
-<p>Renamed the following methods
-| Old Method                               | New Method                                |
-| ---------------------------------------- | ----------------------------------------- |
-| <code>soundManager.setSoundPosition(id)</code>      | <code>soundManager.setSpatialPosition(id)</code>     |
-| <code>soundManager.resetSoundPosition(id)</code>    | <code>soundManager.resetSpatialPosition(id)</code>   |
-| <code>playOptions</code>  (interface)               | <code>PlayOptions</code> (interface)                 |
-| <code>preloadSounds</code>                          | <code>loadSounds</code>                              |</p>
-</li>
+<li>Fixed a lot of bugs, because I did not test most scenario’s.</li>
+<li>Changed configuration values from miliseconds to seconds.</li>
+<li>Added more utility methods for better sound state management and control.</li>
+<li>Renamed the following methods</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Old Method</th>
+<th>New Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>soundManager.setSoundPosition(id)</code></td>
+<td><code>soundManager.setSpatialPosition(id)</code></td>
+</tr>
+<tr>
+<td><code>soundManager.resetSoundPosition(id)</code></td>
+<td><code>soundManager.resetSpatialPosition(id)</code></td>
+</tr>
+<tr>
+<td><code>playOptions</code>  (interface)</td>
+<td><code>PlayOptions</code> (interface)</td>
+</tr>
+<tr>
+<td><code>preloadSounds</code></td>
+<td><code>loadSounds</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
 <li>
 <p>Added new methods</p>
 <pre><code class="language-typescript"><span class="hljs-comment">// Playback Control</span>
