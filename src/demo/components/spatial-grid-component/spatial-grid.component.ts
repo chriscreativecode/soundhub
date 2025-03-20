@@ -119,12 +119,12 @@ export class SpatialGrid {
         e.preventDefault();
     }
 
-    private handleVerticalSliderInput(): void {
+    private handleVerticalSliderInput = this.throttle((e: MouseEvent) => {
         const y = parseFloat(this.verticalSlider.value);
         const x = parseFloat(this.circle.style.left);
         const z = parseFloat(this.circle.style.top);
         this.updatePosition(x, y, z);
-    }
+    }, 25); // Throttle to 25ms
 
     public updatePosition(x: number, y: number, z: number, skipEvent: boolean = false, visuallyOnly: boolean = false): void {
         const currentPosition = this.getCurrentPosition();

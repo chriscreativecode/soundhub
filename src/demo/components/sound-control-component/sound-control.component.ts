@@ -50,7 +50,7 @@ export class SoundControl {
   private maxLoopsSelect: HTMLSelectElement;
   private loopSettings: HTMLElement;
   private maxLoopsInput: HTMLInputElement;
-  private activeSounds: Map<string, Sound> = new Map(); 
+  private activeSounds: Map<string, Sound> = new Map();
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -84,13 +84,13 @@ export class SoundControl {
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
     // // Testing Sound Group
-    this.soundManager.createSoundGroup('test-group', { maxInstances: 12, playOptions: { volume: 0.5, pan: -0.5 }});
+    this.soundManager.createSoundGroup('test-group', { maxInstances: 12, playOptions: { volume: 0.5, pan: -0.5 } });
 
     // Play a new sound instance on key press
     document.addEventListener('keydown', (e) => {
       if (e.key === 'c') {
 
-      //  soundManager.addToSoundGroup('test-group', this.id);
+        //  soundManager.addToSoundGroup('test-group', this.id);
         const sound = this.soundManager.play(this.id, {
           groupId: 'test-group',
           trackProgress: false, // Enable progress tracking
@@ -98,22 +98,22 @@ export class SoundControl {
           volume: 1, // Math.random(),
           playbackRate: 1,
           pan: Math.random() * 2 - 1,
-          panSpatialPosition: { x: 0, y: 0, z: 0},
-        //  panType: SoundPanType.Spatial,
+          panSpatialPosition: { x: 0, y: 0, z: 0 },
+          //  panType: SoundPanType.Spatial,
           createNewInstance: true,
         });
       }
     });
-    
+
     // Track progress for specific sound instances
     this.soundManager.addEventListener(
       SoundEventsEnum.PROGRESS,
       (event) => {
-          console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+        console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
       },
       { originalId: this.id } // Optional: Filter by originalId
     );
-    
+
     this.initializeCurrentOptions();
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
@@ -127,7 +127,7 @@ export class SoundControl {
 
   private initializeCurrentOptions(): void {
 
- //   const soundState = this.soundManager.getSoundState(this.id);
+    //   const soundState = this.soundManager.getSoundState(this.id);
     this.currentOptions = {
       loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
       maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
@@ -154,7 +154,7 @@ export class SoundControl {
       this.panSlider.value = this.currentOptions.pan.toString();
     }
 
-    if( this.currentOptions.panSpatialPosition !== undefined && this.currentOptions.panType === SoundPanType.Spatial) {
+    if (this.currentOptions.panSpatialPosition !== undefined && this.currentOptions.panType === SoundPanType.Spatial) {
       this.soundManager.setSpatialPosition(this.currentOptions.panSpatialPosition.x, this.currentOptions.panSpatialPosition.y, this.currentOptions.panSpatialPosition.z, this.id, this.soundManagerConfig.pannerNodeConfig, false);
     }
 
@@ -167,9 +167,9 @@ export class SoundControl {
       this.soundManager.setLoop(
         this.id,
         this.currentOptions.loop ?? false,
-        this.currentOptions.maxLoops 
+        this.currentOptions.maxLoops
       );
-    
+
       if (this.currentOptions.loop !== undefined) {
         this.loopCheckbox.checked = this.currentOptions.loop;
       }
@@ -249,7 +249,7 @@ export class SoundControl {
       progress: soundState.progress * 100 || 0,
       playbackRate: soundState.playbackRate || 1
     };
-   // console.log('new State', newState, soundState);
+    // console.log('new State', newState, soundState);
 
     this.state = newState;
     this.updateUIFromState();
@@ -278,7 +278,7 @@ export class SoundControl {
     this.updateVolumeDisplay(this.state.volume);
     this.updatePanDisplay(this.state.pan);
     this.updateMuteButtonIcon(this.state.isMuted);
-    this.updateProgress(this.state.progress); 
+    this.updateProgress(this.state.progress);
     this.updateTimeDisplay(this.state.elapsedTime);
 
     if (this.state && this.currentOptions.panSpatialPosition) {
@@ -290,12 +290,12 @@ export class SoundControl {
         this.log('same position no need to update!!');
       } else {
         this.log('positions differ, updating...');
-        this.spatialGrid.updatePosition(
-          statePosition.x,
-          statePosition.y,
-          statePosition.z,
-          true
-        );
+        // this.spatialGrid.updatePosition(
+        //   statePosition.x,
+        //   statePosition.y,
+        //   statePosition.z,
+        //   true
+        // );
       }
     }
     this.isUpdatingUI = false;
@@ -447,7 +447,7 @@ export class SoundControl {
     simulateSpinnerBehavior(stepUpButton, 'stepUp');
     simulateSpinnerBehavior(stepDownButton, 'stepDown');
   }
-  
+
   private updateCurrentOptions(options: Partial<PlayOptions>): void {
     this.currentOptions = { ...this.currentOptions, ...options };
   }
@@ -606,7 +606,7 @@ export class SoundControl {
 
       case SoundEventsEnum.FADE_IN_COMPLETED:
         this.log("Fade in completed", event);
-       this.currentOptions.volume = event.sound?.volume;
+        this.currentOptions.volume = event.sound?.volume;
         break;
 
       case SoundEventsEnum.FADE_OUT_COMPLETED:
@@ -619,11 +619,13 @@ export class SoundControl {
 
       // case SoundEventsEnum.MASTER_PAN_CHANGED:
       //   this.log("Master pan changed", event);
-      //   // this.resetSpatialPosition();
       //   break;
 
       case SoundEventsEnum.PAN_CHANGED:
         this.log("Pan changed", event);
+        if (!this.spatialGrid.isSamePostion(this.spatialGrid.getCurrentPosition(), { x: 50, y: 0, z: 50 })) {
+          this.spatialGrid.updatePosition(50, 0, 50, true, true);
+        }
         break;
 
       case SoundEventsEnum.SPATIAL_POSITION_CHANGED:
@@ -701,7 +703,7 @@ export class SoundControl {
   private play(): void {
     const state = this.soundManager.getSoundState(this.id);
     const isPaused = state?.state === SoundState.Paused;
-    
+
     if (isPaused) {
       this.soundManager.resume(this.id);
     } else {
@@ -762,16 +764,16 @@ export class SoundControl {
     this.loopCheckbox = this.element.querySelector(".loop-checkbox") as HTMLInputElement;
     this.loopSettings = this.element.querySelector(".loop-settings") as HTMLElement;
     this.maxLoopsInput = this.element.querySelector(".max-loops-input") as HTMLInputElement;
-  
+
     const shouldLoop = this.currentOptions.loop ?? this.soundManagerConfig.loopSounds ?? false;
     this.loopCheckbox.checked = shouldLoop;
     this.loopSettings.style.display = shouldLoop ? "block" : "none";
-  
+
     // Only set maxLoops to -1 if it is not already defined
     if (shouldLoop && this.currentOptions.maxLoops === undefined) {
       this.updateCurrentOptions({ maxLoops: -1 });
     }
-  
+
     const initialMaxLoops = this.currentOptions.maxLoops ?? (shouldLoop ? -1 : undefined);
     if (initialMaxLoops !== undefined) {
       if (initialMaxLoops === -1) {
@@ -783,11 +785,11 @@ export class SoundControl {
         this.maxLoopsInput.value = initialMaxLoops.toString();
       }
     }
-  
+
     this.loopCheckbox.addEventListener("change", () => {
       this.updateCurrentOptions({ loop: this.loopCheckbox.checked });
       this.loopSettings.style.display = this.loopCheckbox.checked ? "block" : "none";
-  
+
       if (this.loopCheckbox.checked) {
         this.updateCurrentOptions({ maxLoops: -1 });
         this.maxLoopsSelect.value = "-1";
@@ -795,13 +797,13 @@ export class SoundControl {
       } else {
         this.updateCurrentOptions({ maxLoops: undefined });
       }
-  
+
       this.soundManager.updateSoundOptions(this.id, {
         loop: this.currentOptions.loop,
         maxLoops: this.currentOptions.loop ? this.currentOptions.maxLoops || -1 : 0,
       });
     });
-  
+
     this.maxLoopsSelect.addEventListener("change", () => {
       if (this.maxLoopsSelect.value === "-1") {
         this.updateCurrentOptions({ maxLoops: -1 });
@@ -810,12 +812,12 @@ export class SoundControl {
         this.maxLoopsInput.style.display = "inline";
         this.updateCurrentOptions({ maxLoops: parseInt(this.maxLoopsInput.value) });
       }
-  
+
       this.soundManager.updateSoundOptions(this.id, {
         maxLoops: this.currentOptions.maxLoops || 0,
       });
     });
-  
+
     this.maxLoopsInput.addEventListener("change", () => {
       const value = parseInt(this.maxLoopsInput.value);
       if (value > 0) {
@@ -930,7 +932,7 @@ export class SoundControl {
     try {
       this.soundManager.resetSound(this.id);
 
-      if(this.isSprite) {
+      if (this.isSprite) {
         this.soundManager.removeSpriteSound(this.id);
       }
 
