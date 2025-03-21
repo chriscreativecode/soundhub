@@ -206,7 +206,6 @@ export class SoundManager implements SoundManagerInterface {
     this.activeSources.set(sound.id, source);
 
     source.onended = () => {
-      console.log('sound ended', sound.id);
       this.debugLog(`Sound ${sound.id} ended naturally`);
       if (sound.state === SoundState.Playing) {
         if (sound.playOptions?.loop) {
@@ -238,7 +237,6 @@ export class SoundManager implements SoundManagerInterface {
     // Increment the loop count
     sound.currentLoopCount = (sound.currentLoopCount ?? 0) + 1;
 
-    console.log(`handle loop ${sound.id}`, sound.currentLoopCount);
     this.debugLog(`Loop count: ${sound.currentLoopCount}`);
 
     // Restart the current instance
@@ -438,7 +436,6 @@ export class SoundManager implements SoundManagerInterface {
       if (sound.state === SoundState.Playing &&
         hasBeenRestarted &&
         sound.playOptions?.createNewInstance) {
-        console.log(`Sound ${id} has been restarted, skipping cleanup`);
         return;
       }
 
@@ -596,8 +593,6 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       sound.startTime = this.context.currentTime - (startOffset / playbackRate);
-
-      console.log(`playing sound ${sound.id} with a offset: `, sound.startTime, 'rate', playbackRate);
 
       this.reconnectAudioNodes(sound.id);
 
