@@ -83,36 +83,36 @@ export class SoundControl {
     this.loopSettings = this.element.querySelector(".loop-settings")!;
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
 
-    // // Testing Sound Group
-    this.soundManager.createSoundGroup('test-group', { maxInstances: 12, playOptions: { volume: 0.5, pan: -0.5 } });
+    // // // Testing Sound Group
+    // this.soundManager.createSoundGroup('test-group', { maxInstances: 12, playOptions: { volume: 0.5, pan: -0.5 } });
 
-    // Play a new sound instance on key press
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'c') {
+    // // Play a new sound instance on key press
+    // document.addEventListener('keydown', (e) => {
+    //   if (e.key === 'c') {
 
-        //  soundManager.addToSoundGroup('test-group', this.id);
-        const sound = this.soundManager.play(this.id, {
-          groupId: 'test-group',
-          trackProgress: false, // Enable progress tracking
-          loop: true,
-          volume: 1, // Math.random(),
-          playbackRate: 1,
-          pan: Math.random() * 2 - 1,
-          panSpatialPosition: { x: 0, y: 0, z: 0 },
-          //  panType: SoundPanType.Spatial,
-          createNewInstance: true,
-        });
-      }
-    });
+    //     //  soundManager.addToSoundGroup('test-group', this.id);
+    //     const sound = this.soundManager.play(this.id, {
+    //       groupId: 'test-group',
+    //       trackProgress: false, // Enable progress tracking
+    //       loop: true,
+    //       volume: 1, // Math.random(),
+    //       playbackRate: 1,
+    //       pan: Math.random() * 2 - 1,
+    //       panSpatialPosition: { x: 0, y: 0, z: 0 },
+    //       //  panType: SoundPanType.Spatial,
+    //       createNewInstance: true,
+    //     });
+    //   }
+    // });
 
-    // Track progress for specific sound instances
-    this.soundManager.addEventListener(
-      SoundEventsEnum.PROGRESS,
-      (event) => {
-        console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
-      },
-      { originalId: this.id } // Optional: Filter by originalId
-    );
+    // // Track progress for specific sound instances
+    // this.soundManager.addEventListener(
+    //   SoundEventsEnum.PROGRESS,
+    //   (event) => {
+    //     console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+    //   },
+    //   { originalId: this.id } // Optional: Filter by originalId
+    // );
 
     this.initializeCurrentOptions();
     this.initializeEventListeners();
