@@ -136,6 +136,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
+    - [5.1.0 ~ 5.2.0](#510--520)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
     - [4.0.0 (Major update)](#400-major-update)
     - [3.2.0](#320)
@@ -1011,6 +1012,9 @@ Features are automatically adapted based on browser support:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.1.0 ~ 5.2.0 
+- (Bug fix in fadeInDuratoin / fadeOutDuration)
 
 ### 5.0.0 (Major & critical udpate )
  - Fixed a lot of bugs, because I did not test most scenario's.

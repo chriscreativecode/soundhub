@@ -596,6 +596,8 @@ export class SoundManager implements SoundManagerInterface {
 
       this.reconnectAudioNodes(sound.id);
 
+      sound.state = SoundState.Playing;
+
       if (sound.playOptions?.volume !== undefined) {
         this.setSoundVolume(sound.id, sound.playOptions.volume, true);
       }
@@ -606,7 +608,7 @@ export class SoundManager implements SoundManagerInterface {
         this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, sound.id, undefined, true);
       }
       if (sound.playOptions?.fadeInDuration !== undefined) {
-        this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
+         this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
       }
       if (sound.playOptions?.fadeOutDuration !== undefined) {
         this.fadeOut(sound.id, sound.playOptions.fadeOutDuration);
@@ -623,8 +625,6 @@ export class SoundManager implements SoundManagerInterface {
           ? sound.playOptions.duration * playbackRate
           : undefined
       );
-
-      sound.state = SoundState.Playing;
 
       if (sound.playOptions?.trackProgress === true ) {
         this.startProgressTracking(sound.id);
