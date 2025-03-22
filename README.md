@@ -88,7 +88,7 @@ Automatically handle audio context suspension and resumption for better performa
 
 ## Note
 
-- Development Status: This sound manager has undergone significant recent enhancements, with numerous additional features including sound groups, sprites, and more. After extensive testing and resolving various edge cases, version 5.0.0 now appears stable with most features and scenarios thoroughly validated.
+- Development Status: This sound manager has undergone significant recent enhancements, with numerous additional features including sound groups, sprites, and more. After extensive testing and resolving various edge cases, version 5.2.0 now appears stable with most features and scenarios thoroughly validated.
 
 - The documentation page will be published on GitHub within the next month or so.
 
