@@ -14,7 +14,7 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   defaultPanType: SoundPanType.Stereo, // Default pan type
   defaultPlaybackRate: 1, // The default playbackRate is 1
   defaultStartTime: 0, // Default start time for new sounds
-  defaultVolume: 1, // Default volume for new sounds (0-1)
+  defaultVolume: 1, //1, // Default volume for new sounds (0-1)
   fadeInDuration: 1, // Default fade-in duration in seconds
   fadeOutDuration: 1, // Default fade-out duration in seconds
   loopSounds: true, // Loop all sounds by default

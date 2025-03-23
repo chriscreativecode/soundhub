@@ -5,7 +5,9 @@ export interface PlayOptions {
   duration?:number; // in seconds
   fadeInDuration?: number; // in seconds
   fadeInStartVolume?: number; // 0 to 1
-  fadeOutDuration?: number; // in seconds
+  fadeOutDuration?: number; // in seconds, when you play a sound it will immidiately start fading out
+  fadeOutEndVolume?: number; // 0 to 1
+  fadeOutBeforeEndDuration?: number; // in seconds, fade out before the sound ends
   groupId?: string; // Group ID for the sounds that will be in this group. 
   isSeeking?: boolean; // used internally for the seek method
   loop?: boolean; // default: false
@@ -13,7 +15,7 @@ export interface PlayOptions {
   pan?: number; // -1 (left) to 1 (right)
   panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
   panType?: SoundPanType; // 'stereo' or 'spatial' (default is 'stereo') 
-  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached (when loop is false)
+  pauseAtDurationReached?: boolean; // This will only work if you set the duration and if that duration is reached it will pause. Note: Loop must be false.
   playbackRate?: number; // 0.5 to 4 (normal speed is 1) 
   startTime?: number; // in seconds
   trackProgress?: boolean; // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.

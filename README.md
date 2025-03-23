@@ -136,7 +136,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
-    - [5.1.0 ~ 5.2.0](#510--520)
+    - [5.1.0 ~ 5.3.0](#510--530)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
     - [4.0.0 (Major update)](#400-major-update)
     - [3.2.0](#320)
@@ -667,11 +667,14 @@ Options for playing a sound
 
 ```typescript
 export interface PlayOptions {
-  createNewInstance?: boolean; // Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously.
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it. 
+  //  By default this is false. This is useful when you want to play the same sound multiple times simultaneously.
   duration?:number; // in seconds
   fadeInDuration?: number; // in seconds
   fadeInStartVolume?: number; // 0 to 1
-  fadeOutDuration?: number; // in seconds
+  fadeOutDuration?: number; // in seconds, when you play a sound it will immidiately start fading out
+  fadeOutEndVolume?: number; // 0 to 1
+  fadeOutBeforeEndDuration?: number; // in seconds, fade out before the sound ends
   groupId?: string; // Group ID for the sounds that will be in this group. 
   isSeeking?: boolean; // used internally for the seek method
   loop?: boolean; // default: false
@@ -679,10 +682,13 @@ export interface PlayOptions {
   pan?: number; // -1 (left) to 1 (right)
   panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
   panType?: SoundPanType; // 'stereo' or 'spatial' (default is 'stereo') 
-  pauseAtDurationReached?: boolean; // by default it will trigger the stop method when the duration is reached (when loop is false)
+  pauseAtDurationReached?: boolean; // This will only work if you set the duration and if that duration 
+  // is reached it will pause. Note: Loop must be false.
   playbackRate?: number; // 0.5 to 4 (normal speed is 1) 
   startTime?: number; // in seconds
-  trackProgress?: boolean; // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
+  trackProgress?: boolean; // Track progress of the sound playback. 
+  // This will keep track of the process and will dispatch the 'progress' event. 
+  // This is useful when you want to show the progress of the sound playback.
   volume?: number; // 0 to 1
 }
 ```
@@ -1013,8 +1019,14 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 5.1.0 ~ 5.2.0 
-- (Bug fix in fadeInDuratoin / fadeOutDuration)
+### 5.1.0 ~ 5.3.0 
+- 🐛 Bug Fixes
+  Fixed an issue with fadeInDuration and fadeOutDuration when used in combination with defaultVolume in the configuration. This ensures consistent fade behavior across all sounds.
+
+- 🔊 New Feature: fadeOutBeforeEndDuration with optionally setting fadeOutEndVolume.
+Added the fadeOutBeforeEndDuration option to PlayOptions. This feature automatically fades out a sound as it nears the end of playback.
+Example: If a sound has a duration of 10 seconds and you set fadeOutBeforeEndDuration to 3, the sound will begin fading out at 7 seconds and complete the fade by 10 seconds.
+This is particularly useful for creating smoother transitions and avoiding abrupt endings.  
 
 ### 5.0.0 (Major & critical udpate )
  - Fixed a lot of bugs, because I did not test most scenario's.
