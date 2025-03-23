@@ -468,7 +468,10 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       // Always stop the source if we've reached this point
-      sound.source.stop();
+      // Check if the source has been started before attempting to stop it
+      if (sound.startTime !== undefined) {
+        sound.source.stop();
+      }
       sound.source.disconnect();
       this.activeSources.delete(id);
       sound.source = null;
