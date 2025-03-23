@@ -50,7 +50,6 @@ export class SoundControl {
   private maxLoopsSelect: HTMLSelectElement;
   private loopSettings: HTMLElement;
   private maxLoopsInput: HTMLInputElement;
-  private activeSounds: Map<string, Sound> = new Map();
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -98,6 +97,8 @@ export class SoundControl {
     //       volume: 1, // Math.random(),
     //       playbackRate: 1,
     //       pan: Math.random() * 2 - 1,
+    //      // fadeOutBeforeEndDuration: 6,
+    //      // fadeOutEndVolume: 0.2,
     //       panSpatialPosition: { x: 0, y: 0, z: 0 },
     //       //  panType: SoundPanType.Spatial,
     //       createNewInstance: true,
@@ -109,7 +110,7 @@ export class SoundControl {
     // this.soundManager.addEventListener(
     //   SoundEventsEnum.PROGRESS,
     //   (event) => {
-    //     console.log(`Progress for instance ${event.instanceId}: ${event.progress}`);
+    //     console.log(`Progress for instance ${event.instanceId}: ${event.progress}`, event.volume);
     //   },
     //   { originalId: this.id } // Optional: Filter by originalId
     // );
@@ -136,10 +137,17 @@ export class SoundControl {
       panSpatialPosition: this.soundManagerConfig.defaultPanSpatialPosition ?? { x: 0, y: 0, z: 0 },
       playbackRate: this.soundManagerConfig.defaultPlaybackRate ?? parseFloat(this.playbackRateInput.value),
       trackProgress: this.soundManagerConfig.trackProgress ?? true,
-      pauseAtDurationReached: false,
       createNewInstance: this.soundManagerConfig.createNewInstance ?? false,
       startTime: this.soundManagerConfig.defaultStartTime ?? 0,
       duration: this.soundManagerConfig.defaultDuration,
+      
+      // Testing
+
+      // pauseAtDurationReached: false, // works only if you set a duration as well.
+      // fadeInDuration: 2,
+      // fadeInStartVolume: 0.3,
+      // fadeOutEndVolume: 0.2,
+      // fadeOutBeforeEndDuration: 3,
     };
     this.applyCurrentOptions();
   }

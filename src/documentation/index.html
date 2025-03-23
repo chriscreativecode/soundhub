@@ -258,7 +258,7 @@ Automatically handle audio context suspension and resumption for better performa
 <li><a href="#licence">Licence</a></li>
 <li><a href="#-version-history">📋 Version History</a>
 <ul>
-<li><a href="#510--520">5.1.0 ~ 5.2.0</a></li>
+<li><a href="#510--530">5.1.0 ~ 5.3.0</a></li>
 <li><a href="#500-major--critical-udpate-">5.0.0 (Major &amp; critical udpate )</a></li>
 <li><a href="#400-major-update">4.0.0 (Major update)</a></li>
 <li><a href="#320">3.2.0</a>
@@ -763,11 +763,14 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h3 id="playoptions" tabindex="-1">PlayOptions</h3>
 <p>Options for playing a sound</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">PlayOptions</span> {
-  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously.</span>
+  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it. </span>
+  <span class="hljs-comment">//  By default this is false. This is useful when you want to play the same sound multiple times simultaneously.</span>
   <span class="hljs-attr">duration</span>?:<span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds</span>
   <span class="hljs-attr">fadeInDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds</span>
   <span class="hljs-attr">fadeInStartVolume</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// 0 to 1</span>
-  <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds</span>
+  <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds, when you play a sound it will immidiately start fading out</span>
+  <span class="hljs-attr">fadeOutEndVolume</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// 0 to 1</span>
+  <span class="hljs-attr">fadeOutBeforeEndDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds, fade out before the sound ends</span>
   <span class="hljs-attr">groupId</span>?: <span class="hljs-built_in">string</span>; <span class="hljs-comment">// Group ID for the sounds that will be in this group. </span>
   <span class="hljs-attr">isSeeking</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// used internally for the seek method</span>
   <span class="hljs-attr">loop</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// default: false</span>
@@ -775,10 +778,13 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">pan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// -1 (left) to 1 (right)</span>
   <span class="hljs-attr">panSpatialPosition</span>?: { <span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span> }; <span class="hljs-comment">//  If you want to use 3D panning you must also set panType to SoundPanType.Spatial</span>
   <span class="hljs-attr">panType</span>?: <span class="hljs-title class_">SoundPanType</span>; <span class="hljs-comment">// &#x27;stereo&#x27; or &#x27;spatial&#x27; (default is &#x27;stereo&#x27;) </span>
-  <span class="hljs-attr">pauseAtDurationReached</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// by default it will trigger the stop method when the duration is reached (when loop is false)</span>
+  <span class="hljs-attr">pauseAtDurationReached</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// This will only work if you set the duration and if that duration </span>
+  <span class="hljs-comment">// is reached it will pause. Note: Loop must be false.</span>
   <span class="hljs-attr">playbackRate</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// 0.5 to 4 (normal speed is 1) </span>
   <span class="hljs-attr">startTime</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds</span>
-  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. This will keep track of the process and will dispatch the &#x27;progress&#x27; event. This is useful when you want to show the progress of the sound playback.</span>
+  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. </span>
+  <span class="hljs-comment">// This will keep track of the process and will dispatch the &#x27;progress&#x27; event. </span>
+  <span class="hljs-comment">// This is useful when you want to show the progress of the sound playback.</span>
   <span class="hljs-attr">volume</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// 0 to 1</span>
 }
 </code></pre>
@@ -1072,9 +1078,18 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="version-history" tabindex="-1">📋 Version History</h2>
-<h3 id="5-1-0-5-2-0" tabindex="-1">5.1.0 ~ 5.2.0</h3>
+<h3 id="5-1-0-5-3-0" tabindex="-1">5.1.0 ~ 5.3.0</h3>
 <ul>
-<li>(Bug fix in fadeInDuratoin / fadeOutDuration)</li>
+<li>
+<p>🐛 Bug Fixes
+Fixed an issue with fadeInDuration and fadeOutDuration when used in combination with defaultVolume in the configuration. This ensures consistent fade behavior across all sounds.</p>
+</li>
+<li>
+<p>🔊 New Feature: fadeOutBeforeEndDuration with optionally setting fadeOutEndVolume.
+Added the fadeOutBeforeEndDuration option to PlayOptions. This feature automatically fades out a sound as it nears the end of playback.
+Example: If a sound has a duration of 10 seconds and you set fadeOutBeforeEndDuration to 3, the sound will begin fading out at 7 seconds and complete the fade by 10 seconds.
+This is particularly useful for creating smoother transitions and avoiding abrupt endings.</p>
+</li>
 </ul>
 <h3 id="5-0-0-major-critical-udpate" tabindex="-1">5.0.0 (Major &amp; critical udpate )</h3>
 <ul>

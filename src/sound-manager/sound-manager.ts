@@ -296,6 +296,28 @@ export class SoundManager implements SoundManagerInterface {
     });
   }
 
+  private scheduleFadeOut(id: string, fadeOutStartTime: number, fadeOutDuration: number): void {
+    const sound = this.sounds.get(id);
+    if (!sound) return;
+
+    const fadeOutTime = this.context.currentTime + fadeOutStartTime;
+
+    const fadeOutCallback = () => {
+      this.fadeOut(id, fadeOutDuration);
+    };
+
+    this.ticker.addCallback(`fadeOut_${id}`, () => {
+      if (this.context.currentTime >= fadeOutTime) {
+        fadeOutCallback();
+        this.ticker.removeCallback(`fadeOut_${id}`);
+      }
+    });
+  }
+
+  private cancelScheduledFadeOut(id: string): void {
+    this.ticker.removeCallback(`fadeOut_${id}`);
+  }
+
   private cancelFadeAnimation(id: string): void {
     // Remove the fade callback from ticker
     this.ticker.removeCallback(`fade_${id}`);
@@ -338,6 +360,7 @@ export class SoundManager implements SoundManagerInterface {
 
     this.debugLog(`Cleaning up sound ${id}`);
 
+    this.cancelScheduledFadeOut(id);
     this.cancelFadeAnimation(id);
 
     this.stopProgressTracking(id);
@@ -608,10 +631,10 @@ export class SoundManager implements SoundManagerInterface {
         this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, sound.id, undefined, true);
       }
       if (sound.playOptions?.fadeInDuration !== undefined) {
-         this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
+        this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
       }
       if (sound.playOptions?.fadeOutDuration !== undefined) {
-        this.fadeOut(sound.id, sound.playOptions.fadeOutDuration);
+        this.fadeOut(sound.id, sound.playOptions.fadeOutDuration ?? this.config?.fadeOutDuration ?? 1);
       }
       if (sound.playOptions?.playbackRate !== undefined) {
         this.setPlaybackRate(sound.id, playbackRate, true);
@@ -620,13 +643,26 @@ export class SoundManager implements SoundManagerInterface {
         this.setLoop(sound.id, sound.playOptions.loop, sound.playOptions.maxLoops);
       }
 
+      // Handle fadeOutBeforeEndDuration
+      if (sound.playOptions?.fadeOutBeforeEndDuration !== undefined) {
+        this.cancelScheduledFadeOut(sound.id);
+        const fadeOutBeforeEndDuration = sound.playOptions.fadeOutBeforeEndDuration;
+        const soundDuration = sound.buffer?.duration || 0;
+        const remainingDuration = soundDuration - (sound.pausedAt || 0);
+        const fadeOutStartTime = remainingDuration - fadeOutBeforeEndDuration;
+
+        if (fadeOutStartTime > 0) {
+          this.scheduleFadeOut(sound.id, fadeOutStartTime, sound.playOptions.fadeOutBeforeEndDuration ?? 1);
+        }
+      }
+
       source.start(0, startOffset,
         (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0)
           ? sound.playOptions.duration * playbackRate
           : undefined
       );
 
-      if (sound.playOptions?.trackProgress === true ) {
+      if (sound.playOptions?.trackProgress === true) {
         this.startProgressTracking(sound.id);
       }
 
@@ -657,6 +693,8 @@ export class SoundManager implements SoundManagerInterface {
 
       if (!this.isPlaying(id) || this.isPaused(id)) return;
 
+      // Cancel any scheduled fade-out
+      this.cancelScheduledFadeOut(id);
 
       // Get the current playback position from the sound's state
       const playbackRate = sound.playOptions?.playbackRate ?? 1;
@@ -723,6 +761,7 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       // Cancel any ongoing operations first
+      this.cancelScheduledFadeOut(id);
       this.cancelFadeAnimation(id);
       this.stopProgressTracking(id);
 
@@ -843,7 +882,7 @@ export class SoundManager implements SoundManagerInterface {
 
   // Fade managment ----------------------------------------------------------------------------------------------------------------
 
-  public fadeIn(id: string, duration: number, startVolume?: number, endVolume: number = 1, skipDispatchEvent: boolean = false): void {
+  public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
     const sound = this.getValidatedSound(id);
 
     // Cancel any ongoing fade animation
@@ -854,7 +893,7 @@ export class SoundManager implements SoundManagerInterface {
     sound.isFadingIn = true;
 
     // Get the current volume
-    const currentVolume = sound.gainNode.gain.value;
+    const currentVolume = this.roundValue(sound.gainNode.gain.value, 2);
 
     // Determine the start volume based on different conditions
     let effectiveStartVolume: number;
@@ -865,12 +904,15 @@ export class SoundManager implements SoundManagerInterface {
     } else if (sound.isFadingOut) {
       // If we're coming from a fadeOut, use the current volume
       effectiveStartVolume = currentVolume;
-    } else if (currentVolume >= endVolume) {
-      // If current volume is at or above target, start from 0
-      effectiveStartVolume = sound?.originalVolume !== 1 ? (sound?.originalVolume ?? 0) : 0;
+    } else if (currentVolume >= (endVolume ?? this.config.defaultVolume ?? 1)) {
+      // If current volume is at or above target, start from fadeInStartVolume or from 0
+      effectiveStartVolume = sound.playOptions?.fadeInStartVolume ?? 0;
     } else {
       effectiveStartVolume = currentVolume;
     }
+
+    // Determine the target volume
+    const targetEndVolume = endVolume ?? this.config.defaultVolume ?? 1;
 
     sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
 
@@ -878,11 +920,11 @@ export class SoundManager implements SoundManagerInterface {
       this.play(id, { volume: effectiveStartVolume });
     }
 
-    this.fadeSound(id, effectiveStartVolume, endVolume, duration, () => {
+    this.fadeSound(id, effectiveStartVolume, targetEndVolume, duration, () => {
       // Update after sound callback is complete
-      sound.volume = endVolume;
+      sound.volume = targetEndVolume;
       if (sound.playOptions) {
-        sound.playOptions.volume = endVolume;
+        sound.playOptions.volume = targetEndVolume;
       }
 
       if (!skipDispatchEvent) {
@@ -894,14 +936,13 @@ export class SoundManager implements SoundManagerInterface {
         });
       }
     });
-
   }
 
   public fadeOut(
     id: string,
     duration: number = this.config.fadeOutDuration!,
     startVolume?: number,
-    endVolume: number = 0,
+    endVolume?: number,
     stopAfterFade: boolean = false,
     skipDispatchEvent: boolean = false
   ): void {
@@ -912,8 +953,9 @@ export class SoundManager implements SoundManagerInterface {
     sound.isFadingIn = false;
     sound.isFadingOut = true;
 
-    const currentVolume = sound.gainNode.gain.value;
+    const currentVolume = this.roundValue(sound.gainNode.gain.value, 2);
     const effectiveStartVolume = startVolume ?? currentVolume;
+    const targetEndVolume = endVolume ?? sound.playOptions?.fadeOutEndVolume ?? 0;
 
     sound.previousVolume = currentVolume;
 
@@ -923,7 +965,7 @@ export class SoundManager implements SoundManagerInterface {
       this.play(id, { volume: effectiveStartVolume });
     }
     // Start the fade
-    this.fadeSound(id, effectiveStartVolume, endVolume, duration, () => {
+    this.fadeSound(id, effectiveStartVolume, targetEndVolume, duration, () => {
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.FADE_OUT_COMPLETED,
@@ -946,15 +988,17 @@ export class SoundManager implements SoundManagerInterface {
     onComplete?: () => void
   ): void {
     try {
+      // Cancel any existing fade
+      this.cancelFadeAnimation(id);
       const sound = this.getValidatedSound(id);
+
       sound.volume = startVolume;
-      const fadeDuration = duration;
 
       // Cancel any previously scheduled changes to the gain value
       sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
 
-      // Cancel any existing fade
-      this.cancelFadeAnimation(id);
+      // Shorten the fade duration slightly to ensure it completes before the sound ends
+      const fadeDuration = Math.max(0, duration - 0.02); // Reduce by 20ms
 
       const startTime = this.context.currentTime;
       const endTime = startTime + fadeDuration;
@@ -995,6 +1039,7 @@ export class SoundManager implements SoundManagerInterface {
 
         sound.gainNode.gain.setValueAtTime(currentVolume, currentTime);
         sound.volume = this.roundValue(currentVolume);
+
         sound.playOptions = {
           ...sound.playOptions,
           volume: sound.volume,
@@ -1085,7 +1130,7 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     try {
-      const initialVolume = startVolume ?? this.masterGainNode.gain.value;
+      const initialVolume = startVolume ?? this.roundValue(this.masterGainNode.gain.value, 2);
       this.previousGlobalVolume = initialVolume;
 
       const startTime = this.context.currentTime;
@@ -1193,7 +1238,7 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public getGlobalVolume(): number {
-    return this.isMuted ? 0 : this.masterGainNode.gain.value;
+    return this.isMuted ? 0 : this.roundValue(this.masterGainNode.gain.value, 2);
   }
 
   // End Volume control-------------------------------------------------------------------------------------------------------------
@@ -1201,7 +1246,7 @@ export class SoundManager implements SoundManagerInterface {
   // Mute control-------------------------------------------------------------------------------------------------------------------
 
   public muteAllSounds(): void {
-    this.previousGlobalVolume = this.masterGainNode.gain.value;
+    this.previousGlobalVolume = this.roundValue(this.masterGainNode.gain.value, 2);
     this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
     this.isMuted = true;
 
@@ -1890,6 +1935,7 @@ export class SoundManager implements SoundManagerInterface {
           progress,
         },
         timestamp: this.context.currentTime,
+        volume: sound.volume,
         sound,
       });
     };
