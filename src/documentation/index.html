@@ -258,7 +258,7 @@ Automatically handle audio context suspension and resumption for better performa
 <li><a href="#licence">Licence</a></li>
 <li><a href="#-version-history">📋 Version History</a>
 <ul>
-<li><a href="#510--530">5.1.0 ~ 5.3.0</a></li>
+<li><a href="#510--531">5.1.0 ~ 5.3.1</a></li>
 <li><a href="#500-major--critical-udpate-">5.0.0 (Major &amp; critical udpate )</a></li>
 <li><a href="#400-major-update">4.0.0 (Major update)</a></li>
 <li><a href="#320">3.2.0</a>
@@ -1078,11 +1078,14 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="version-history" tabindex="-1">📋 Version History</h2>
-<h3 id="5-1-0-5-3-0" tabindex="-1">5.1.0 ~ 5.3.0</h3>
+<h3 id="5-1-0-5-3-1" tabindex="-1">5.1.0 ~ 5.3.1</h3>
 <ul>
 <li>
 <p>🐛 Bug Fixes
 Fixed an issue with fadeInDuration and fadeOutDuration when used in combination with defaultVolume in the configuration. This ensures consistent fade behavior across all sounds.</p>
+</li>
+<li>
+<p>Fixed error: Failed to execute ‘stop’ on ‘AudioScheduledSourceNode’: cannot call stop without calling start first.</p>
 </li>
 <li>
 <p>🔊 New Feature: fadeOutBeforeEndDuration with optionally setting fadeOutEndVolume.
