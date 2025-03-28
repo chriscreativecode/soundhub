@@ -136,7 +136,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
-    - [5.1.0 ~ 5.3.1](#510--531)
+    - [5.1.0 ~ 5.4.0](#510--540)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
     - [4.0.0 (Major update)](#400-major-update)
     - [3.2.0](#320)
@@ -1019,10 +1019,11 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 5.1.0 ~ 5.3.1 
+### 5.1.0 ~ 5.4.0 
 - 🐛 Bug Fixes
-  Fixed an issue with fadeInDuration and fadeOutDuration when used in combination with defaultVolume in the configuration. This ensures consistent fade behavior across all sounds.
-- Fixed error: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
+  * Fix dependencies in package.json so it is used pure as library and not as an app.
+  * Fixed an issue with fadeInDuration and fadeOutDuration when used in combination with defaultVolume in the configuration. This ensures consistent fade behavior across all sounds.
+  * Fixed error: Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.
 
 - 🔊 New Feature: fadeOutBeforeEndDuration with optionally setting fadeOutEndVolume.
 Added the fadeOutBeforeEndDuration option to PlayOptions. This feature automatically fades out a sound as it nears the end of playback.
