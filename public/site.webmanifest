@@ -1,23 +1,24 @@
 {
   "name": "Sound Manager TS",
-  "short_name": "SoundMgr",
+  "short_name": "SoundManagerTS",
   "description": "Advanced audio management library for web applications",
   "start_url": "/sound-manager-ts/demo/",
+  "scope": "/sound-manager-ts/",
   "display": "standalone",
   "background_color": "#2A5D91",
   "theme_color": "#2A5D91",
   "icons": [
-    { "src": "/favicon-16x16.png", "sizes": "16x16", "type": "image/png" },
-    { "src": "/favicon-32x32.png", "sizes": "32x32", "type": "image/png" },
-    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
+    { "src": "favicon-16x16.png", "sizes": "16x16", "type": "image/png" },
+    { "src": "favicon-32x32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
   ],
   "categories": ["development", "utilities", "audio"],
   "screenshots": [
     {
-      "src": "/screenshots/demo-interface.png",
+      "src": "demo-interface.png",
       "sizes": "1280x720",
       "type": "image/png",
       "label": "Demo Interface of Sound Manager TS"
@@ -28,16 +29,11 @@
       "name": "Open Demo",
       "url": "/sound-manager-ts/demo",
       "description": "Launch the interactive demo"
-    },
-    {
-      "name": "Documentation",
-      "url": "/sound-manager-ts/documentation",
-      "description": "View documentation"
     }
   ],
   "related_applications": [
     {
-      "platform": "npm",
+      "platform": "web",
       "url": "https://www.npmjs.com/package/sound-manager-ts"
     }
   ],
