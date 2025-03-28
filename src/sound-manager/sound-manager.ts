@@ -636,6 +636,14 @@ export class SoundManager implements SoundManagerInterface {
       if (sound.playOptions?.fadeInDuration !== undefined) {
         this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
       }
+      if (sound.playOptions?.fadeInDuration !== undefined) {
+        this.fadeIn(
+          sound.id,
+          sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1,
+          undefined, // startVolume (defaults to 0 or current volume)
+          sound.playOptions?.volume // Use PlayOptions.volume as the end volume
+        )
+      }
       if (sound.playOptions?.fadeOutDuration !== undefined) {
         this.fadeOut(sound.id, sound.playOptions.fadeOutDuration ?? this.config?.fadeOutDuration ?? 1);
       }
@@ -914,8 +922,8 @@ export class SoundManager implements SoundManagerInterface {
       effectiveStartVolume = currentVolume;
     }
 
-    // Determine the target volume
-    const targetEndVolume = endVolume ?? this.config.defaultVolume ?? 1;
+    // Target (end volume)
+    const targetEndVolume = endVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
 
     sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
 
@@ -1190,8 +1198,8 @@ export class SoundManager implements SoundManagerInterface {
     try {
       // Cancel any ongoing fade animation
       this.cancelFadeAnimation(id);
-
       const sound = this.getValidatedSound(id);
+
       const validatedVolume = this.setValidatedVolume(volume);
       sound.volume = this.roundValue(validatedVolume);
       sound.originalVolume = validatedVolume;
@@ -1200,7 +1208,9 @@ export class SoundManager implements SoundManagerInterface {
         volume: validatedVolume,
       };
 
+      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
       sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
+
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.VOLUME_CHANGED,
