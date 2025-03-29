@@ -229,7 +229,7 @@ Automatically handle audio context suspension and resumption for better performa
 <li><a href="#install-the-package">Install the package</a></li>
 </ul>
 </li>
-<li><a href="#2-using-sound-manager-as-a-library-file">2. Using Sound Manager as a Library File</a></li>
+<li><a href="#2-using-sound-manager-as-a-library-file---cdn-installation">2. Using Sound Manager as a Library File  / CDN Installation</a></li>
 </ul>
 </li>
 <li><a href="#usage">Usage</a></li>
@@ -258,6 +258,7 @@ Automatically handle audio context suspension and resumption for better performa
 <li><a href="#licence">Licence</a></li>
 <li><a href="#-version-history">📋 Version History</a>
 <ul>
+<li><a href="#550---enhanced-audio-loading--mobile-support">5.5.0 - Enhanced Audio Loading &amp; Mobile Support</a></li>
 <li><a href="#510--540">5.1.0 ~ 5.4.0</a></li>
 <li><a href="#500-major--critical-udpate-">5.0.0 (Major &amp; critical udpate )</a></li>
 <li><a href="#400-major-update">4.0.0 (Major update)</a></li>
@@ -302,6 +303,11 @@ Automatically handle audio context suspension and resumption for better performa
 <pre><code class="language-typescript"><span class="hljs-keyword">import</span> { <span class="hljs-title class_">SoundManager</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;sound-manager-ts&quot;</span>;
 
 <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>();
+
+soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundEventsEnum</span>.<span class="hljs-property">LOADED</span>, <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span></span>) =&gt;</span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Sound loaded&#x27;</span>, event);
+});
+
 <span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">loadSounds</span>([{ <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/sounds/music.mp3&quot;</span> }]);
 soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;music&quot;</span>);
 </code></pre>
@@ -326,6 +332,12 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 <span class="hljs-comment">// Initialize sound manager with config</span>
 <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>(config);
 
+<span class="hljs-comment">// Listen to load event</span>
+soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundEventsEnum</span>.<span class="hljs-property">LOADED</span>, <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span></span>) =&gt;</span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Sound loaded&#x27;</span>, event);
+});
+
+
 <span class="hljs-comment">// Define sounds to preload</span>
 <span class="hljs-keyword">const</span> soundsToLoad = [
   { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;background-music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/background.mp3&quot;</span> },
@@ -348,83 +360,152 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
   <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">2</span>,
 });
 </code></pre>
-<h3 id="2-using-sound-manager-as-a-library-file" tabindex="-1">2. Using Sound Manager as a Library File</h3>
+<h3 id="2-using-sound-manager-as-a-library-file-cdn-installation" tabindex="-1">2. Using Sound Manager as a Library File  / CDN Installation</h3>
 <p>If you prefer to include Sound Manager directly as a library file in your project, you can use the UMD (Universal Module Definition) version. This approach allows you to integrate the sound manager without package managers or build tools - simply include the JavaScript file in your HTML.</p>
 <pre><code class="language-html"><span class="hljs-meta">&lt;!DOCTYPE <span class="hljs-keyword">html</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">html</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">&quot;en&quot;</span>&gt;</span>
-  <span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">charset</span>=<span class="hljs-string">&quot;UTF-8&quot;</span> /&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;viewport&quot;</span> <span class="hljs-attr">content</span>=<span class="hljs-string">&quot;width=device-width, initial-scale=1.0&quot;</span> /&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">link</span> <span class="hljs-attr">rel</span>=<span class="hljs-string">&quot;icon&quot;</span> <span class="hljs-attr">href</span>=<span class="hljs-string">&quot;/favicon.ico&quot;</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;image/x-icon&quot;</span> /&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Sound Manager Implementation<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
-  <span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
-  <span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;app&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
-    <span class="hljs-comment">&lt;!-- Include the UMD version of the Sound Manager --&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;./lib/sound-manager-ts.umd.js?v=4.0.0&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">script</span>&gt;</span><span class="language-javascript">
-      <span class="hljs-comment">// Initialize the Sound Manager</span>
-      <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>({
-        <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Mute when tab is hidden</span>
-        <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Resume on tab focus</span>
-        <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">0.8</span>, <span class="hljs-comment">// Default volume (0-1)</span>
-        <span class="hljs-attr">spatialAudio</span>: <span class="hljs-literal">false</span>, <span class="hljs-comment">// Enable spatial audio</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">charset</span>=<span class="hljs-string">&quot;UTF-8&quot;</span> /&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;viewport&quot;</span> <span class="hljs-attr">content</span>=<span class="hljs-string">&quot;width=device-width, initial-scale=1.0&quot;</span> /&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Sound Manager Implementation<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">style</span>&gt;</span><span class="language-css">
+    <span class="hljs-selector-tag">body</span> { <span class="hljs-attribute">font-family</span>: Arial, sans-serif; <span class="hljs-attribute">max-width</span>: <span class="hljs-number">800px</span>; <span class="hljs-attribute">margin</span>: <span class="hljs-number">0</span> auto; <span class="hljs-attribute">padding</span>: <span class="hljs-number">20px</span>; }
+    <span class="hljs-selector-class">.sound-controls</span> { <span class="hljs-attribute">margin</span>: <span class="hljs-number">20px</span> <span class="hljs-number">0</span>; <span class="hljs-attribute">padding</span>: <span class="hljs-number">15px</span>; <span class="hljs-attribute">background</span>: <span class="hljs-number">#f5f5f5</span>; <span class="hljs-attribute">border-radius</span>: <span class="hljs-number">5px</span>; }
+    <span class="hljs-selector-tag">button</span> { <span class="hljs-attribute">padding</span>: <span class="hljs-number">8px</span> <span class="hljs-number">12px</span>; <span class="hljs-attribute">margin-right</span>: <span class="hljs-number">10px</span>; <span class="hljs-attribute">cursor</span>: pointer; }
+  </span><span class="hljs-tag">&lt;/<span class="hljs-name">style</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">h1</span>&gt;</span>Sound Manager Implementation<span class="hljs-tag">&lt;/<span class="hljs-name">h1</span>&gt;</span>
+  
+  <span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;sound-controls&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">button</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;playBtn&quot;</span>&gt;</span>Play Background Music<span class="hljs-tag">&lt;/<span class="hljs-name">button</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">button</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;stopBtn&quot;</span>&gt;</span>Stop Music<span class="hljs-tag">&lt;/<span class="hljs-name">button</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">button</span> <span class="hljs-attr">id</span>=<span class="hljs-string">&quot;clickBtn&quot;</span>&gt;</span>Play Click Sound<span class="hljs-tag">&lt;/<span class="hljs-name">button</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+
+  <span class="hljs-comment">&lt;!-- 
+    ====================================================================
+    CDN INSTALLATION OPTIONS
+    ====================================================================
+  --&gt;</span>
+  
+  <span class="hljs-comment">&lt;!-- Option 1: UMD Version (Works everywhere) --&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;https://unpkg.com/sound-manager-ts@5.4.0/dist/sound-manager-ts.umd.js&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+  
+  <span class="hljs-comment">&lt;!-- 
+    Alternative UMD options:
+    - Download and use local file: &lt;script src=&quot;/path/to/sound-manager-ts.umd.js&quot;&gt;&lt;/script&gt;
+    - Specific version: &lt;script src=&quot;https://unpkg.com/sound-manager-ts@5.4.0/dist/sound-manager-ts.umd.js&quot;&gt;&lt;/script&gt;
+  --&gt;</span>
+  
+  <span class="hljs-comment">&lt;!-- Option 2: ESM Version (Modern browsers/bundlers) --&gt;</span>
+  <span class="hljs-comment">&lt;!--
+  &lt;script type=&quot;module&quot;&gt;
+    import { SoundManager } from &#x27;https://unpkg.com/sound-manager-ts@5.4.0/dist/sound-manager-ts.es.js&#x27;;
+    // Your ESM code here
+  &lt;/script&gt;
+  --&gt;</span>
+
+  <span class="hljs-tag">&lt;<span class="hljs-name">script</span>&gt;</span><span class="language-javascript">
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-comment">// INITIALIZATION</span>
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManagerTS</span>.<span class="hljs-title class_">SoundManager</span>({
+      <span class="hljs-attr">debug</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Enable console logs for debugging</span>
+      <span class="hljs-attr">autoMuteOnHidden</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Mute when tab is hidden</span>
+      <span class="hljs-attr">autoResumeOnFocus</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// Resume when tab regains focus</span>
+      <span class="hljs-attr">defaultVolume</span>: <span class="hljs-number">0.7</span>, <span class="hljs-comment">// Default volume (0-1)</span>
+      <span class="hljs-attr">spatialAudio</span>: <span class="hljs-literal">false</span>, <span class="hljs-comment">// Enable 3D audio if needed</span>
+      <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">1</span>, <span class="hljs-comment">// Default fade-in duration (seconds)</span>
+      <span class="hljs-attr">fadeOutDuration</span>: <span class="hljs-number">1</span>  <span class="hljs-comment">// Default fade-out duration (seconds)</span>
+    });
+
+    
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-comment">// Add eventlistener LOADED</span>
+    <span class="hljs-comment">// ====================================================================</span>
+    soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundEventsEnum</span>.<span class="hljs-property">LOADED</span>, <span class="hljs-function">(<span class="hljs-params">event: SoundEvent</span>) =&gt;</span> {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Sound loaded&#x27;</span>, event);
+    });
+
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-comment">// SOUND DEFINITIONS</span>
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-keyword">const</span> sounds = {
+      <span class="hljs-attr">background</span>: {
+        <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;background-music&quot;</span>,
+        <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;https://example.com/sounds/background.mp3&quot;</span>,
+        <span class="hljs-attr">options</span>: { <span class="hljs-attr">loop</span>: <span class="hljs-literal">true</span>, <span class="hljs-attr">volume</span>: <span class="hljs-number">0.6</span> }
+      },
+      <span class="hljs-attr">click</span>: {
+        <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;click-effect&quot;</span>, 
+        <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;https://example.com/sounds/click.wav&quot;</span>,
+        <span class="hljs-attr">options</span>: { <span class="hljs-attr">volume</span>: <span class="hljs-number">0.8</span> }
+      }
+    };
+
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-comment">// SOUND LOADING (Using async/await)</span>
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">initializeSounds</span>(<span class="hljs-params"></span>) {
+      <span class="hljs-keyword">try</span> {
+        <span class="hljs-comment">// Load all sounds</span>
+        <span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">loadSounds</span>([
+          { <span class="hljs-attr">id</span>: sounds.<span class="hljs-property">background</span>.<span class="hljs-property">id</span>, <span class="hljs-attr">url</span>: sounds.<span class="hljs-property">background</span>.<span class="hljs-property">url</span> },
+          { <span class="hljs-attr">id</span>: sounds.<span class="hljs-property">click</span>.<span class="hljs-property">id</span>, <span class="hljs-attr">url</span>: sounds.<span class="hljs-property">click</span>.<span class="hljs-property">url</span> }
+        ]);
+        
+        <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
+        
+        <span class="hljs-comment">// Set up event listeners after sounds are loaded</span>
+        <span class="hljs-title function_">setupControls</span>();
+        
+      } <span class="hljs-keyword">catch</span> (error) {
+        <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;Error loading sounds:&quot;</span>, error);
+        <span class="hljs-title function_">alert</span>(<span class="hljs-string">&quot;Failed to load sounds. Please check console for details.&quot;</span>);
+      }
+    }
+
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-comment">// CONTROL FUNCTIONS</span>
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-keyword">function</span> <span class="hljs-title function_">setupControls</span>(<span class="hljs-params"></span>) {
+      <span class="hljs-variable language_">document</span>.<span class="hljs-title function_">getElementById</span>(<span class="hljs-string">&#x27;playBtn&#x27;</span>).<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&#x27;click&#x27;</span>, <span class="hljs-function">() =&gt;</span> {
+        soundManager.<span class="hljs-title function_">play</span>(sounds.<span class="hljs-property">background</span>.<span class="hljs-property">id</span>, {
+          ...sounds.<span class="hljs-property">background</span>.<span class="hljs-property">options</span>,
+          <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">2</span> <span class="hljs-comment">// Override default fade-in</span>
+        });
       });
 
-      <span class="hljs-comment">// Define sounds to preload</span>
-      <span class="hljs-keyword">const</span> soundsToLoad = [
-        { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;background-music&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/background.mp3&quot;</span> },
-        { <span class="hljs-attr">id</span>: <span class="hljs-string">&quot;click-effect&quot;</span>, <span class="hljs-attr">url</span>: <span class="hljs-string">&quot;/assets/sounds/click.wav&quot;</span> },
-      ];
+      <span class="hljs-variable language_">document</span>.<span class="hljs-title function_">getElementById</span>(<span class="hljs-string">&#x27;stopBtn&#x27;</span>).<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&#x27;click&#x27;</span>, <span class="hljs-function">() =&gt;</span> {
+        soundManager.<span class="hljs-title function_">stop</span>(sounds.<span class="hljs-property">background</span>.<span class="hljs-property">id</span>);
+      });
 
-      <span class="hljs-comment">// ====================================================================</span>
-      <span class="hljs-comment">// Method 1: Preload sounds using Promises (then/catch)</span>
-      <span class="hljs-comment">// ====================================================================</span>
-      soundManager
-        .<span class="hljs-title function_">loadSounds</span>(soundsToLoad)
-        .<span class="hljs-title function_">then</span>(<span class="hljs-function">() =&gt;</span> {
-          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
+      <span class="hljs-variable language_">document</span>.<span class="hljs-title function_">getElementById</span>(<span class="hljs-string">&#x27;clickBtn&#x27;</span>).<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&#x27;click&#x27;</span>, <span class="hljs-function">() =&gt;</span> {
+        soundManager.<span class="hljs-title function_">play</span>(sounds.<span class="hljs-property">click</span>.<span class="hljs-property">id</span>, sounds.<span class="hljs-property">click</span>.<span class="hljs-property">options</span>);
+      });
+    }
 
-          <span class="hljs-comment">// Play a sound</span>
-          soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;background-music&quot;</span>, {
-            <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
-            <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">2</span>,
-          });
+    <span class="hljs-comment">// ====================================================================</span>
+    <span class="hljs-comment">// ERROR HANDLING &amp; EVENTS</span>
+    <span class="hljs-comment">// ====================================================================</span>
+    soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundManagerTS</span>.<span class="hljs-property">SoundEventsEnum</span>.<span class="hljs-property">ERROR</span>, <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;Sound Manager Error:&quot;</span>, event.<span class="hljs-property">error</span>);
+    });
 
-          <span class="hljs-comment">// Control individual sounds</span>
-          soundManager.<span class="hljs-title function_">stop</span>(<span class="hljs-string">&quot;background-music&quot;</span>);
-        })
-        .<span class="hljs-title function_">catch</span>(<span class="hljs-function">(<span class="hljs-params">error</span>) =&gt;</span> {
-          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;Error loading sounds:&quot;</span>, error);
-        });
+    soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundManagerTS</span>.<span class="hljs-property">SoundEventsEnum</span>.<span class="hljs-property">ENDED</span>, <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Sound <span class="hljs-subst">${event.soundId}</span> finished playing`</span>);
+    });
 
-      <span class="hljs-comment">// ====================================================================</span>
-      <span class="hljs-comment">// Method 2: Preload sounds using async/await</span>
-      <span class="hljs-comment">// ====================================================================</span>
-      <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">loadAndPlaySounds</span>(<span class="hljs-params"></span>) {
-        <span class="hljs-keyword">try</span> {
-          <span class="hljs-comment">// Preload sounds</span>
-          <span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">loadSounds</span>(soundsToLoad);
-          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;All sounds loaded successfully&quot;</span>);
+    soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundManagerTS</span>.<span class="hljs-property">SoundEventsEnum</span>.<span class="hljs-property">PROGRESS</span>, <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Sound Progress:  <span class="hljs-subst">${event.progress}</span> %`</span>);
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Sound Progress Info: <span class="hljs-subst">${event.progressInfo}</span>`</span>);
+    });
 
-          <span class="hljs-comment">// Play a sound</span>
-          soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-string">&quot;background-music&quot;</span>, {
-            <span class="hljs-attr">volume</span>: <span class="hljs-number">0.7</span>,
-            <span class="hljs-attr">fadeInDuration</span>: <span class="hljs-number">2</span>,
-          });
-
-          <span class="hljs-comment">// Control individual sounds</span>
-          soundManager.<span class="hljs-title function_">stop</span>(<span class="hljs-string">&quot;background-music&quot;</span>);
-        } <span class="hljs-keyword">catch</span> (error) {
-          <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;Error loading sounds:&quot;</span>, error);
-        }
-      }
-
-      <span class="hljs-comment">// Call the async function</span>
-      <span class="hljs-title function_">loadAndPlaySounds</span>();
-
-    </span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
-  <span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
+    <span class="hljs-comment">// Initialize the sound manager when page loads</span>
+    <span class="hljs-variable language_">window</span>.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&#x27;DOMContentLoaded&#x27;</span>, initializeSounds);
+  </span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">html</span>&gt;</span>
 </code></pre>
 <h2 id="usage" tabindex="-1">Usage</h2>
@@ -432,11 +513,34 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 
 <span class="hljs-comment">// Optional configuration</span>
 <span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerConfig</span> {
+  <span class="hljs-attr">autoUnlock</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Unlock audio for mobile browser that have restrictions</span>
   <span class="hljs-attr">autoMuteOnHidden</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Automatically mute when page or tab of your browser is not active</span>
   <span class="hljs-attr">autoResumeOnFocus</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Automatically resume when page or tab of your browser gets focus</span>
-  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it.    </span>
+  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it. </span>
   <span class="hljs-comment">// By default this is false. This is useful when you want to play the same sound multiple times simultaneously. </span>
-  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-string">&quot;anonymous&quot;</span> | <span class="hljs-string">&quot;use-credentials&quot;</span> | <span class="hljs-literal">null</span>; <span class="hljs-comment">// CORS setting for audio files</span>
+
+  <span class="hljs-comment">// ------- Loading Configuration: -------------------------------------------------------------</span>
+  <span class="hljs-comment">// Loading Behaviour</span>
+  <span class="hljs-attr">webAudioPreferred</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Whether to prefer Web Audio API (default: true)</span>
+  <span class="hljs-attr">html5AudioFallback</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Whether to use HTML5 Audio as fallback (default: true)</span>
+  <span class="hljs-attr">maxParallelLoads</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Maximum parallel sound loads (default: 6)</span>
+  <span class="hljs-attr">retryDelay</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Delay between retry attempts in seconds (default: 0.5 seconds)</span>
+
+  <span class="hljs-comment">// Network Handling</span>
+  <span class="hljs-attr">fetchRetries</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Number of retries for failed fetches (default: 2)</span>
+  <span class="hljs-attr">fetchTimeout</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Timeout for fetch requests in seconds</span>
+  <span class="hljs-attr">corsProxy</span>?: <span class="hljs-built_in">string</span>; <span class="hljs-comment">// URL of CORS proxy service, the ones I tested that work great are: </span>
+  <span class="hljs-comment">// corsProxy: &quot;https://cors-anywhere.herokuapp.com/&quot;, or corsProxy: &quot;https://corsproxy.io/?&quot;,  or your own proxy</span>
+  <span class="hljs-attr">fetchStrategy</span>?: <span class="hljs-string">&#x27;direct-first&#x27;</span> | <span class="hljs-string">&#x27;proxy-first&#x27;</span> | <span class="hljs-string">&#x27;direct-only&#x27;</span>;
+
+  <span class="hljs-comment">// Security &amp; Limits</span>
+  <span class="hljs-attr">maxAudioSize</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in bytes, currently the max is set to 50MB  (50 * 1024 * 1024)</span>
+  <span class="hljs-attr">audioCache</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Cache the audio file when loading.</span>
+  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-string">&quot;anonymous&quot;</span> | <span class="hljs-string">&quot;use-credentials&quot;</span> | <span class="hljs-literal">null</span>;
+  <span class="hljs-attr">credentialStrategy</span>?: <span class="hljs-string">&#x27;auto&#x27;</span> | <span class="hljs-string">&#x27;omit&#x27;</span> | <span class="hljs-string">&#x27;include&#x27;</span>;
+  
+  <span class="hljs-comment">// -----End Loading Configuration-------------------------------------------------------------</span>
+
   <span class="hljs-attr">debug</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable debug logging</span>
   <span class="hljs-attr">defaultDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default duration for new sounds, default is undefined (full length of the sound)</span>
   <span class="hljs-attr">defaultPan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// The default pan value = 0, in the center. Posiible values are (-1 to 1)</span>
@@ -451,13 +555,17 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
   <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span> <span class="hljs-comment">// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)</span>
   <span class="hljs-attr">pannerNodeConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>; <span class="hljs-comment">// Panner settings for 3D sound</span>
   <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable spatial audio features</span>
-  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback.  </span>
-  <span class="hljs-comment">// This will keep track of the process and will dispatch the &#x27;progress&#x27; event.   </span>
-  <span class="hljs-comment">// This is useful when you want to show the progress of the sound playback.</span>
+  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. </span>
+  <span class="hljs-comment">// This will keep track of the process and will dispatch the &#x27;progress&#x27; event. This is useful when you want to show the progress of the sound playback.</span>
 }
 
 <span class="hljs-comment">// Initialize sound manager with config</span>
 <span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>(config);
+
+<span class="hljs-comment">// Listen to Sound Loaded event</span>
+soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundEventsEnum</span>.<span class="hljs-property">LOADED</span>, <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span></span>) =&gt;</span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Sound loaded&#x27;</span>, event);
+});
 
 <span class="hljs-comment">// Define sounds to preload</span>
 <span class="hljs-keyword">const</span> soundsToLoad = [
@@ -861,10 +969,34 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h3 id="soundmanagerconfig" tabindex="-1">SoundManagerConfig</h3>
 <p>Configuration options:</p>
 <pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerConfig</span> {
+  <span class="hljs-attr">autoUnlock</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Unlock audio for mobile browser that have restrictions</span>
   <span class="hljs-attr">autoMuteOnHidden</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Automatically mute when page or tab of your browser is not active</span>
   <span class="hljs-attr">autoResumeOnFocus</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Automatically resume when page or tab of your browser gets focus</span>
-  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously. </span>
-  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-string">&quot;anonymous&quot;</span> | <span class="hljs-string">&quot;use-credentials&quot;</span> | <span class="hljs-literal">null</span>; <span class="hljs-comment">// CORS setting for audio files</span>
+  <span class="hljs-attr">createNewInstance</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Create a new instance of the sound when playing it. </span>
+  <span class="hljs-comment">// By default this is false. This is useful when you want to play the same sound multiple times simultaneously. </span>
+
+  <span class="hljs-comment">// ------- Loading Configuration: -------------------------------------------------------------</span>
+  <span class="hljs-comment">// Loading Behaviour</span>
+  <span class="hljs-attr">webAudioPreferred</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Whether to prefer Web Audio API (default: true)</span>
+  <span class="hljs-attr">html5AudioFallback</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Whether to use HTML5 Audio as fallback (default: true)</span>
+  <span class="hljs-attr">maxParallelLoads</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Maximum parallel sound loads (default: 6)</span>
+  <span class="hljs-attr">retryDelay</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Delay between retry attempts in seconds (default: 0.5 seconds)</span>
+
+  <span class="hljs-comment">// Network Handling</span>
+  <span class="hljs-attr">fetchRetries</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Number of retries for failed fetches (default: 2)</span>
+  <span class="hljs-attr">fetchTimeout</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Timeout for fetch requests in seconds</span>
+  <span class="hljs-attr">corsProxy</span>?: <span class="hljs-built_in">string</span>; <span class="hljs-comment">// URL of CORS proxy service, the ones I tested that work great are: </span>
+  <span class="hljs-comment">// corsProxy: &quot;https://cors-anywhere.herokuapp.com/&quot;, or corsProxy: &quot;https://corsproxy.io/?&quot;,  or your own proxy</span>
+  <span class="hljs-attr">fetchStrategy</span>?: <span class="hljs-string">&#x27;direct-first&#x27;</span> | <span class="hljs-string">&#x27;proxy-first&#x27;</span> | <span class="hljs-string">&#x27;direct-only&#x27;</span>;
+
+  <span class="hljs-comment">// Security &amp; Limits</span>
+  <span class="hljs-attr">maxAudioSize</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in bytes, currently the max is set to 50MB  (50 * 1024 * 1024)</span>
+  <span class="hljs-attr">audioCache</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Cache the audio file when loading.</span>
+  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-string">&quot;anonymous&quot;</span> | <span class="hljs-string">&quot;use-credentials&quot;</span> | <span class="hljs-literal">null</span>;
+  <span class="hljs-attr">credentialStrategy</span>?: <span class="hljs-string">&#x27;auto&#x27;</span> | <span class="hljs-string">&#x27;omit&#x27;</span> | <span class="hljs-string">&#x27;include&#x27;</span>;
+  
+  <span class="hljs-comment">// -----End Loading Configuration-------------------------------------------------------------</span>
+
   <span class="hljs-attr">debug</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable debug logging</span>
   <span class="hljs-attr">defaultDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default duration for new sounds, default is undefined (full length of the sound)</span>
   <span class="hljs-attr">defaultPan</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// The default pan value = 0, in the center. Posiible values are (-1 to 1)</span>
@@ -879,8 +1011,10 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span> <span class="hljs-comment">// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)</span>
   <span class="hljs-attr">pannerNodeConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>; <span class="hljs-comment">// Panner settings for 3D sound</span>
   <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable spatial audio features</span>
-  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. This will keep track of the process and will dispatch the &#x27;progress&#x27; event. This is useful when you want to show the progress of the sound playback.</span>
+  <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. </span>
+  <span class="hljs-comment">// This will keep track of the process and will dispatch the &#x27;progress&#x27; event. This is useful when you want to show the progress of the sound playback.</span>
 }
+
 </code></pre>
 <h3 id="sound-state-information" tabindex="-1">Sound State Information</h3>
 <p>Information about a sound’s current state:</p>
@@ -1078,6 +1212,102 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="version-history" tabindex="-1">📋 Version History</h2>
+<h3 id="5-5-0-enhanced-audio-loading-mobile-support" tabindex="-1">5.5.0 - Enhanced Audio Loading &amp; Mobile Support</h3>
+<p>🚀 New Features</p>
+<ul>
+<li>
+<p>Dual Loading System</p>
+</li>
+<li>
+<p>Web Audio API (primary) with HTML5 Audio fallback (html5AudioFallback)</p>
+</li>
+<li>
+<p>Configurable preference via webAudioPreferred (default: true)</p>
+</li>
+<li>
+<p>Advanced Loading Controls</p>
+</li>
+<li>
+<p>maxParallelLoads: Throttle concurrent loads (default: 10)</p>
+</li>
+<li>
+<p>maxAudioSize: Safety limit (default: 50MB)</p>
+</li>
+<li>
+<p>audioCache: Control browser caching behavior</p>
+</li>
+<li>
+<p>CORS Management</p>
+<ul>
+<li>
+<p>corsProxy support with smart URL handling</p>
+</li>
+<li>
+<p>Configurable strategies:</p>
+</li>
+</ul>
+<pre><code class="language-typescript">  <span class="hljs-attr">fetchStrategy</span>: <span class="hljs-string">&#x27;direct-first&#x27;</span> | <span class="hljs-string">&#x27;proxy-first&#x27;</span> | <span class="hljs-string">&#x27;direct-only&#x27;</span>
+  <span class="hljs-attr">credentialStrategy</span>: <span class="hljs-string">&#x27;auto&#x27;</span> | <span class="hljs-string">&#x27;omit&#x27;</span> | <span class="hljs-string">&#x27;include&#x27;</span>
+</code></pre>
+</li>
+<li>
+<p>Automatic retries (fetchRetries)</p>
+</li>
+<li>
+<p>Configurable timeouts (fetchTimeout)</p>
+</li>
+<li>
+<p>Delay between retries (retryDelay)</p>
+</li>
+<li>
+<p>📊 New Event: SoundEvent.LOAD
+In the event, you have this information of the loaded sound:</p>
+<pre><code class="language-typescript">{
+  bufferSize,
+  channels,
+  duration,
+  fileSize,
+  sampleRate,
+  sound, <span class="hljs-comment">// The Sound object</span>
+  soundId,
+  timestamp,
+  <span class="hljs-keyword">type</span>, <span class="hljs-comment">// The Event type, in this case &#x27;loaded&#x27; or SoundEvent.LOAD</span>
+}
+</code></pre>
+</li>
+<li>
+<p>📱 Mobile Improvements</p>
+<ul>
+<li>Auto-Unlock System</li>
+<li>Touch/click event listeners for iOS/Android</li>
+<li>Silent buffer initialization</li>
+<li>Configurable via autoUnlock: boolean (default: true)</li>
+</ul>
+</li>
+</ul>
+<p>⚙️ Configuration Updates</p>
+<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundManagerConfig</span> {
+  <span class="hljs-comment">// Loading Behavior</span>
+  <span class="hljs-attr">webAudioPreferred</span>?: <span class="hljs-built_in">boolean</span>;       <span class="hljs-comment">// Default: true</span>
+  <span class="hljs-attr">html5AudioFallback</span>?: <span class="hljs-built_in">boolean</span>;      <span class="hljs-comment">// Default: true</span>
+  <span class="hljs-attr">maxParallelLoads</span>?: <span class="hljs-built_in">number</span>;         <span class="hljs-comment">// Default: 10</span>
+  <span class="hljs-attr">retryDelay</span>?: <span class="hljs-built_in">number</span>;               <span class="hljs-comment">// Seconds, default: 0.5</span>
+  
+  <span class="hljs-comment">// Network Handling</span>
+  <span class="hljs-attr">fetchRetries</span>?: <span class="hljs-built_in">number</span>;             <span class="hljs-comment">// Default: 2</span>
+  <span class="hljs-attr">fetchTimeout</span>?: <span class="hljs-built_in">number</span>;             <span class="hljs-comment">// Seconds, default: 10</span>
+  <span class="hljs-attr">corsProxy</span>?: <span class="hljs-built_in">string</span>;                <span class="hljs-comment">// e.g. &quot;https://corsproxy.io/?&quot;</span>
+  <span class="hljs-attr">fetchStrategy</span>?: <span class="hljs-string">&#x27;direct-first&#x27;</span> | <span class="hljs-string">&#x27;proxy-first&#x27;</span> | <span class="hljs-string">&#x27;direct-only&#x27;</span>;
+  
+  <span class="hljs-comment">// Security &amp; Limits</span>
+  <span class="hljs-attr">maxAudioSize</span>?: <span class="hljs-built_in">number</span>;             <span class="hljs-comment">// Bytes, default: 50MB</span>
+  <span class="hljs-attr">audioCache</span>?: <span class="hljs-built_in">boolean</span>;              <span class="hljs-comment">// Default: false</span>
+  <span class="hljs-attr">crossOrigin</span>?: <span class="hljs-string">&quot;anonymous&quot;</span> | <span class="hljs-string">&quot;use-credentials&quot;</span> | <span class="hljs-literal">null</span>;
+  
+  <span class="hljs-comment">// Mobile</span>
+  <span class="hljs-attr">autoUnlock</span>?: <span class="hljs-built_in">boolean</span>;              <span class="hljs-comment">// Default: true</span>
+}
+</code></pre>
 <h3 id="5-1-0-5-4-0" tabindex="-1">5.1.0 ~ 5.4.0</h3>
 <ul>
 <li>

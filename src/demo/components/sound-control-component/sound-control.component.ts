@@ -140,7 +140,7 @@ export class SoundControl {
       createNewInstance: this.soundManagerConfig.createNewInstance ?? false,
       startTime: this.soundManagerConfig.defaultStartTime ?? 0,
       duration: this.soundManagerConfig.defaultDuration,
-      
+
       // Testing
 
       // pauseAtDurationReached: false, // works only if you set a duration as well.
@@ -570,6 +570,7 @@ export class SoundControl {
     }
     // Handle global events (those without soundId) or events specific to this sound
     switch (event.type) {
+
       case SoundEventsEnum.STARTED:
         this.log("Sound started", event);
         break;

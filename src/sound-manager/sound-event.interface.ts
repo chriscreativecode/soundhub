@@ -6,6 +6,7 @@ import { SoundResetOptions } from "./sound-reset-options.interface";
 import { Sound } from "./sound.interface";
 
 export interface SoundEvent {
+  channels?: number;
   currentTime?: number;
   duration?:number;
   error?: Error;
@@ -22,6 +23,9 @@ export interface SoundEvent {
   progress?: number; // ratio from 0 to 1
   progressInfo?: SoundProgressStateInfo;
   resetOptions?: SoundResetOptions;
+  sampleRate?: number;
+  bufferSize?: number;
+  fileSize?: number;
   sound?: Sound;
   soundId?: string;
   timestamp?: number;

@@ -116,7 +116,7 @@ Transform your web audio experience with just a few lines of code!
   - [Implement in your project](#implement-in-your-project)
     - [1. Using the Sound Manager as TypeScript Module](#1-using-the-sound-manager-as-typescript-module)
       - [Install the package](#install-the-package)
-    - [2. Using Sound Manager as a Library File](#2-using-sound-manager-as-a-library-file)
+    - [2. Using Sound Manager as a Library File  / CDN Installation](#2-using-sound-manager-as-a-library-file---cdn-installation)
   - [Usage](#usage)
   - [The SoundManager API](#the-soundmanager-api)
     - [Public methods on the SoundManager](#public-methods-on-the-soundmanager)
@@ -136,6 +136,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
+    - [5.5.0 - Enhanced Audio Loading \& Mobile Support](#550---enhanced-audio-loading--mobile-support)
     - [5.1.0 ~ 5.4.0](#510--540)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
     - [4.0.0 (Major update)](#400-major-update)
@@ -179,6 +180,11 @@ npm install sound-manager-ts
 import { SoundManager } from "sound-manager-ts";
 
 const soundManager = new SoundManager();
+
+soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
+  console.log('Sound loaded', event);
+});
+
 await soundManager.loadSounds([{ id: "music", url: "/sounds/music.mp3" }]);
 soundManager.play("music");
 ```
@@ -214,6 +220,12 @@ const config: SoundManagerConfig = {
 // Initialize sound manager with config
 const soundManager = new SoundManager(config);
 
+// Listen to load event
+soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
+  console.log('Sound loaded', event);
+});
+
+
 // Define sounds to preload
 const soundsToLoad = [
   { id: "background-music", url: "/assets/sounds/background.mp3" },
@@ -237,86 +249,155 @@ soundManager.play("background-music", {
 });
 ```
 
-### 2. Using Sound Manager as a Library File
+### 2. Using Sound Manager as a Library File  / CDN Installation
 
 If you prefer to include Sound Manager directly as a library file in your project, you can use the UMD (Universal Module Definition) version. This approach allows you to integrate the sound manager without package managers or build tools - simply include the JavaScript file in your HTML.
 
 ```html
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-    <title>Sound Manager Implementation</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <!-- Include the UMD version of the Sound Manager -->
-    <script src="./lib/sound-manager-ts.umd.js?v=4.0.0"></script>
-    <script>
-      // Initialize the Sound Manager
-      const soundManager = new SoundManager({
-        autoMuteOnHidden: true, // Mute when tab is hidden
-        autoResumeOnFocus: true, // Resume on tab focus
-        defaultVolume: 0.8, // Default volume (0-1)
-        spatialAudio: false, // Enable spatial audio
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sound Manager Implementation</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .sound-controls { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+    button { padding: 8px 12px; margin-right: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Sound Manager Implementation</h1>
+  
+  <div class="sound-controls">
+    <button id="playBtn">Play Background Music</button>
+    <button id="stopBtn">Stop Music</button>
+    <button id="clickBtn">Play Click Sound</button>
+  </div>
+
+  <!-- 
+    ====================================================================
+    CDN INSTALLATION OPTIONS
+    ====================================================================
+  -->
+  
+  <!-- Option 1: UMD Version (Works everywhere) -->
+  <script src="https://unpkg.com/sound-manager-ts@5.4.0/dist/sound-manager-ts.umd.js"></script>
+  
+  <!-- 
+    Alternative UMD options:
+    - Download and use local file: <script src="/path/to/sound-manager-ts.umd.js"></script>
+    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.4.0/dist/sound-manager-ts.umd.js"></script>
+  -->
+  
+  <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
+  <!--
+  <script type="module">
+    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.4.0/dist/sound-manager-ts.es.js';
+    // Your ESM code here
+  </script>
+  -->
+
+  <script>
+    // ====================================================================
+    // INITIALIZATION
+    // ====================================================================
+    const soundManager = new SoundManagerTS.SoundManager({
+      debug: true, // Enable console logs for debugging
+      autoMuteOnHidden: true, // Mute when tab is hidden
+      autoResumeOnFocus: true, // Resume when tab regains focus
+      defaultVolume: 0.7, // Default volume (0-1)
+      spatialAudio: false, // Enable 3D audio if needed
+      fadeInDuration: 1, // Default fade-in duration (seconds)
+      fadeOutDuration: 1  // Default fade-out duration (seconds)
+    });
+
+    
+    // ====================================================================
+    // Add eventlistener LOADED
+    // ====================================================================
+    soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
+      console.log('Sound loaded', event);
+    });
+
+    // ====================================================================
+    // SOUND DEFINITIONS
+    // ====================================================================
+    const sounds = {
+      background: {
+        id: "background-music",
+        url: "https://example.com/sounds/background.mp3",
+        options: { loop: true, volume: 0.6 }
+      },
+      click: {
+        id: "click-effect", 
+        url: "https://example.com/sounds/click.wav",
+        options: { volume: 0.8 }
+      }
+    };
+
+    // ====================================================================
+    // SOUND LOADING (Using async/await)
+    // ====================================================================
+    async function initializeSounds() {
+      try {
+        // Load all sounds
+        await soundManager.loadSounds([
+          { id: sounds.background.id, url: sounds.background.url },
+          { id: sounds.click.id, url: sounds.click.url }
+        ]);
+        
+        console.log("All sounds loaded successfully");
+        
+        // Set up event listeners after sounds are loaded
+        setupControls();
+        
+      } catch (error) {
+        console.error("Error loading sounds:", error);
+        alert("Failed to load sounds. Please check console for details.");
+      }
+    }
+
+    // ====================================================================
+    // CONTROL FUNCTIONS
+    // ====================================================================
+    function setupControls() {
+      document.getElementById('playBtn').addEventListener('click', () => {
+        soundManager.play(sounds.background.id, {
+          ...sounds.background.options,
+          fadeInDuration: 2 // Override default fade-in
+        });
       });
 
-      // Define sounds to preload
-      const soundsToLoad = [
-        { id: "background-music", url: "/assets/sounds/background.mp3" },
-        { id: "click-effect", url: "/assets/sounds/click.wav" },
-      ];
+      document.getElementById('stopBtn').addEventListener('click', () => {
+        soundManager.stop(sounds.background.id);
+      });
 
-      // ====================================================================
-      // Method 1: Preload sounds using Promises (then/catch)
-      // ====================================================================
-      soundManager
-        .loadSounds(soundsToLoad)
-        .then(() => {
-          console.log("All sounds loaded successfully");
+      document.getElementById('clickBtn').addEventListener('click', () => {
+        soundManager.play(sounds.click.id, sounds.click.options);
+      });
+    }
 
-          // Play a sound
-          soundManager.play("background-music", {
-            volume: 0.7,
-            fadeInDuration: 2,
-          });
+    // ====================================================================
+    // ERROR HANDLING & EVENTS
+    // ====================================================================
+    soundManager.addEventListener(SoundManagerTS.SoundEventsEnum.ERROR, (event) => {
+      console.error("Sound Manager Error:", event.error);
+    });
 
-          // Control individual sounds
-          soundManager.stop("background-music");
-        })
-        .catch((error) => {
-          console.error("Error loading sounds:", error);
-        });
+    soundManager.addEventListener(SoundManagerTS.SoundEventsEnum.ENDED, (event) => {
+      console.log(`Sound ${event.soundId} finished playing`);
+    });
 
-      // ====================================================================
-      // Method 2: Preload sounds using async/await
-      // ====================================================================
-      async function loadAndPlaySounds() {
-        try {
-          // Preload sounds
-          await soundManager.loadSounds(soundsToLoad);
-          console.log("All sounds loaded successfully");
+    soundManager.addEventListener(SoundManagerTS.SoundEventsEnum.PROGRESS, (event) => {
+      console.log(`Sound Progress:  ${event.progress} %`);
+      console.log(`Sound Progress Info: ${event.progressInfo}`);
+    });
 
-          // Play a sound
-          soundManager.play("background-music", {
-            volume: 0.7,
-            fadeInDuration: 2,
-          });
-
-          // Control individual sounds
-          soundManager.stop("background-music");
-        } catch (error) {
-          console.error("Error loading sounds:", error);
-        }
-      }
-
-      // Call the async function
-      loadAndPlaySounds();
-
-    </script>
-  </body>
+    // Initialize the sound manager when page loads
+    window.addEventListener('DOMContentLoaded', initializeSounds);
+  </script>
+</body>
 </html>
 ```
 
@@ -327,11 +408,34 @@ import { SoundManager, SoundManagerConfig, SoundEventsEnum } from 'sound-manager
 
 // Optional configuration
 export interface SoundManagerConfig {
+  autoUnlock?: boolean; // Unlock audio for mobile browser that have restrictions
   autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
   autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
-  createNewInstance?: boolean; // Create a new instance of the sound when playing it.    
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it. 
   // By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
-  crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
+
+  // ------- Loading Configuration: -------------------------------------------------------------
+  // Loading Behaviour
+  webAudioPreferred?: boolean; // Whether to prefer Web Audio API (default: true)
+  html5AudioFallback?: boolean; // Whether to use HTML5 Audio as fallback (default: true)
+  maxParallelLoads?: number; // Maximum parallel sound loads (default: 6)
+  retryDelay?: number; // Delay between retry attempts in seconds (default: 0.5 seconds)
+
+  // Network Handling
+  fetchRetries?: number; // Number of retries for failed fetches (default: 2)
+  fetchTimeout?: number; // Timeout for fetch requests in seconds
+  corsProxy?: string; // URL of CORS proxy service, the ones I tested that work great are: 
+  // corsProxy: "https://cors-anywhere.herokuapp.com/", or corsProxy: "https://corsproxy.io/?",  or your own proxy
+  fetchStrategy?: 'direct-first' | 'proxy-first' | 'direct-only';
+
+  // Security & Limits
+  maxAudioSize?: number; // in bytes, currently the max is set to 50MB  (50 * 1024 * 1024)
+  audioCache?: boolean; // Cache the audio file when loading.
+  crossOrigin?: "anonymous" | "use-credentials" | null;
+  credentialStrategy?: 'auto' | 'omit' | 'include';
+  
+  // -----End Loading Configuration-------------------------------------------------------------
+
   debug?: boolean; // Enable debug logging
   defaultDuration?: number; // Default duration for new sounds, default is undefined (full length of the sound)
   defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
@@ -346,13 +450,17 @@ export interface SoundManagerConfig {
   maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
   spatialAudio?: boolean; // Enable spatial audio features
-  trackProgress?: boolean; // Track progress of the sound playback.  
-  // This will keep track of the process and will dispatch the 'progress' event.   
-  // This is useful when you want to show the progress of the sound playback.
+  trackProgress?: boolean; // Track progress of the sound playback. 
+  // This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
 }
 
 // Initialize sound manager with config
 const soundManager = new SoundManager(config);
+
+// Listen to Sound Loaded event
+soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
+  console.log('Sound loaded', event);
+});
 
 // Define sounds to preload
 const soundsToLoad = [
@@ -780,10 +888,34 @@ Configuration options:
 
 ```typescript
 export interface SoundManagerConfig {
+  autoUnlock?: boolean; // Unlock audio for mobile browser that have restrictions
   autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
   autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
-  createNewInstance?: boolean; // Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
-  crossOrigin?: "anonymous" | "use-credentials" | null; // CORS setting for audio files
+  createNewInstance?: boolean; // Create a new instance of the sound when playing it. 
+  // By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
+
+  // ------- Loading Configuration: -------------------------------------------------------------
+  // Loading Behaviour
+  webAudioPreferred?: boolean; // Whether to prefer Web Audio API (default: true)
+  html5AudioFallback?: boolean; // Whether to use HTML5 Audio as fallback (default: true)
+  maxParallelLoads?: number; // Maximum parallel sound loads (default: 6)
+  retryDelay?: number; // Delay between retry attempts in seconds (default: 0.5 seconds)
+
+  // Network Handling
+  fetchRetries?: number; // Number of retries for failed fetches (default: 2)
+  fetchTimeout?: number; // Timeout for fetch requests in seconds
+  corsProxy?: string; // URL of CORS proxy service, the ones I tested that work great are: 
+  // corsProxy: "https://cors-anywhere.herokuapp.com/", or corsProxy: "https://corsproxy.io/?",  or your own proxy
+  fetchStrategy?: 'direct-first' | 'proxy-first' | 'direct-only';
+
+  // Security & Limits
+  maxAudioSize?: number; // in bytes, currently the max is set to 50MB  (50 * 1024 * 1024)
+  audioCache?: boolean; // Cache the audio file when loading.
+  crossOrigin?: "anonymous" | "use-credentials" | null;
+  credentialStrategy?: 'auto' | 'omit' | 'include';
+  
+  // -----End Loading Configuration-------------------------------------------------------------
+
   debug?: boolean; // Enable debug logging
   defaultDuration?: number; // Default duration for new sounds, default is undefined (full length of the sound)
   defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
@@ -798,8 +930,10 @@ export interface SoundManagerConfig {
   maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
   spatialAudio?: boolean; // Enable spatial audio features
-  trackProgress?: boolean; // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
+  trackProgress?: boolean; // Track progress of the sound playback. 
+  // This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
 }
+
 ```
 
 ### Sound State Information
@@ -1019,6 +1153,88 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
+### 5.5.0 - Enhanced Audio Loading & Mobile Support
+
+🚀 New Features
+- Dual Loading System
+
+- Web Audio API (primary) with HTML5 Audio fallback (html5AudioFallback)
+
+- Configurable preference via webAudioPreferred (default: true)
+
+- Advanced Loading Controls
+
+- maxParallelLoads: Throttle concurrent loads (default: 10)
+
+- maxAudioSize: Safety limit (default: 50MB)
+
+- audioCache: Control browser caching behavior
+
+- CORS Management
+
+  - corsProxy support with smart URL handling
+
+  - Configurable strategies:
+ 
+  ```typescript
+    fetchStrategy: 'direct-first' | 'proxy-first' | 'direct-only'
+    credentialStrategy: 'auto' | 'omit' | 'include'
+  ```
+
+- Automatic retries (fetchRetries)
+
+- Configurable timeouts (fetchTimeout)
+
+- Delay between retries (retryDelay)
+
+- 📊 New Event: SoundEvent.LOAD
+  In the event, you have this information of the loaded sound:
+  ```typescript
+  {
+    bufferSize,
+    channels,
+    duration,
+    fileSize,
+    sampleRate,
+    sound, // The Sound object
+    soundId,
+    timestamp,
+    type, // The Event type, in this case 'loaded' or SoundEvent.LOAD
+  }
+  ```
+  
+- 📱 Mobile Improvements
+  - Auto-Unlock System
+  - Touch/click event listeners for iOS/Android
+  - Silent buffer initialization
+  - Configurable via autoUnlock: boolean (default: true)
+
+⚙️ Configuration Updates
+  ```typescript
+  interface SoundManagerConfig {
+    // Loading Behavior
+    webAudioPreferred?: boolean;       // Default: true
+    html5AudioFallback?: boolean;      // Default: true
+    maxParallelLoads?: number;         // Default: 10
+    retryDelay?: number;               // Seconds, default: 0.5
+    
+    // Network Handling
+    fetchRetries?: number;             // Default: 2
+    fetchTimeout?: number;             // Seconds, default: 10
+    corsProxy?: string;                // e.g. "https://corsproxy.io/?"
+    fetchStrategy?: 'direct-first' | 'proxy-first' | 'direct-only';
+    
+    // Security & Limits
+    maxAudioSize?: number;             // Bytes, default: 50MB
+    audioCache?: boolean;              // Default: false
+    crossOrigin?: "anonymous" | "use-credentials" | null;
+    
+    // Mobile
+    autoUnlock?: boolean;              // Default: true
+  }
+```
+
+
 ### 5.1.0 ~ 5.4.0 
 - 🐛 Bug Fixes
   * Fix dependencies in package.json so it is used pure as library and not as an app.
@@ -1160,7 +1376,7 @@ This is particularly useful for creating smoother transitions and avoiding abrup
   getProgress(id: string): number; // Returns the progress as a ratio (0-1)
   getProgressPercentage(id: string): number;
   setDebugMode(debug: boolean): void;
- ```
+```
 
 ### 3.2.0
 
