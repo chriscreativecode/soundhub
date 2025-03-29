@@ -136,6 +136,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
+    - [5.5.1](#551)
     - [5.5.0 - Enhanced Audio Loading \& Mobile Support](#550---enhanced-audio-loading--mobile-support)
     - [5.1.0 ~ 5.4.0](#510--540)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
@@ -1153,6 +1154,9 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
+### 5.5.1
+- 🐛 Bug Fix in fadeIn method
+
 ### 5.5.0 - Enhanced Audio Loading & Mobile Support
 
 🚀 New Features
@@ -1233,7 +1237,6 @@ This project is developed by Chris Schardijn. It is free to use in your project.
     autoUnlock?: boolean;              // Default: true
   }
 ```
-
 
 ### 5.1.0 ~ 5.4.0 
 - 🐛 Bug Fixes
