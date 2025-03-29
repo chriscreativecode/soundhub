@@ -724,9 +724,6 @@ export class SoundManager implements SoundManagerInterface {
         this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, sound.id, undefined, true);
       }
       if (sound.playOptions?.fadeInDuration !== undefined) {
-        this.fadeIn(sound.id, sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1);
-      }
-      if (sound.playOptions?.fadeInDuration !== undefined) {
         this.fadeIn(
           sound.id,
           sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1,
@@ -985,7 +982,7 @@ export class SoundManager implements SoundManagerInterface {
 
   public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
     const sound = this.getValidatedSound(id);
-
+    console.log('fade in', id);
     // Cancel any ongoing fade animation
     this.cancelFadeAnimation(id);
 
@@ -996,6 +993,12 @@ export class SoundManager implements SoundManagerInterface {
     // Get the current volume
     const currentVolume = this.roundValue(sound.gainNode.gain.value, 2);
 
+    // Target (end volume)
+    let targetEndVolume = endVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
+    if(targetEndVolume === 0) {
+      targetEndVolume = 1;
+    }
+
     // Determine the start volume based on different conditions
     let effectiveStartVolume: number;
 
@@ -1005,15 +1008,14 @@ export class SoundManager implements SoundManagerInterface {
     } else if (sound.isFadingOut) {
       // If we're coming from a fadeOut, use the current volume
       effectiveStartVolume = currentVolume;
-    } else if (currentVolume >= (endVolume ?? this.config.defaultVolume ?? 1)) {
+    } else if (currentVolume >= targetEndVolume) {
       // If current volume is at or above target, start from fadeInStartVolume or from 0
       effectiveStartVolume = sound.playOptions?.fadeInStartVolume ?? 0;
     } else {
       effectiveStartVolume = currentVolume;
     }
 
-    // Target (end volume)
-    const targetEndVolume = endVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
+    sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
 
     sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
 
