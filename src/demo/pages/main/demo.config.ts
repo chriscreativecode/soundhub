@@ -6,7 +6,10 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   autoMuteOnHidden: true, // Automatically mute when page or tab of your browser is not active
   autoResumeOnFocus: true, // Automatically resume when page or tab of your browser gets focus
   createNewInstance: false, // Create a new instance of the sound when playing it. By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
-  crossOrigin: null, // CORS setting for audio files
+  //crossOrigin: null, // CORS setting for audio files
+  // corsProxy: "https://cors-anywhere.herokuapp.com/", // or your own proxy
+  // corsProxy: "https://corsproxy.io/?",
+  //fetchStrategy: 'proxy-first',
   debug: false, // Enable debug logging
   defaultDuration: undefined, // Default duration for new sounds, default is undefined (full length of the sound)
   defaultPan: 0, // The default pan value = 0, in the center. Posiible values are (-1 to 1)

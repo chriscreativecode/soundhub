@@ -6,6 +6,7 @@ export enum SoundEventsEnum {
     FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
     FADE_OUT_COMPLETED = 'fade_out_completed',
     GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
+    LOADED = 'loaded',
     LOOP_COMPLETED = 'loop_completed',
     MASTER_PAN_CHANGED = 'master_pan_changed',
     MASTER_VOLUME_CHANGED = 'master_volume_changed',

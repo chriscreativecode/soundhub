@@ -31,6 +31,8 @@ import { SoundManager } from './../../../sound-manager/sound-manager';
 import demoTemplate from "./demo-template.html?raw";
 import { DEMO_CONFIG } from "./demo.config";
 import { LocalStorageManagerManager } from "../../services/local-storage-manager";
+import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
+import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 
 
 export class SoundManagerDemo {
@@ -82,6 +84,10 @@ export class SoundManagerDemo {
     if (preloadBtn) {
       preloadBtn.addEventListener("click", () => this.loadDemoSounds());
     }
+
+    this.soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
+  //    console.log('sound loaded', event);
+    });
   }
 
   private initializeTheme(): void {
@@ -124,7 +130,9 @@ export class SoundManagerDemo {
       this.loadingState = true;
       this.updateLoadingState(true);
 
+
       const soundsToLoad = [
+      //  { id: "remote url", url: "https://s3-us-west-2.amazonaws.com/s.cdpn.io/355309/Swing_Jazz_Drum.mp3" },
         { id: "intro-speach", url: introSpeach },
         { id: "piano-tone", url: pianoTone },
         { id: "game-sound", url: gameSounds },
@@ -138,6 +146,7 @@ export class SoundManagerDemo {
       ];
 
       await this.soundManager.loadSounds(soundsToLoad);
+
       const masterControlContainer = document.getElementById("masterControlContainer") as HTMLElement;
       const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
       soundControlsContainer.classList.add("show");

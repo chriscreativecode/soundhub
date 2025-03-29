@@ -41,6 +41,11 @@ export class SoundManager implements SoundManagerInterface {
   private readonly DEFAULT_PRECISION: number = 2;
   private soundGroups: Map<string, SoundGroup> = new Map();
   private instanceCounters: Map<string, number> = new Map();
+  private unlockHandlers: {
+    touchstart: (this: Document, ev: TouchEvent) => void;
+    touchend: (this: Document, ev: TouchEvent) => void;
+    click: (this: Document, ev: MouseEvent) => void;
+  } | null = null;
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
@@ -85,6 +90,8 @@ export class SoundManager implements SoundManagerInterface {
 
       this.masterGainNode.gain.value = this.config.defaultVolume!;
       this.previousGlobalVolume = this.config.defaultVolume!;
+
+      this.setupAudioUnlock();
 
       this.initialize();
     } catch (error) {
@@ -154,6 +161,84 @@ export class SoundManager implements SoundManagerInterface {
     } catch (error) {
       this.handleError("initializing spatial audio", error);
     }
+  }
+
+  private setupAudioUnlock() {
+    if (!this.config.autoUnlock) return;
+
+    // Clean up any existing listeners first
+    this.removeUnlockListeners();
+
+    // Only set up unlock handlers if we're in a mobile-like environment
+    if (!this.isMobileLikeEnvironment()) return;
+
+    // Track if we've already unlocked
+    let isUnlocked = false;
+
+    const unlock = async () => {
+      if (isUnlocked || this.context.state !== 'suspended') return;
+
+      try {
+        // Create and play a silent buffer
+        const buffer = this.context.createBuffer(1, 1, 22050);
+        const source = this.context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.context.destination);
+
+        // Very short duration to minimize processing
+        source.start(0, 0, 0.1);
+
+        // Try to resume the context
+        await this.context.resume();
+
+        // Mark as unlocked and clean up
+        isUnlocked = true;
+        this.removeUnlockListeners();
+
+        this.debugLog('Audio context successfully unlocked');
+      } catch (error) {
+        this.debugLog('Audio unlock attempt failed:', error);
+      }
+    };
+
+    // Create properly typed handler functions
+    const touchHandler = () => unlock();
+    const clickHandler = () => unlock();
+
+    // Initialize and store handlers
+    this.unlockHandlers = {
+      touchstart: touchHandler,
+      touchend: touchHandler,
+      click: clickHandler
+    };
+
+    // Add event listeners with proper typing
+    const options: AddEventListenerOptions = { passive: true, capture: true };
+    document.addEventListener('touchstart', this.unlockHandlers.touchstart, options);
+    document.addEventListener('touchend', this.unlockHandlers.touchend, options);
+    document.addEventListener('click', this.unlockHandlers.click, options);
+
+    // Also try to unlock immediately in case we're already in an interaction
+    unlock();
+  }
+
+  private removeUnlockListeners() {
+    if (!this.unlockHandlers) return;
+
+    // Remove all event listeners
+    document.removeEventListener('touchstart', this.unlockHandlers.touchstart, true);
+    document.removeEventListener('touchend', this.unlockHandlers.touchend, true);
+    document.removeEventListener('click', this.unlockHandlers.click, true);
+
+    // Clear the references
+    this.unlockHandlers = null;
+  }
+
+  private isMobileLikeEnvironment(): boolean {
+    // Check for touch support or mobile user agents
+    return 'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   }
 
   private setupContextResumeHandlers(): void {
@@ -507,6 +592,11 @@ export class SoundManager implements SoundManagerInterface {
 
   // Playback control-----------------------------------------------------------------------------------------------------------
   public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
+
+    if (this.context.state === 'suspended' && this.config.autoUnlock) {
+      this.setupAudioUnlock();
+    }
+
     try {
       const originalSound = this.getValidatedSound(id);
       if (!originalSound) {
@@ -1370,85 +1460,306 @@ export class SoundManager implements SoundManagerInterface {
 
   // Sound loading and management-----------------------------------------------------------------------------------------------------------------
 
-  public async loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void> {
-    try {
-      const loadPromises: Promise<void>[] = soundsToLoad.map(async ({ id, url }) => {
-        if (this.sounds.has(id)) {
-          this.debugLog(`Sound with id ${id} already exists. Skipping.`);
-          return;
+
+  private shouldUseProxy(url: string): boolean {
+    if (!this.config.corsProxy) return false;
+    if (this.isLocalUrl(url)) return false;
+    return true;
+  }
+  
+  private isLocalUrl(url: string): boolean {
+    return url.startsWith('/') || 
+           url.startsWith('./') || 
+           url.startsWith('../') ||
+           url.startsWith('blob:') ||
+           url.startsWith('data:') ||
+           !/^https?:/i.test(url);
+  }
+  
+  private getProxyUrl(url: string): string {
+    if (!this.shouldUseProxy(url)) return url;
+    
+    const proxy = this.config.corsProxy!;
+    
+    // Handle different proxy formats
+    if (proxy.includes('cors-anywhere')) {
+      // Special handling for cors-anywhere which needs raw URL
+      return `${proxy}${url}`; // Don't encode the target URL
+    }
+    
+    if (proxy.includes('?')) {
+      // For proxies that expect encoded URLs in query params
+      const paramName = proxy.includes('url=') ? '' : 'url=';
+      return `${proxy}${paramName}${encodeURIComponent(url)}`;
+    }
+    
+    return `${proxy}${url}`;
+  }
+  
+  private async loadWithWebAudio(id: string, url: string): Promise<void> {
+    const strategies = this.config.fetchStrategy === 'proxy-first' && this.shouldUseProxy(url)
+      ? ['proxy', 'direct'] 
+      : ['direct'];
+  
+    for (const strategy of strategies) {
+      try {
+        const fetchUrl = (strategy === 'proxy' || this.config.corsProxy) ? this.getProxyUrl(url) : url;
+        
+        this.debugLog(`Trying ${strategy} strategy for ${id}`, {
+          originalUrl: url,
+          fetchUrl: fetchUrl
+        });
+        
+        const response = await this.fetchWithRetry(fetchUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+          cache: this.config.audioCache ? 'default' : 'no-cache',
+          headers: {
+            'Accept': 'audio/mpeg, audio/*'
+          }
+        });
+  
+        return await this.processAudioResponse(id, response);
+      } catch (error) {
+        this.debugLog(`${strategy} strategy failed for ${id}`, {
+          error: error instanceof Error ? error.message : String(error),
+          url: url
+        });
+        
+        if (strategy === strategies[strategies.length - 1]) {
+          throw new Error(`Failed to load sound ${id}: ${error instanceof Error ? error.message : String(error)}`);
         }
+      }
+    }
+  }
+  
+  private async fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+    const { fetchRetries = 2, retryDelay = 0.5, fetchTimeout = 10 } = this.config;
+    let lastError: Error | null = null;
+
+    // Determine credential strategies to try
+    const credentialStrategies = this.config.credentialStrategy === 'auto'
+      ? (this.config.crossOrigin === "use-credentials" ? ['include', 'omit'] : ['omit'])
+      : [this.config.credentialStrategy || 'omit'];
+
+    for (const credentials of credentialStrategies) {
+      for (let attempt = 0; attempt <= fetchRetries; attempt++) {
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), fetchTimeout * 1000);
 
         try {
-          // Fetch the audio file
-          const response: Response = await fetch(url, {
-            credentials: this.config.crossOrigin === "use-credentials" ? "include" : "same-origin",
-            mode: this.config.crossOrigin ? "cors" : "no-cors",
-          });
+          const options = {
+            ...init,
+            credentials: credentials as RequestCredentials,
+            signal: controller.signal
+          };
+
+          this.debugLog(`Attempt ${attempt + 1} with credentials=${credentials}`);
+          const response = await fetch(url, options);
+          clearTimeout(timeoutId);
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP ${response.status}`);
           }
 
-          // Decode the audio data
-          const arrayBuffer = await response.arrayBuffer();
-          const audioBuffer: AudioBuffer = await this.context.decodeAudioData(arrayBuffer);
+          // Validate CORS headers
+          if (init.mode === 'cors') {
+            const corsHeader = response.headers.get('access-control-allow-origin');
+            if (credentials === 'include' && corsHeader === '*') {
+              throw new Error('Invalid CORS: Credentialed request with wildcard origin');
+            }
+          }
 
-          // Create and configure gain node
-          const gainNode = this.context.createGain();
-          gainNode.connect(this.masterGainNode);
-          gainNode.gain.value = this.config.defaultVolume!;
+          this.debugLog(`Success after ${Date.now() - startTime}ms`);
+          return response;
 
-          this.sounds.set(id, {
-            id,
-            buffer: audioBuffer,
-            gainNode,
-            source: this.context.createBufferSource(),
-            startTime: undefined,
-            currentTime: 0,
-            pausedAt: undefined,
-            state: SoundState.Stopped,
-            volume: this.config.defaultVolume!,
-            currentLoopCount: 0,
-            originalVolume: this.config.defaultVolume!,
-            playOptions: {
-              startTime: this.config.defaultStartTime ?? 0,
-              loop: this.config.loopSounds ?? false,
-              maxLoops: this.config.maxLoops || -1,
-              playbackRate: this.config.defaultPlaybackRate ?? 1,
-              pan: this.config.defaultPan ?? 0,
-              volume: this.config.defaultVolume ?? 1,
-              trackProgress: this.config.trackProgress ?? false
-            },
-            panSpatialPosition: this.config.defaultPanSpatialPosition || { x: 0, y: 0, z: 0 },
-            pan: this.config.defaultPan ?? 0,
-            panType: this.config.defaultPanType ?? SoundPanType.Stereo,
-          });
-
-          this.debugLog(`Sound ${id} loaded successfully`);
         } catch (error) {
-          // Log the error but don't fail silently
-          this.handleError("loading sound", error, id);
-          // Re-throw to be caught by Promise.allSettled
-          throw error;
+          clearTimeout(timeoutId);
+          lastError = error instanceof Error ? error : new Error(String(error));
+          this.debugLog(`Attempt ${attempt + 1} failed: ${lastError.message}`);
         }
-      });
 
-      // Use Promise.allSettled to handle both successful and failed loads
-      const results = await Promise.allSettled(loadPromises);
+        if (attempt < fetchRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay * 1000));
+        }
+      }
+    }
 
-      // Process results
-      const failedLoads = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+    throw lastError || new Error('Failed after all retries');
+  }
 
-      if (failedLoads.length > 0) {
-        const failedIds = soundsToLoad.filter((_, index) => results[index].status === "rejected").map(({ id }) => id);
+  private async processAudioResponse(id: string, response: Response): Promise<void> {
+    // Verify content type is audio
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('audio/')) {
+      throw new Error(`Invalid content type: ${contentType}`);
+    }
 
-        this.debugLog(`Failed to load sounds: ${failedIds.join(", ")}`);
-        throw new Error(`Failed to load ${failedLoads.length} sound(s)`);
+    // Check file size if configured
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && this.config.maxAudioSize && parseInt(contentLength) > this.config.maxAudioSize) {
+      throw new Error(`Audio file too large: ${contentLength} bytes (max ${this.config.maxAudioSize} bytes), change the maxAudioSize config in your SoundManagerConfig`);
+    }
+    const fileSize = contentLength ? parseInt(contentLength) : undefined;
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+    this.createSoundNode(id, audioBuffer, fileSize);
+    this.debugLog(`Sound ${id} loaded successfully`);
+  }
+
+  private async loadWithHtml5Audio(id: string, url: string): Promise<void> {
+    if (!this.config.html5AudioFallback) {
+      throw new Error('HTML5 Audio fallback is disabled in configuration');
+    }
+
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.crossOrigin = this.config.crossOrigin === "use-credentials"
+        ? "use-credentials"
+        : "anonymous";
+      audio.preload = "auto";
+      audio.src = url;
+
+      const cleanup = () => {
+        audio.oncanplaythrough = null;
+        audio.onerror = null;
+        audio.removeEventListener('error', errorHandler);
+      };
+
+      const errorHandler = () => {
+        cleanup();
+        reject(new Error(`HTML5 Audio load error: ${audio.error ? audio.error.message : 'unknown'}`));
+      };
+
+      audio.oncanplaythrough = async () => {
+        cleanup();
+
+        try {
+          // Use the same loading strategy as Web Audio
+          await this.loadWithWebAudio(id, url);
+          this.debugLog(`Sound ${id} loaded with HTML5 Audio fallback`);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      audio.onerror = errorHandler;
+      audio.addEventListener('error', errorHandler);
+      audio.load();
+    });
+  }
+
+  public async loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void> {
+    if (!soundsToLoad.length) return;
+
+    try {
+      const { maxParallelLoads = 10, webAudioPreferred = true } = this.config;
+      const batchSize = Math.max(1, maxParallelLoads);
+      const batches: { id: string; url: string }[][] = [];
+
+      // Split into batches for parallel loading
+      for (let i = 0; i < soundsToLoad.length; i += batchSize) {
+        batches.push(soundsToLoad.slice(i, i + batchSize));
+      }
+
+      for (const batch of batches) {
+        const loadPromises = batch.map(async ({ id, url }) => {
+          if (this.sounds.has(id)) {
+            this.debugLog(`Sound with id ${id} already exists. Skipping.`);
+            return;
+          }
+
+          try {
+            if (webAudioPreferred) {
+              try {
+                await this.loadWithWebAudio(id, url);
+                return;
+              } catch (webAudioError) {
+                this.debugLog(`Web Audio load failed for ${id}`, webAudioError);
+              }
+            }
+
+            await this.loadWithHtml5Audio(id, url);
+          } catch (error) {
+            this.handleError("loading sound", error, id);
+            throw error;
+          }
+        });
+
+        const results = await Promise.allSettled(loadPromises);
+        const failedLoads = results.filter(r => r.status === 'rejected');
+
+        if (failedLoads.length) {
+          const failedIds = batch.filter((_, i) => results[i].status === 'rejected').map(s => s.id);
+          throw new Error(`Failed to load sounds: ${failedIds.join(', ')}`);
+        }
       }
     } catch (error) {
       this.handleError("preloading sounds", error);
-      throw error; // Re-throw to allow caller to handle the error
+      throw error;
     }
+  }
+
+
+  private calculateAudioSize(buffer: AudioBuffer): number {
+    return buffer.numberOfChannels * buffer.length * 4;
+  }
+
+  private createSoundNode(id: string, audioBuffer: AudioBuffer, fileSize?: number): void {
+    // Create gain node for volume control
+    const gainNode = this.context.createGain();
+    gainNode.gain.value = this.config.defaultVolume ?? 1;
+    gainNode.connect(this.masterGainNode);
+
+    // Create a buffer source (we'll create a new one each time we play)
+    const source = this.context.createBufferSource();
+    source.buffer = audioBuffer;
+
+     // Calculate audio size (approximate)
+    const bufferSizeInBytes = this.calculateAudioSize(audioBuffer);
+
+    // Create the sound object
+    const sound: Sound = {
+      id,
+      buffer: audioBuffer,
+      gainNode,
+      source,
+      startTime: undefined,
+      currentTime: 0,
+      pausedAt: undefined,
+      state: SoundState.Stopped,
+      volume: this.config.defaultVolume ?? 1,
+      currentLoopCount: 0,
+      originalVolume: this.config.defaultVolume ?? 1,
+      playOptions: {
+        startTime: this.config.defaultStartTime ?? 0,
+        loop: this.config.loopSounds ?? false,
+        maxLoops: this.config.maxLoops ?? -1,
+        playbackRate: this.config.defaultPlaybackRate ?? 1,
+        pan: this.config.defaultPan ?? 0,
+        volume: this.config.defaultVolume ?? 1,
+        trackProgress: this.config.trackProgress ?? false
+      },
+      panSpatialPosition: this.config.defaultPanSpatialPosition ?? { x: 0, y: 0, z: 0 },
+      pan: this.config.defaultPan ?? 0,
+      panType: this.config.defaultPanType ?? SoundPanType.Stereo,
+    };
+
+    this.sounds.set(id, sound);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.LOADED,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      sound,
+      duration: audioBuffer.duration,
+      bufferSize: bufferSizeInBytes,
+      fileSize,
+      sampleRate: audioBuffer.sampleRate,
+      channels: audioBuffer.numberOfChannels
+    });
   }
 
   public async loadSound(id: string, url: string): Promise<void> {
