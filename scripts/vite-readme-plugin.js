@@ -35,8 +35,9 @@ md.use(markdownItAnchor, {
   slugify: (s) =>
     s
       .toLowerCase()
-      .replace(/[^\w\u4e00-\u9fa5]+/g, "-") // Replace spaces and special characters with hyphens
-      .replace(/^-+|-+$/g, ""), // Remove leading/trailing hyphens
+      .replace(/\./g, '')
+      .replace(/[^\w.\u4e00-\u9fa5]+/g, "-") /// Replace special characters with hyphens
+      .replace(/-$/, '') // replace hyphen at the end of the string.
 });
 
 export function readmePlugin() {

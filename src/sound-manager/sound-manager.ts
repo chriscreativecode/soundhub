@@ -745,7 +745,7 @@ export class SoundManager implements SoundManagerInterface {
       if (sound.playOptions?.fadeOutBeforeEndDuration !== undefined) {
         this.cancelScheduledFadeOut(sound.id);
         const fadeOutBeforeEndDuration = sound.playOptions.fadeOutBeforeEndDuration;
-        const soundDuration = sound.buffer?.duration || 0;
+        const soundDuration = sound.playOptions.duration ?? sound.buffer?.duration ?? 0;
         const remainingDuration = soundDuration - (sound.pausedAt || 0);
         const fadeOutStartTime = remainingDuration - fadeOutBeforeEndDuration;
 
@@ -2226,7 +2226,9 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime, playbackRate } = this.getSoundState(id);
+      const soundState = this.getSoundState(id);
+
+      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime, playbackRate } = soundState;
       const progress = duration ? (elapsedTime / duration) : 0;
 
 
@@ -2260,6 +2262,7 @@ export class SoundManager implements SoundManagerInterface {
           rawDuration: rawDuration || 0,
           progress,
         },
+        state: soundState,
         timestamp: this.context.currentTime,
         volume: sound.volume,
         sound,

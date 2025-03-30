@@ -3,6 +3,7 @@ import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundProgressStateInfo } from "./sound-progress-state-info";
 import { SoundResetOptions } from "./sound-reset-options.interface";
+import { SoundStateInfo } from "./sound-state-info.interface";
 import { Sound } from "./sound.interface";
 
 export interface SoundEvent {
@@ -28,6 +29,7 @@ export interface SoundEvent {
   fileSize?: number;
   sound?: Sound;
   soundId?: string;
+  state?: SoundStateInfo;
   timestamp?: number;
   type: SoundEventsEnum;
   volume?: number;
