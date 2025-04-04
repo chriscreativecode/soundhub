@@ -5,13 +5,15 @@
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
 [![npm downloads](https://img.shields.io/npm/dt/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 
-A powerful and lightweight (11KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
+A powerful and lightweight (13KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
 ## Live demo
 
-[Click here to visit the demo page](https://chriscreativecode.com/sound-manager-ts/demo/ "A demo showcase of my Sound Manager")
+[Demo page](https://chriscreativecode.com/sound-manager-ts/demo/ "A demo showcase of my Sound Manager")
 
-[Codepen.io playground that uses the Sound Manager](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd "A demo in codepen.io")
+[Codepen.io (Demo / Playground) JavScript](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd "A demo in codepen.io (JavaScript)")
+
+[Codepen.io (Demo / Playground) TypeScript](https://codepen.io/Chris-Front-end-developer/pen/QwWoNWQ "A demo in codepen.io (TypeScript)")
 
 ## Why Choose This Package?
 
@@ -138,7 +140,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
-    - [5.5.1 ~ 5.5.2](#551--552)
+    - [5.5.1 ~ 5.5.3](#551--553)
     - [5.5.0 - Enhanced Audio Loading \& Mobile Support](#550---enhanced-audio-loading--mobile-support)
     - [5.1.0 ~ 5.4.0](#510--540)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
@@ -1156,9 +1158,10 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 5.5.1 ~ 5.5.2
+### 5.5.1 ~ 5.5.3
 - 🚀 Added state (SoundStateInfo) to the SoundEventsEnum.PROGRESS ('progress') event. 
 - Fix broken anchor links in README.md file
+-  Added Codepen.io demo links. One version using the JS version and one using the typescript version.
 - 🐛 Bug Fix in fadeIn method
 
 ### 5.5.0 - Enhanced Audio Loading & Mobile Support
