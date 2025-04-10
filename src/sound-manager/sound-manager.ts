@@ -47,6 +47,8 @@ export class SoundManager implements SoundManagerInterface {
     click: (this: Document, ev: MouseEvent) => void;
   } | null = null;
 
+  private VERSION = "5.5.4";
+
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
     this.config = {
@@ -100,6 +102,7 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private initialize(): void {
+    this.showConsoleInfo();
     this.setupContextResumeHandlers();
     if (this.config.autoMuteOnHidden) {
       this.setupVisibilityHandling();
@@ -3146,5 +3149,39 @@ export class SoundManager implements SoundManagerInterface {
     return this.eventListeners.has(type) && this.eventListeners.get(type)!.size > 0;
   }
   // End Listeners----------------------------------------------------------------------------------------------------------------------
+
+  public getVersion(): string {
+    return this.VERSION;
+  }
+
+  private showConsoleInfo(): void {
+    console.info(
+      `%cSound Manager TS\n` +
+      `%cversion ${this.VERSION}\n` +
+      `© Chris Schardijn\n` +
+      `%cVisit demo: https://chriscreativecode.com/sound-manager-ts/demo/\n` +
+      `%cNPM package: https://www.npmjs.com/package/sound-manager-ts\n\n` +
+      `%c▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n` +
+      `█                                               █\n` +
+      `█     ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄     █\n` +
+      `█    █            ▌                  ▌     █    █\n` +
+      `█    █ ▌ █ ▌   ▌▌ ▌▌█  ▌ ▌  ▌█ ▌   █ ▌  ▌  █    █\n` +
+      `█    █ ▌▌█▌▌▌█▌▐▌▌▌▌█▌▌▌█▌▌▌▌█▌▌█▌▌█▌▌▌▌▌█▌█    █\n` +
+      `█    █ ▌ █ ▌   ▌▌ ▌▌█  ▌ ▌  ▌█ ▌   █ ▌  ▌  █    █\n` +
+      `█    █            ▌                  ▌     █    █\n` +
+      `█     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀     █\n` +
+      `█      │       │      │        ■■■■     ■ ■ ■ ■ █\n` +
+      `█     ███      │     ███      ■ ▐  ■    ■ ■ ■ ■ █\n` +
+      `█      │      ███     │       ■    ■    ■ ■ ■ ■ █\n` +
+      `█      │       │      │        ■■■■     ■ ■ ■ ■ █\n` +
+      `█                                               █\n` +
+      `▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`,
+      "font-family: monospace; font-size: 18px; font-weight: bold;",
+      "font-family: monospace; font-size: 12px;",
+      "font-family: monospace; font-size: 12px; color: #0066cc; text-decoration: underline;",
+      "font-family: monospace; font-size: 12px; color: #0066cc; text-decoration: underline;",
+      "font-family: monospace; color: #2296F3;"
+    );
+  }
 
 }
