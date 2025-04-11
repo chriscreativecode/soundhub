@@ -20,7 +20,7 @@ A powerful and lightweight (13KB gzipped) sound management system I crafted to m
 🚀 **Modern & Efficient**
 
 - Built on the latest Web Audio API
-- Only 11 KB gzipped
+- Only 13 KB gzipped
 - Zero dependencies
 - Easy to connect to a UI interface.
 
