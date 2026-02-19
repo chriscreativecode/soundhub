@@ -13,7 +13,7 @@ A powerful and lightweight (13KB gzipped) sound management system I crafted to m
 
 [Codepen.io (Demo / Playground) JavScript](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd "A demo in codepen.io (JavaScript)")
 
-[Codepen.io (Demo / Playground) TypeScript](https://codepen.io/Chris-Front-end-developer/pen/QwWoNWQ "A demo in codepen.io (TypeScript)")
+[Codepen.io (Demo / Playground) TypeScript](https://codepen.io/Chris-Front-end-developer/pen/RNRzyym "A demo in codepen.io (TypeScript)")
 
 ## Why Choose This Package?
 
