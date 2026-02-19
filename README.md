@@ -140,7 +140,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
-    - [5.5.1 ~ 5.5.4](#551--554)
+    - [5.5.1 ~ 5.5.5](#551--555)
     - [5.5.0 - Enhanced Audio Loading \& Mobile Support](#550---enhanced-audio-loading--mobile-support)
     - [5.1.0 ~ 5.4.0](#510--540)
     - [5.0.0 (Major \& critical udpate )](#500-major--critical-udpate-)
@@ -287,18 +287,18 @@ If you prefer to include Sound Manager directly as a library file in your projec
   -->
   
   <!-- Option 1: UMD Version (Works everywhere) -->
-  <script src="https://unpkg.com/sound-manager-ts@5.5.4/dist/sound-manager-ts.umd.js"></script>
+  <script src="https://unpkg.com/sound-manager-ts@5.5.5/dist/sound-manager-ts.umd.js"></script>
   
   <!-- 
     Alternative UMD options:
     - Download and use local file: <script src="/path/to/sound-manager-ts.umd.js"></script>
-    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.5.4/dist/sound-manager-ts.umd.js"></script>
+    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.5.5/dist/sound-manager-ts.umd.js"></script>
   -->
   
   <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
   <!--
   <script type="module">
-    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.5.4/dist/sound-manager-ts.es.js';
+    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.5.5/dist/sound-manager-ts.es.js';
     // Your ESM code here
   </script>
   -->
@@ -1158,7 +1158,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
-### 5.5.1 ~ 5.5.4
+### 5.5.1 ~ 5.5.5
 - 🚀 Added state (SoundStateInfo) to the SoundEventsEnum.PROGRESS ('progress') event. 
 - Fix broken anchor links in README.md file
 -  Added Codepen.io demo links. One version using the JS version and one using the typescript version.

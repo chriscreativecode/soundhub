@@ -47,7 +47,7 @@ export class SoundManager implements SoundManagerInterface {
     click: (this: Document, ev: MouseEvent) => void;
   } | null = null;
 
-  private VERSION = "5.5.4";
+  private VERSION = "5.5.5";
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
