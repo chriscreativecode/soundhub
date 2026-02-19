@@ -1,19 +1,21 @@
 {
   "name": "sound-manager-ts",
-  "version": "5.5.4",
+  "version": "5.5.5",
   "license": "MIT",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
     "url": "https://www.chriscreativecode.com"
   },
-  "description": "A lightweight, TypeScript-based Web Audio API manager for seamless sound control in web apps and games",
+  "description": "Lightweight TypeScript soundmanager for Web Audio API. Seamless audio control in web apps and games with full type safety and modern API",
   "keywords": [
     "audio",
     "sound",
     "typescript",
     "typescript-sound-manager",
+    "soundmanager",
     "sound-manager",
+    "sound-manager-ts",
     "sound-engine",
     "audio-manager",
     "web-audio",
@@ -25,7 +27,9 @@
     "web-audio-api",
     "audio-library",
     "sound-library",
-    "lightweight-soundmanager"
+    "lightweight-soundmanager",
+    "game-audio",
+    "web-game-audio"
   ],
   "type": "module",
   "main": "./dist/sound-manager-ts.umd.js",
