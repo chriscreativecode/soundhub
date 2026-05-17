@@ -1162,7 +1162,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ### 5.5.7
 
-- ✨ Added `getMasterOutput()` method — returns the master output `AudioNode` for external connections such as an `AnalyserNode`.
+- ✨ Added `getMasterOutput()` method that returns the master output `AudioNode` for external connections such as an `AnalyserNode`.
 - 🎨 Added wave visualizer component to the demo page, visualizing real-time audio output using the Web Audio API `AnalyserNode`.
 
 ### 5.5.1 ~ 5.5.6
