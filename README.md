@@ -140,6 +140,7 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
+    - [5.5.7](#557)
     - [5.5.1 ~ 5.5.6](#551--556)
     - [5.5.0 - Enhanced Audio Loading \& Mobile Support](#550---enhanced-audio-loading--mobile-support)
     - [5.1.0 ~ 5.4.0](#510--540)
@@ -287,18 +288,18 @@ If you prefer to include Sound Manager directly as a library file in your projec
   -->
   
   <!-- Option 1: UMD Version (Works everywhere) -->
-  <script src="https://unpkg.com/sound-manager-ts@5.5.6/dist/sound-manager-ts.umd.js"></script>
+  <script src="https://unpkg.com/sound-manager-ts@5.5.7/dist/sound-manager-ts.umd.js"></script>
   
   <!-- 
     Alternative UMD options:
     - Download and use local file: <script src="/path/to/sound-manager-ts.umd.js"></script>
-    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.5.6/dist/sound-manager-ts.umd.js"></script>
+    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.5.7/dist/sound-manager-ts.umd.js"></script>
   -->
   
   <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
   <!--
   <script type="module">
-    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.5.6/dist/sound-manager-ts.es.js';
+    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.5.7/dist/sound-manager-ts.es.js';
     // Your ESM code here
   </script>
   -->
@@ -749,6 +750,7 @@ export interface SoundManagerInterface {
   suspendContext(): Promise<void>;
   resumeContext(): Promise<void>;
   getContext(): AudioContext;
+  getMasterOutput(): AudioNode; // Returns the master output node for external connections (e.g. AnalyserNode)
 
   // Utilities
   setDebugMode(debug: boolean): void;
@@ -1157,6 +1159,11 @@ Features are automatically adapted based on browser support:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.5.7
+
+- ✨ Added `getMasterOutput()` method — returns the master output `AudioNode` for external connections such as an `AnalyserNode`.
+- 🎨 Added wave visualizer component to the demo page, visualizing real-time audio output using the Web Audio API `AnalyserNode`.
 
 ### 5.5.1 ~ 5.5.6
 - 🚀 Added state (SoundStateInfo) to the SoundEventsEnum.PROGRESS ('progress') event. 

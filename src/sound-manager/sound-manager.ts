@@ -47,7 +47,7 @@ export class SoundManager implements SoundManagerInterface {
     click: (this: Document, ev: MouseEvent) => void;
   } | null = null;
 
-  private VERSION = "5.5.6";
+  private VERSION = "5.5.7";
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
@@ -2088,6 +2088,10 @@ export class SoundManager implements SoundManagerInterface {
 
   public getContext(): AudioContext {
     return this.context;
+  }
+
+  public getMasterOutput(): AudioNode {
+    return this.masterStereoPanner;
   }
 
   // End Context -----------------------------------------------------------------------------------------------------------------------------------

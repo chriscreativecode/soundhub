@@ -116,6 +116,8 @@ export interface SoundManagerInterface {
   resumeContext(): Promise<void>;
   /* Get the current audio context. */
   getContext(): AudioContext;
+  /* Get the master output audio node for external connections (e.g. AnalyserNode). */
+  getMasterOutput(): AudioNode;
 
   // State checks: Check the current state of a sound, such as playing, paused, or stopped.
   /* Check if a sound is currently playing by its ID. */
