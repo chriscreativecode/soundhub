@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d D:\\\\development-chris\\\\sound-manager-ts)",
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object Name)"
+    ]
+  }
+}
