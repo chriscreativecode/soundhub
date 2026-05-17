@@ -26,6 +26,7 @@ import crickets from "../../../sounds/crickets.mp3";
 import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
 import { MasterControl } from "../../components/master-control-component/master-control.component";
 import { SoundControl } from "../../components/sound-control-component/sound-control.component";
+import { WaveVisualizerComponent } from "../../components/wave-visualizer-component/wave-visualizer.component";
 import { SoundManager } from './../../../sound-manager/sound-manager';
 // @ts-ignore
 import demoTemplate from "./demo-template.html?raw";
@@ -151,6 +152,7 @@ export class SoundManagerDemo {
       const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
       soundControlsContainer.classList.add("show");
       this.createMasterControl(masterControlContainer);
+      this.initializeVisualizer();
       this.createSoundControls(soundsToLoad);
     } catch (error) {
       console.error("Error loading sounds:", error);
@@ -207,5 +209,18 @@ export class SoundManagerDemo {
 
   private createMasterControl(container: HTMLElement): void {
     const control = new MasterControl(container, this.soundManagerConfig, this.soundManager);
+  }
+
+  private initializeVisualizer(): void {
+    const container = document.getElementById("waveVisualizerContainer") as HTMLElement;
+    if (!container) return;
+
+    const audioCtx = this.soundManager.getContext();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    this.soundManager.getMasterOutput().connect(analyser);
+
+    new WaveVisualizerComponent(container, analyser);
   }
 }

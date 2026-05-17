@@ -1,0 +1,42 @@
+#waveVisualizerContainer {
+  padding: 0;
+  margin-bottom: 0.5rem;
+}
+
+.wave-visualizer {
+  position: relative;
+  background: var(--visualizer-bg, #0d0d1a);
+  border-radius: var(--panel-radius);
+  border: 1px solid rgb(182 182 182 / 28%);
+  padding: 12px 16px 10px;
+  margin: 0;
+  box-shadow: inset 2px 2px 10px 2px rgba(0,0,0,0.44);
+}
+
+.wave-visualizer__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-title);
+  margin-bottom: 10px;
+  user-select: none;
+}
+
+.wave-visualizer__canvas {
+  display: block;
+  width: 100%;
+  height: 72px;
+  border-radius: 6px;
+}
+
+/* Light theme overrides */
+body:not(.dark-theme) .wave-visualizer {
+  --visualizer-bg: #f0f2ff;
+  --visualizer-label: rgba(74, 107, 255, 0.55);
+}
+
+/* Dark theme overrides */
+body.dark-theme .wave-visualizer {
+  border: 1px solid rgb(86, 86, 86);  
+}
