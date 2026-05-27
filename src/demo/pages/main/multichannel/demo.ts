@@ -387,6 +387,8 @@ export class PianoDemo {
     this.keyElements.forEach(el => el.classList.remove('active'));
     this.draggedNotes.clear();
     this.currentEngine = engine;
+    // Blur the dropdown so keyboard events reach the piano again
+    this.soundSelect?.blur();
   }
 
   // ── Keyboard building ────────────────────────────────────────────────────
