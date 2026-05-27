@@ -1,39 +1,39 @@
-import "./../../shared.css";
+import "../../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import introSpeach from "../../../sounds/intro-text-speach.mp3";
+import introSpeach from "../../../../sounds/intro-text-speach.mp3";
 // @ts-ignore
-import pianoTone from "../../../sounds/piano-tone.mp3";
+import pianoTone from "../../../../sounds/piano-tone.mp3";
 // @ts-ignore
-import song from "../../../sounds/sound-surfer-constellations.mp3";
+import song from "../../../../sounds/sound-surfer-constellations.mp3";
 // @ts-ignore
-import song2 from "../../../sounds/little-wonders.mp3";
+import song2 from "../../../../sounds/little-wonders.mp3";
 // @ts-ignore
-import birds from "../../../sounds/birds-forest.mp3";
+import birds from "../../../../sounds/birds-forest.mp3";
 // @ts-ignore
-import rain from "../../../sounds/rain.mp3";
+import rain from "../../../../sounds/rain.mp3";
 // @ts-ignore
-import brook from "../../../sounds/brook.mp3";
+import brook from "../../../../sounds/brook.mp3";
 // @ts-ignore
-import magma from "../../../sounds/under-sea-magma.mp3";
+import magma from "../../../../sounds/under-sea-magma.mp3";
 // @ts-ignore
-import gameSounds from "../../../sounds/8-bit-game-sounds.mp3";
+import gameSounds from "../../../../sounds/8-bit-game-sounds.mp3";
 // @ts-ignore
-import crickets from "../../../sounds/crickets.mp3";
+import crickets from "../../../../sounds/crickets.mp3";
 
 // @ts-ignore
-import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
-import { MasterControl } from "../../components/master-control-component/master-control.component";
-import { SoundControl } from "../../components/sound-control-component/sound-control.component";
-import { WaveVisualizerComponent } from "../../components/wave-visualizer-component/wave-visualizer.component";
-import { SoundManager } from './../../../sound-manager/sound-manager';
+import { SoundManagerConfig } from "../../../../sound-manager/sound-manager-config";
+import { MasterControl } from "../../../components/master-control-component/master-control.component";
+import { SoundControl } from "../../../components/sound-control-component/sound-control.component";
+import { WaveVisualizerComponent } from "../../../components/wave-visualizer-component/wave-visualizer.component";
+import { SoundManager } from '../../../../sound-manager/sound-manager';
 // @ts-ignore
 import demoTemplate from "./demo-template.html?raw";
 import { DEMO_CONFIG } from "./demo.config";
-import { LocalStorageManagerManager } from "../../services/local-storage-manager";
-import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
-import { SoundEvent } from "../../../sound-manager/sound-event.interface";
+import { LocalStorageManagerManager } from "../../../services/local-storage-manager";
+import { SoundEventsEnum } from "../../../../sound-manager/sound-events.enum";
+import { SoundEvent } from "../../../../sound-manager/sound-event.interface";
 
 
 export class SoundManagerDemo {
@@ -81,13 +81,12 @@ export class SoundManagerDemo {
 
   private initializeEventListeners(): void {
     const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
-    // Load demo sounds when the preload button is clicked
     if (preloadBtn) {
       preloadBtn.addEventListener("click", () => this.loadDemoSounds());
     }
 
     this.soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
-  //    console.log('sound loaded', event);
+    //  console.log('sound loaded', event);
     });
   }
 
@@ -131,9 +130,7 @@ export class SoundManagerDemo {
       this.loadingState = true;
       this.updateLoadingState(true);
 
-
       const soundsToLoad = [
-      //  { id: "remote url", url: "https://s3-us-west-2.amazonaws.com/s.cdpn.io/355309/Swing_Jazz_Drum.mp3" },
         { id: "intro-speach", url: introSpeach },
         { id: "piano-tone", url: pianoTone },
         { id: "game-sound", url: gameSounds },
@@ -179,28 +176,21 @@ export class SoundManagerDemo {
     const container = document.getElementById("soundControlsContainer")!;
     container.innerHTML = "";
 
-    // Create controls in the same order as soundsToLoad
     soundsToLoad.forEach(({ id }) => {
       if (id === "game-sound") {
-        // Define sprites
         const sprites: { [key: string]: [number, number] } = {
-          //             intro: [0, 2],
           levelup: [2.4, 4],
           jump: [4, 5],
-          //              fail: [5, 7],
         };
 
-        // Set sprites in sound manager
         this.soundManager.setSoundSprite(id, sprites);
 
-        // Create a control for each sprite
         Object.entries(sprites).forEach(([spriteName]) => {
-          const spriteId = `${id}_${spriteName}`; // e.g., "game-sound_intro"
+          const spriteId = `${id}_${spriteName}`;
           const control = new SoundControl(spriteId, this.soundManager, container, true);
           this.soundControls.set(spriteId, control);
         });
       } else {
-        // Create regular sound control for non-sprite sounds
         const control = new SoundControl(id, this.soundManager, container);
         this.soundControls.set(id, control);
       }
