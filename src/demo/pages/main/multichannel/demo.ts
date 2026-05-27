@@ -214,6 +214,7 @@ export class PianoDemo {
   private volumeValueDisplay: HTMLElement | null = null;
   private volumeKnobContainer: HTMLElement | null = null;
   private isDraggingKnob = false;
+  private draggedNotes = new Set<string>();
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -384,6 +385,7 @@ export class PianoDemo {
     }
     // Clear active key states
     this.keyElements.forEach(el => el.classList.remove('active'));
+    this.draggedNotes.clear();
     this.currentEngine = engine;
   }
 
@@ -452,18 +454,33 @@ export class PianoDemo {
     this.keyElements.forEach((el, noteId) => {
       el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        this.draggedNotes.add(noteId);
+        this.triggerNoteStart(noteId, el);
+      });
+      el.addEventListener('pointerenter', (e) => {
+        if (!(e.buttons & 1)) return;
+        if (this.draggedNotes.has(noteId)) return;
+        this.draggedNotes.add(noteId);
         this.triggerNoteStart(noteId, el);
       });
       el.addEventListener('pointerup', (e) => {
         e.preventDefault();
+        this.draggedNotes.delete(noteId);
         this.triggerNoteEnd(noteId, el);
       });
-      el.addEventListener('pointerleave', (e) => {
-        // Only stop if pointer is captured (touch scenarios)
-        if ((e.buttons & 1) === 0) {
-          this.triggerNoteEnd(noteId, el);
-        }
+      el.addEventListener('pointerleave', () => {
+        this.draggedNotes.delete(noteId);
+        this.triggerNoteEnd(noteId, el);
       });
+    });
+
+    // Global pointerup to catch mouse release outside the keyboard
+    document.addEventListener('pointerup', () => {
+      this.draggedNotes.forEach((noteId) => {
+        const el = this.keyElements.get(noteId);
+        if (el) this.triggerNoteEnd(noteId, el);
+      });
+      this.draggedNotes.clear();
     });
 
     // Keyboard input
