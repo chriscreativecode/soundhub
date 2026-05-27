@@ -1,6 +1,11 @@
 <div class="sound-manager-demo">
   <div class="control-group sound-manager-intro">
     <header class="sound-manager-header">
+
+      <nav class="demo-nav">
+        <a href="../" class="nav-back-link">← Back to Home</a>
+      </nav>
+
       <div class="title-container">
         <div class="main-title-container">
           <div class="audio-controller">
@@ -12,10 +17,8 @@
 
               <!-- Wave Animation inside display panel -->
               <g class="wave-container" transform="translate(33, 27)">
-                <!-- Reintroduce the SVG with proper viewBox for wave animation -->
                 <svg x="0" y="60" width="800" height="270" viewBox="0 150 800 200" preserveAspectRatio="none"
                   overflow="visible">
-                  <!-- Wave bars with random widths and 6px spacing -->
                   <rect class="wave-bar" x="24" y="150" width="18" height="150" fill="#4a6bff"
                     style="--initial-scale: 0.5; --peak-scale: 0.7; animation-delay: -0.35s" />
                   <rect class="wave-bar" x="48" y="150" width="8" height="150" fill="#4a6bff"
@@ -89,30 +92,26 @@
                 <path d="M77 75L23 25" fill="none" stroke="#000000" stroke-width="4" />
               </g>
 
-              <!-- Equalizer Display - Fixed positioning -->
+              <!-- Equalizer Display -->
               <g class="equalizer-display" transform="translate(79.5, 335.5)">
-                <!-- Row 1 -->
                 <g>
                   <rect class="eq-block" width="13" height="13" x="635" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="669" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="703" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="738" y="30" fill="#000000" />
                 </g>
-                <!-- Row 2 -->
                 <g transform="translate(0,36)">
                   <rect class="eq-block" width="13" height="13" x="635" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="669" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="703" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="738" y="30" fill="#000000" />
                 </g>
-                <!-- Row 3 -->
                 <g transform="translate(0,72)">
                   <rect class="eq-block" width="13" height="13" x="635" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="669" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="703" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="738" y="30" fill="#000000" />
                 </g>
-                <!-- Row 4 -->
                 <g transform="translate(0,108)">
                   <rect class="eq-block" width="13" height="13" x="635" y="30" fill="#000000" />
                   <rect class="eq-block" width="13" height="13" x="669" y="30" fill="#000000" />
@@ -123,15 +122,12 @@
 
               <!-- Sliders with animations -->
               <g class="slider-container">
-                <!-- Bass slider -->
                 <path class="slider-track bass-track" d="M77 358v155" fill="none" stroke="#000000" stroke-width="4" />
                 <rect class="slider-handle bass-handle" width="53" height="25" x="51" y="394" fill="#cccccc"
                   stroke="#000000" stroke-width="4" />
-                <!-- Mid slider -->
                 <path class="slider-track mid-track" d="M239 358v155" fill="none" stroke="#000000" stroke-width="4" />
                 <rect class="slider-handle mid-handle" width="53" height="25" x="212" y="416" fill="#eeeeee"
                   stroke="#000000" stroke-width="4" />
-                <!-- Treble slider -->
                 <path class="slider-track treble-track" d="M389 358v155" fill="none" stroke="#000000"
                   stroke-width="4" />
                 <rect class="slider-handle treble-handle" width="53" height="25" x="362" y="456" fill="#cccccc"

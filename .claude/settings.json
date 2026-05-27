@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"d:\\\\development-chris\\\\sound-manager-ts\\\\src\\\\demo\" -Recurse | ForEach-Object { $_.FullName })",
+      "WebSearch",
+      "WebFetch(domain:wavesurfer.xyz)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:createjs.com)"
+    ]
+  }
+}

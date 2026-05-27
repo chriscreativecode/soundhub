@@ -86,13 +86,23 @@ const devSpriteConfig: UserConfig = {
 
 const demoMainConfig: UserConfig = {
   base: "./",
-  root: path.resolve(__dirname, "src/demo/pages/main"), // Set the root to the sprite directory
-  publicDir: path.resolve(__dirname, "public"), // Disable copying of public directory
+  root: path.resolve(__dirname, "src/demo/pages/main"),
+  publicDir: path.resolve(__dirname, "public"),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   build: {
-    outDir: path.resolve(__dirname, "dist/demo/main"), // Use absolute path
+    outDir: path.resolve(__dirname, "dist/demo/main"),
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, "src/demo/pages/main/index.html"),
+      input: {
+        main: path.resolve(__dirname, "src/demo/pages/main/index.html"),
+        general: path.resolve(__dirname, "src/demo/pages/main/general/index.html"),
+        multichannel: path.resolve(__dirname, "src/demo/pages/main/multichannel/index.html"),
+        spatial: path.resolve(__dirname, "src/demo/pages/main/spatial/index.html"),
+      },
       output: {
         entryFileNames: "assets/[name].js",
         chunkFileNames: "assets/[name]-[hash].js",

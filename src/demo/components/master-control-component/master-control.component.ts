@@ -9,7 +9,6 @@ import "./../../shared.css";
 import "./master-control.component.css";
 /* @ts-ignore */
 import masterControlComponentHtml from "./master-control.component.html?raw";
-import { DEMO_CONFIG } from "../../pages/main/demo.config";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 
 const SPATIAL_SETTINGS_MAPPING: { [key: string]: keyof SoundPannerConfig } = {
@@ -80,7 +79,7 @@ export class MasterControl {
     },
   } as const;
 
-  constructor(container: HTMLElement, config: SoundManagerConfig = DEMO_CONFIG, soundManager: SoundManager) {
+  constructor(container: HTMLElement, config: SoundManagerConfig, soundManager: SoundManager) {
     this.soundManagerConfig = config;
     if (!container) {
       throw new Error("Container element is required for SoundManagerDemo");
