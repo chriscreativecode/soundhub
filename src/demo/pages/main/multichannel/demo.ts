@@ -343,7 +343,8 @@ export class PianoDemo {
   private setVolume(vol: number): void {
     this.globalVolume = Math.max(0, Math.min(1, Math.round(vol * 10000) / 10000));
     this.soundManager.setGlobalVolume(this.globalVolume);
-    this.synthEngine.setVolume(this.globalVolume);
+    // Scale synth volume to 60% so it sits better relative to piano samples
+    this.synthEngine.setVolume(Math.round(this.globalVolume * 0.6 * 10000) / 10000);
     this.updateKnobVisual();
   }
 
