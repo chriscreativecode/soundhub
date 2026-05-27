@@ -124,6 +124,134 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   align-items: flex-start;
 }
 
+/* ── Controls bar (dropdown + volume knob) ───────────────────────────────── */
+.piano-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.sound-select-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-right: 2px;
+}
+
+.sound-select {
+  padding: 6px 28px 6px 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sound-select:hover {
+  border-color: var(--piano-accent);
+}
+
+.sound-select:focus-visible {
+  outline: none;
+  border-color: var(--piano-accent);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+}
+
+/* ── Volume knob ─────────────────────────────────────────────────────────── */
+.volume-knob-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.volume-knob-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.volume-knob {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+
+.volume-knob:hover {
+  border-color: var(--piano-accent);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.volume-knob:active {
+  cursor: grabbing;
+}
+
+.volume-knob-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.5px;
+  height: 38%;
+  background: var(--piano-accent);
+  border-radius: 2px;
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(0deg);
+  pointer-events: none;
+  transition: transform 0.05s linear;
+}
+
+.volume-knob-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--piano-accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.volume-knob-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ── Dark theme knob ─────────────────────────────────────────────────────── */
+body.dark-theme .volume-knob {
+  background: #2a2a2a;
+  border-color: #555;
+}
+
+body.dark-theme .sound-select {
+  background: #2a2a2a;
+  color: #ddd;
+  border-color: #555;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
 /* ── Keyboard shortcut hint ──────────────────────────────────────────────── */
 .piano-hint {
   display: flex;
