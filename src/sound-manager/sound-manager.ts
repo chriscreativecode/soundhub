@@ -310,6 +310,19 @@ export class SoundManager implements SoundManagerInterface {
   private handleLoopIteration(sound: Sound): void {
     this.debugLog(`Restarting loop for sound ${sound.id}`);
 
+    // Guard: skip loop restart if looping was disabled or sound was stopped/paused in the meantime
+    if (!sound.playOptions?.loop) {
+      this.debugLog(`Loop was disabled for ${sound.id}, handling as ended`);
+      this.handleSoundEnded(sound);
+      return;
+    }
+
+    if (sound.state !== SoundState.Playing) {
+      this.debugLog(`Sound ${sound.id} is no longer playing (state: ${sound.state}), skipping loop iteration`);
+      this.handleSoundEnded(sound);
+      return;
+    }
+
     // Check if we've reached max loops (0 means infinite)
     if (
       sound.playOptions?.maxLoops !== undefined &&

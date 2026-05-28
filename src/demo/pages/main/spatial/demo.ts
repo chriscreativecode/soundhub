@@ -331,6 +331,7 @@ export class SpatialDemo {
       loopToggle.addEventListener('change', () => {
         this.loopEnabled = loopToggle.checked;
         this.updateToggleCard('loopCard', this.loopEnabled);
+        this.soundManager.setLoop(this.selectedSound, this.loopEnabled);
         if (!this.loopEnabled) {
           try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
           this.freeMoveSoundStarted = false;
