@@ -729,8 +729,6 @@ export class SoundManager implements SoundManagerInterface {
 
       sound.startTime = this.context.currentTime - (startOffset / playbackRate);
 
-      this.reconnectAudioNodes(sound.id);
-
       sound.state = SoundState.Playing;
 
       if (sound.playOptions?.volume !== undefined) {
@@ -1015,10 +1013,14 @@ export class SoundManager implements SoundManagerInterface {
     // Get the current volume
     const currentVolume = this.roundValue(sound.gainNode.gain.value, 2);
 
-    // Target (end volume)
-    let targetEndVolume = endVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
-    if(targetEndVolume === 0) {
-      targetEndVolume = 1;
+    // Target (end volume) — only apply the 0→1 guard when endVolume was not explicitly provided,
+    // so that an explicit fadeIn(..., 0) is honoured.
+    let targetEndVolume: number;
+    if (endVolume !== undefined) {
+      targetEndVolume = endVolume;
+    } else {
+      targetEndVolume = sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
+      if (targetEndVolume === 0) targetEndVolume = 1;
     }
 
     // Determine the start volume based on different conditions
@@ -2259,7 +2261,7 @@ export class SoundManager implements SoundManagerInterface {
 
 
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-        if (adjustedElapsedTime >= sound.playOptions.duration * (playbackRate || 1) + (sound.playOptions.startTime ?? 0)) {
+        if (adjustedElapsedTime >= (sound.playOptions.duration + (sound.playOptions.startTime ?? 0)) / (playbackRate || 1)) {
           if (sound.playOptions.pauseAtDurationReached && !sound.playOptions.loop) {
             this.pause(id);
           } else {
