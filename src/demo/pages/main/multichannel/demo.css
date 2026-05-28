@@ -412,7 +412,6 @@ body.dark-theme .sound-select {
   gap: 2px;
   pointer-events: none;
   transform: translateX(-50%);
-  animation: floatUp var(--duration, 2s) ease-out forwards;
   z-index: 10;
   color: var(--piano-accent);
   text-shadow: 0 1px 4px rgba(139,92,246,0.4);
@@ -432,12 +431,6 @@ body.dark-theme .sound-select {
   color: #fff;
   padding: 1px 4px;
   border-radius: 3px;
-}
-
-@keyframes floatUp {
-  0%   { transform: translateX(-50%) translateY(0px);    opacity: 1;   }
-  70%  { transform: translateX(-50%) translateY(-80px);  opacity: 0.9; }
-  100% { transform: translateX(-50%) translateY(-140px); opacity: 0;   }
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────────── */

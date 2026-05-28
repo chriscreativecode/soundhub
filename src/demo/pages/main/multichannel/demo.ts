@@ -106,6 +106,16 @@ interface ActiveSynthVoice {
   startedAt: number;
 }
 
+interface SynthAnimState {
+  el: HTMLElement;
+  noteId: string;
+  instanceId: string;
+  startedAt: number;
+  released: boolean;
+  releasedAt: number;
+  rafId: number;
+}
+
 class SynthEngine {
   private ctx: AudioContext;
   private masterGain: GainNode;
@@ -216,6 +226,8 @@ export class PianoDemo {
   private volumeSliderContainer: HTMLElement | null = null;
   private isDraggingSlider = false;
   private draggedNotes = new Set<string>();
+  private activeSynthAnims = new Map<string, SynthAnimState>();
+  private synthNoteToAnimInstance = new Map<string, string>();
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -661,14 +673,16 @@ manager.addEventListener(
       const duration = this.noteDurations.get(noteId) ?? 2;
       setTimeout(() => this.cleanupAnimation(instanceId), (duration + 0.5) * 1000);
     } else {
-      // Synthesizer: spawn a short animation
-      this.spawnNoteAnimation(noteId, keyEl, `synth-${noteId}-${Date.now()}`);
-      setTimeout(() => {
-        // Cleanup animation after a reasonable time
-        const anims = document.querySelectorAll('[id^="anim-synth-"]');
-        anims.forEach(a => ((a as HTMLElement).style.opacity = '0'));
-        setTimeout(() => anims.forEach(a => a.remove()), 400);
-      }, 1200);
+      // Synthesizer: spawn animation that tracks hold duration
+      const instanceId = `synth-${noteId}-${Date.now()}`;
+      this.spawnNoteAnimation(noteId, keyEl, instanceId);
+      this.synthNoteToAnimInstance.set(noteId, instanceId);
+
+      // Register for hold-tracking via requestAnimationFrame
+      const el = document.getElementById(`anim-${instanceId}`);
+      if (el) {
+        this.startSynthAnimLoop(instanceId, el);
+      }
     }
   }
 
@@ -678,11 +692,82 @@ manager.addEventListener(
 
     if (this.currentEngine === 'synthesizer') {
       this.synthEngine.noteOff(noteId);
+      // Release the visual animation for this note
+      const animInstId = this.synthNoteToAnimInstance.get(noteId);
+      if (animInstId) {
+        this.releaseSynthAnimation(animInstId);
+        this.synthNoteToAnimInstance.delete(noteId);
+      }
     }
     // For piano, note plays out on its own — but remove visual immediately
   }
 
   // ── Animation helpers ────────────────────────────────────────────────────
+
+  private startSynthAnimLoop(instanceId: string, el: HTMLElement): void {
+    const startedAt = performance.now();
+    const state: SynthAnimState = {
+      el,
+      noteId: '',
+      instanceId,
+      startedAt,
+      released: false,
+      releasedAt: 0,
+      rafId: 0,
+    };
+    this.activeSynthAnims.set(instanceId, state);
+
+    const tick = (now: number): void => {
+      const st = this.activeSynthAnims.get(instanceId);
+      if (!st) return;
+
+      const SYNTH_HOLD_HEIGHT = -84;   // max height reached during hold (60% of full -140)
+      const SYNTH_FULL_HEIGHT = -140;  // full release height
+      const HOLD_RISE_DURATION = 400;  // ms to reach hold height after attack
+
+      if (!st.released) {
+        // During hold: slowly rise to hold height (simulating sustain phase)
+        const elapsed = now - st.startedAt;
+        const t = Math.min(elapsed / HOLD_RISE_DURATION, 1);
+        const yOffset = SYNTH_HOLD_HEIGHT * t;
+        const opacity = 1 - t * 0.15; // slight fade during hold
+        el.style.transform = `translateX(-50%) translateY(${yOffset}px)`;
+        el.style.opacity = `${Math.max(0.7, Math.min(1, opacity))}`;
+        st.rafId = requestAnimationFrame(tick);
+      } else {
+        // During release: move from current position to full height + fade out
+        const releaseElapsed = now - st.releasedAt;
+        const RELEASE_DURATION = 400; // ms — matches synth engine release time
+        const t = Math.min(releaseElapsed / RELEASE_DURATION, 1);
+
+        // Interpolate from hold height to full height
+        const yOffset = SYNTH_HOLD_HEIGHT + (SYNTH_FULL_HEIGHT - SYNTH_HOLD_HEIGHT) * t;
+        const opacity = 0.85 - t * 0.85; // fade from 0.85 to 0
+        el.style.transform = `translateX(-50%) translateY(${yOffset}px)`;
+        el.style.opacity = `${Math.max(0, Math.min(1, opacity))}`;
+
+        if (t >= 1) {
+          // Animation complete — clean up
+          el.style.transition = 'opacity 0.2s ease-out';
+          el.style.opacity = '0';
+          setTimeout(() => el.remove(), 250);
+          this.activeSynthAnims.delete(instanceId);
+          return;
+        }
+        st.rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    state.rafId = requestAnimationFrame(tick);
+  }
+
+  private releaseSynthAnimation(instanceId: string): void {
+    const st = this.activeSynthAnims.get(instanceId);
+    if (!st || st.released) return;
+
+    st.released = true;
+    st.releasedAt = performance.now();
+  }
 
   private spawnNoteAnimation(noteId: string, keyEl: HTMLElement, instanceId: string): void {
     const note = NOTES.find(n => n.id === noteId);
@@ -724,3 +809,4 @@ manager.addEventListener(
     setTimeout(() => el.remove(), 350);
   }
 }
+
