@@ -71,12 +71,7 @@ const devMainConfig: UserConfig = {
   ...devConfig,
   server: {
     ...devConfig.server,
-    open: {
-      app: {
-        name: 'chrome',
-      },
-      path: '/src/demo/pages/main/index.html',
-    } as any,
+    open: "/src/demo/pages/main/index.html",
   },
 };
 
