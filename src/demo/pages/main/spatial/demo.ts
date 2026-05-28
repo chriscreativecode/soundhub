@@ -65,6 +65,7 @@ export class SpatialDemo {
     this.soundManager = new SoundManager(config);
     this.initTheme();
     this.renderUI();
+    this.loadSounds();
   }
 
   private initTheme(): void {
@@ -106,10 +107,6 @@ export class SpatialDemo {
               </button>
             `).join('')}
           </div>
-          <button id="loadSoundsBtn" class="preload-btn">
-            <span class="button-text">Load Test Sounds</span>
-            <span class="spinner"></span>
-          </button>
         </div>
       </div>
 
@@ -183,9 +180,6 @@ export class SpatialDemo {
   }
 
   private attachUIListeners(): void {
-    const loadBtn = document.getElementById('loadSoundsBtn') as HTMLButtonElement;
-    if (loadBtn) loadBtn.addEventListener('click', () => this.loadSounds());
-
     document.querySelectorAll<HTMLButtonElement>('.sound-select-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.selectedSound = btn.dataset.sound!;
@@ -197,13 +191,10 @@ export class SpatialDemo {
 
   private async loadSounds(): Promise<void> {
     if (this.loaded) return;
-    const loadBtn = document.getElementById('loadSoundsBtn') as HTMLButtonElement;
-    if (loadBtn) { loadBtn.disabled = true; loadBtn.classList.add('loading'); }
 
     await this.soundManager.loadSounds(SOUND_OPTIONS.map(s => ({ id: s.id, url: s.url })));
 
     this.loaded = true;
-    if (loadBtn) { loadBtn.style.display = 'none'; }
 
     document.querySelectorAll<HTMLButtonElement>('.speaker-btn').forEach(btn => {
       btn.disabled = false;
