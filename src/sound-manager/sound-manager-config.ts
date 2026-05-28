@@ -41,7 +41,7 @@ export interface SoundManagerConfig {
   fadeInDuration?: number; // Default fade-in duration in seconds
   fadeOutDuration?: number; // Default fade-out duration in seconds
   loopSounds?: boolean // Loop all sounds by default
-  maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times (0 or -1 for infinite)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
   spatialAudio?: boolean; // Enable spatial audio features
   trackProgress?: boolean; // Track progress of the sound playback. 

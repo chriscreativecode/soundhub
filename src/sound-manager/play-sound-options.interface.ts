@@ -11,7 +11,7 @@ export interface PlayOptions {
   groupId?: string; // Group ID for the sounds that will be in this group. 
   isSeeking?: boolean; // used internally for the seek method
   loop?: boolean; // default: false
-  maxLoops?: number; // -1 for infinte, number > 0 for specific number of loops
+  maxLoops?: number; // 0 or -1 for infinite, number > 0 for specific number of loops
   pan?: number; // -1 (left) to 1 (right)
   panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
   panType?: SoundPanType; // 'stereo' or 'spatial' (default is 'stereo') 
