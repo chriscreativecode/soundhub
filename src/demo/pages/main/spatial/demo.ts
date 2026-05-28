@@ -207,11 +207,13 @@ export class SpatialDemo {
 
   private playSpeaker(speakerId: string): void {
     const speaker = SPEAKERS.find(s => s.id === speakerId)!;
-
-    try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+    const isCurrentlyPlaying = this.soundManager.isPlaying(this.selectedSound);
 
     this.soundManager.setSpatialPosition(speaker.x, speaker.y, speaker.z, this.selectedSound);
-    this.soundManager.play(this.selectedSound);
+
+    if (!isCurrentlyPlaying) {
+      this.soundManager.play(this.selectedSound);
+    }
 
     this.activeSpeaker = speakerId;
 
