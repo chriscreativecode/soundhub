@@ -228,6 +228,7 @@ export class PianoDemo {
   private draggedNotes = new Set<string>();
   private activeSynthAnims = new Map<string, SynthAnimState>();
   private synthNoteToAnimInstance = new Map<string, string>();
+  private soundInstanceToAnim = new Map<string, string>(); // SoundManager instanceId → demo animation instanceId
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -624,56 +625,67 @@ manager.addEventListener(
     if (this.volumeSliderContainer) {
       this.volumeSliderContainer.addEventListener('wheel', this.onSliderWheel.bind(this), { passive: false });
     }
+
+    // Global PROGRESS event — dispatch to the correct animation instance using the instanceId mapping
+    this.soundManager.addEventListener(SoundEventsEnum.PROGRESS, (soundEvent) => {
+      if (soundEvent.instanceId && soundEvent.progress !== undefined) {
+        const animInstanceId = this.soundInstanceToAnim.get(soundEvent.instanceId);
+        if (animInstanceId) {
+          this.updateNoteAnimationProgress(animInstanceId, soundEvent.progress);
+        }
+      }
+    });
+
+    // Global ENDED event — clean up the mapped animation
+    this.soundManager.addEventListener(SoundEventsEnum.ENDED, (soundEvent) => {
+      if (soundEvent.instanceId) {
+        const animInstanceId = this.soundInstanceToAnim.get(soundEvent.instanceId);
+        if (animInstanceId) {
+          this.cleanupAnimation(animInstanceId);
+          this.soundInstanceToAnim.delete(soundEvent.instanceId);
+        }
+      }
+    });
   }
 
   // ── Note triggering ──────────────────────────────────────────────────────
 
   private triggerNoteStart(noteId: string, keyEl: HTMLElement): void {
     if (this.currentEngine === 'piano') {
+      // Listen once for the PLAY event to capture the SoundManager-assigned instanceId (e.g. 'piano-C4:3')
+      const playHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
+        if (soundEvent.originalId === noteId && soundEvent.instanceId) {
+          const count = (this.instanceCount.get(noteId) ?? 0) + 1;
+          this.instanceCount.set(noteId, count);
+          const animInstanceId = `${noteId}-${count}`;
+          this.soundInstanceToAnim.set(soundEvent.instanceId, animInstanceId);
+          this.spawnNoteAnimation(noteId, keyEl, animInstanceId);
+
+          // Safety fallback: cleanup after duration + buffer
+          const duration = this.noteDurations.get(noteId) ?? 2;
+          setTimeout(() => {
+            if (this.soundInstanceToAnim.has(soundEvent.instanceId!)) {
+              this.cleanupAnimation(animInstanceId);
+              this.soundInstanceToAnim.delete(soundEvent.instanceId!);
+            }
+          }, (duration + 0.5) * 1000);
+
+          this.soundManager.removeEventListener(SoundEventsEnum.STARTED, playHandler);
+        }
+      };
+      this.soundManager.addEventListener(SoundEventsEnum.STARTED, playHandler);
+
       try {
         this.soundManager.play(noteId);
       } catch {
+        this.soundManager.removeEventListener(SoundEventsEnum.STARTED, playHandler);
         return;
       }
     } else {
       const note = NOTES.find(n => n.id === noteId);
       if (!note) return;
       this.synthEngine.noteOn(noteId, note.frequency);
-    }
 
-    keyEl.classList.add('active');
-
-    // Note animation and cleanup logic
-    if (this.currentEngine === 'piano') {
-      const count = (this.instanceCount.get(noteId) ?? 0) + 1;
-      this.instanceCount.set(noteId, count);
-      const instanceId = `${noteId}-${count}`;
-
-      this.spawnNoteAnimation(noteId, keyEl, instanceId);
-
-      // Listen to PROGRESS events to animate the floating note in real-time
-      // Use originalId because createNewInstance assigns instance IDs like 'piano-C4:1'
-      const progressHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
-        if (soundEvent.originalId === noteId && soundEvent.progress !== undefined) {
-          this.updateNoteAnimationProgress(instanceId, soundEvent.progress);
-        }
-      };
-      this.soundManager.addEventListener(SoundEventsEnum.PROGRESS, progressHandler);
-
-      // Listen to ENDED event to clean up the animation
-      const endedHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
-        if (soundEvent.originalId === noteId) {
-          this.cleanupAnimation(instanceId);
-          this.soundManager.removeEventListener(SoundEventsEnum.PROGRESS, progressHandler);
-          this.soundManager.removeEventListener(SoundEventsEnum.ENDED, endedHandler);
-        }
-      };
-      this.soundManager.addEventListener(SoundEventsEnum.ENDED, endedHandler);
-
-      // Safety fallback: cleanup after duration + buffer
-      const duration = this.noteDurations.get(noteId) ?? 2;
-      setTimeout(() => this.cleanupAnimation(instanceId), (duration + 0.5) * 1000);
-    } else {
       // Synthesizer: spawn animation that tracks hold duration
       const instanceId = `synth-${noteId}-${Date.now()}`;
       this.spawnNoteAnimation(noteId, keyEl, instanceId);
@@ -685,6 +697,8 @@ manager.addEventListener(
         this.startSynthAnimLoop(instanceId, el);
       }
     }
+
+    keyEl.classList.add('active');
   }
 
   private triggerNoteEnd(noteId: string, keyEl: HTMLElement): void {
@@ -829,4 +843,3 @@ manager.addEventListener(
     setTimeout(() => el.remove(), 350);
   }
 }
-
