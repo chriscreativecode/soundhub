@@ -124,7 +124,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   align-items: flex-start;
 }
 
-/* ── Controls bar (dropdown + volume knob) ───────────────────────────────── */
+/* ── Controls bar (dropdown + volume slider) ─────────────────────────────── */
 .piano-controls-bar {
   display: flex;
   align-items: center;
@@ -166,14 +166,14 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
 }
 
-/* ── Volume knob ─────────────────────────────────────────────────────────── */
-.volume-knob-container {
+/* ── Volume slider ──────────────────────────────────────────────────────── */
+.volume-slider-container {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.volume-knob-label {
+.volume-slider-label {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -181,56 +181,54 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   letter-spacing: 0.04em;
 }
 
-.volume-knob {
+.volume-slider-track {
   position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  border: 2px solid var(--color-border);
+  width: 8px;
+  height: 100px;
+  background: var(--color-border);
+  border-radius: 4px;
   cursor: pointer;
   touch-action: none;
   user-select: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.volume-knob:hover {
-  border-color: var(--piano-accent);
+.volume-slider-track:hover {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
-.volume-knob:active {
+.volume-slider-track:active {
   cursor: grabbing;
 }
 
-.volume-knob-indicator {
+.volume-slider-fill {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 2.5px;
-  height: 38%;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: var(--piano-accent);
-  border-radius: 2px;
-  transform-origin: 50% 100%;
-  transform: translate(-50%, -100%) rotate(0deg);
-  pointer-events: none;
-  transition: transform 0.05s linear;
+  border-radius: 4px;
+  transition: height 0.05s linear;
 }
 
-.volume-knob-dot {
+.volume-slider-thumb {
   position: absolute;
-  top: 50%;
   left: 50%;
-  width: 10px;
-  height: 10px;
+  bottom: 100%;
+  width: 14px;
+  height: 14px;
   background: var(--piano-accent);
+  border: 2px solid #fff;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 50%);
   pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: bottom 0.05s linear;
 }
 
-.volume-knob-value {
+.volume-slider-value {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-text);
@@ -238,10 +236,13 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   text-align: center;
 }
 
-/* ── Dark theme knob ─────────────────────────────────────────────────────── */
-body.dark-theme .volume-knob {
-  background: #2a2a2a;
-  border-color: #555;
+/* ── Dark theme slider ──────────────────────────────────────────────────── */
+body.dark-theme .volume-slider-track {
+  background: #555;
+}
+
+body.dark-theme .volume-slider-thumb {
+  border-color: #2a2a2a;
 }
 
 body.dark-theme .sound-select {
