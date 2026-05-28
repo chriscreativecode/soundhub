@@ -461,7 +461,6 @@ body.dark-theme .piano-key--white.active { background: #b89fee; }
 
 /* ── Info panel ────────────────────────────────────────────────────────── */
 .piano-info {
-  margin-top: 32px;
   display: flex;
   flex-direction: column;
   padding: 20px 24px;
@@ -528,9 +527,6 @@ body.dark-theme .info-code-block {
     gap: 24px;
   }
 
-  .piano-info {
-    margin-top: 24px;
-  }
 }
 
 @media (max-width: 600px) {
