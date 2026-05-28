@@ -49,7 +49,7 @@
   ],
   "scripts": {
     "dev": "npm run dev:main",
-    "dev:main": "vite --mode demo-main",
+    "dev:main": "cross-env BROWSER=chrome vite --mode demo-main",
     "dev:docs": "vite --mode documentation-dev",
     "clean": "if exist dist rmdir /s /q dist",
     "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
