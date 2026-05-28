@@ -209,11 +209,12 @@ export class PianoDemo {
   private currentEngine: SoundEngineType = 'piano';
   private globalVolume = 1;
   private soundSelect: HTMLSelectElement | null = null;
-  private volumeKnob: HTMLElement | null = null;
-  private volumeKnobIndicator: HTMLElement | null = null;
+  private volumeSliderTrack: HTMLElement | null = null;
+  private volumeSliderFill: HTMLElement | null = null;
+  private volumeSliderThumb: HTMLElement | null = null;
   private volumeValueDisplay: HTMLElement | null = null;
-  private volumeKnobContainer: HTMLElement | null = null;
-  private isDraggingKnob = false;
+  private volumeSliderContainer: HTMLElement | null = null;
+  private isDraggingSlider = false;
   private draggedNotes = new Set<string>();
 
   constructor() {
@@ -287,13 +288,13 @@ export class PianoDemo {
             <option value="synthesizer">🎛️ Synthesizer</option>
           </select>
         </div>
-        <div class="volume-knob-container">
-          <span class="volume-knob-label">Volume</span>
-          <div class="volume-knob" id="volumeKnob">
-            <div class="volume-knob-indicator" id="volumeKnobIndicator"></div>
-            <div class="volume-knob-dot"></div>
+        <div class="volume-slider-container">
+          <span class="volume-slider-label">Volume</span>
+          <div class="volume-slider-track" id="volumeSliderTrack">
+            <div class="volume-slider-fill" id="volumeSliderFill"></div>
+            <div class="volume-slider-thumb" id="volumeSliderThumb"></div>
           </div>
-          <span class="volume-knob-value" id="volumeKnobValue">100%</span>
+          <span class="volume-slider-value" id="volumeSliderValue">100%</span>
         </div>
       </div>
       <div class="piano-hint">
@@ -316,13 +317,14 @@ export class PianoDemo {
 
     // Cache DOM references for controls
     this.soundSelect = wrapper.querySelector<HTMLSelectElement>('#soundSelect')!;
-    this.volumeKnob = wrapper.querySelector<HTMLElement>('#volumeKnob')!;
-    this.volumeKnobIndicator = wrapper.querySelector<HTMLElement>('#volumeKnobIndicator')!;
-    this.volumeValueDisplay = wrapper.querySelector<HTMLElement>('#volumeKnobValue')!;
-    this.volumeKnobContainer = wrapper.querySelector<HTMLElement>('.volume-knob-container')!;
+    this.volumeSliderTrack = wrapper.querySelector<HTMLElement>('#volumeSliderTrack')!;
+    this.volumeSliderFill = wrapper.querySelector<HTMLElement>('#volumeSliderFill')!;
+    this.volumeSliderThumb = wrapper.querySelector<HTMLElement>('#volumeSliderThumb')!;
+    this.volumeValueDisplay = wrapper.querySelector<HTMLElement>('#volumeSliderValue')!;
+    this.volumeSliderContainer = wrapper.querySelector<HTMLElement>('.volume-slider-container')!;
 
-    // Update knob visual
-    this.updateKnobVisual();
+    // Update slider visual
+    this.updateSliderVisual();
 
     // Bind sound selector
     this.soundSelect.addEventListener('change', () => {
@@ -330,14 +332,20 @@ export class PianoDemo {
     });
   }
 
-  // ── Volume knob ──────────────────────────────────────────────────────────
+  // ── Volume slider ────────────────────────────────────────────────────────
 
-  private updateKnobVisual(): void {
-    if (!this.volumeKnobIndicator || !this.volumeValueDisplay) return;
-    // Map volume 0..1 to angle -135..135 degrees (270° range)
-    const angle = this.globalVolume * 270 - 135;
-    this.volumeKnobIndicator.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
-    this.volumeValueDisplay.textContent = `${Math.round(this.globalVolume * 100)}%`;
+  private updateSliderVisual(): void {
+    if (!this.volumeSliderFill || !this.volumeSliderThumb || !this.volumeValueDisplay) return;
+    const percent = Math.round(this.globalVolume * 100);
+    this.volumeSliderFill.style.height = `${percent}%`;
+    this.volumeSliderThumb.style.bottom = `${percent}%`;
+    this.volumeValueDisplay.textContent = `${percent}%`;
+  }
+
+  private sliderPositionToVolume(trackTop: number, trackHeight: number, clientY: number): number {
+    const relativeY = clientY - trackTop;
+    // Bottom of track = volume 1, top = volume 0
+    return 1 - Math.max(0, Math.min(1, relativeY / trackHeight));
   }
 
   private setVolume(vol: number): void {
@@ -345,30 +353,33 @@ export class PianoDemo {
     this.soundManager.setGlobalVolume(this.globalVolume);
     // Scale synth volume to 60% so it sits better relative to piano samples
     this.synthEngine.setVolume(Math.round(this.globalVolume * 0.6 * 10000) / 10000);
-    this.updateKnobVisual();
+    this.updateSliderVisual();
   }
 
-  private onKnobPointerDown(e: PointerEvent): void {
+  private onSliderPointerDown(e: PointerEvent): void {
     e.preventDefault();
-    this.isDraggingKnob = true;
+    this.isDraggingSlider = true;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Immediately update volume to click position
+    if (this.volumeSliderTrack) {
+      const rect = this.volumeSliderTrack.getBoundingClientRect();
+      const vol = this.sliderPositionToVolume(rect.top, rect.height, e.clientY);
+      this.setVolume(vol);
+    }
   }
 
-  private onKnobPointerMove(e: PointerEvent): void {
-    if (!this.isDraggingKnob || !this.volumeKnob) return;
-    const rect = this.volumeKnob.getBoundingClientRect();
-    const centerY = rect.top + rect.height / 2;
-    // Normalize delta to -1..1 range per 200px of vertical movement
-    const delta = -(e.clientY - centerY) / 200;
-    // Volume changes need fine control — use small steps
-    this.setVolume(this.globalVolume + delta * 0.3);
+  private onSliderPointerMove(e: PointerEvent): void {
+    if (!this.isDraggingSlider || !this.volumeSliderTrack) return;
+    const rect = this.volumeSliderTrack.getBoundingClientRect();
+    const vol = this.sliderPositionToVolume(rect.top, rect.height, e.clientY);
+    this.setVolume(vol);
   }
 
-  private onKnobPointerUp(_e: PointerEvent): void {
-    this.isDraggingKnob = false;
+  private onSliderPointerUp(_e: PointerEvent): void {
+    this.isDraggingSlider = false;
   }
 
-  private onKnobWheel(e: WheelEvent): void {
+  private onSliderWheel(e: WheelEvent): void {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.02 : 0.02;
     this.setVolume(this.globalVolume + delta);
@@ -509,15 +520,15 @@ export class PianoDemo {
       if (el) this.triggerNoteEnd(note.id, el);
     });
 
-    // Volume knob events
-    if (this.volumeKnob) {
-      this.volumeKnob.addEventListener('pointerdown', this.onKnobPointerDown.bind(this));
-      this.volumeKnob.addEventListener('pointermove', this.onKnobPointerMove.bind(this));
-      this.volumeKnob.addEventListener('pointerup', this.onKnobPointerUp.bind(this));
-      this.volumeKnob.addEventListener('pointercancel', this.onKnobPointerUp.bind(this));
+    // Volume slider events
+    if (this.volumeSliderTrack) {
+      this.volumeSliderTrack.addEventListener('pointerdown', this.onSliderPointerDown.bind(this));
+      this.volumeSliderTrack.addEventListener('pointermove', this.onSliderPointerMove.bind(this));
+      this.volumeSliderTrack.addEventListener('pointerup', this.onSliderPointerUp.bind(this));
+      this.volumeSliderTrack.addEventListener('pointercancel', this.onSliderPointerUp.bind(this));
     }
-    if (this.volumeKnobContainer) {
-      this.volumeKnobContainer.addEventListener('wheel', this.onKnobWheel.bind(this), { passive: false });
+    if (this.volumeSliderContainer) {
+      this.volumeSliderContainer.addEventListener('wheel', this.onSliderWheel.bind(this), { passive: false });
     }
   }
 
