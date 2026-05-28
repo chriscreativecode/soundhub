@@ -793,9 +793,28 @@ manager.addEventListener(
     const el = document.getElementById(`anim-${instanceId}`);
     if (!el) return;
 
-    // Map progress (0→1) to vertical translation (0→-140px) and opacity (1→0)
-    const yOffset = progress * -140;
-    const opacity = 1 - progress * 0.85; // fade to 0.15 opacity by end
+    // Two-phase animation matching the synthesizer hold/release feel:
+    // First 60% of audio → hold phase: rise to -84px with minimal fade
+    // Last 40% of audio  → release phase: continue to -140px and fade out
+    const HOLD_THRESHOLD = 0.6;
+    const HOLD_HEIGHT = -84;
+    const FULL_HEIGHT = -140;
+
+    let yOffset: number;
+    let opacity: number;
+
+    if (progress <= HOLD_THRESHOLD) {
+      // Hold phase: 0 → -84px, opacity stays near 1.0 (slight fade to 0.85)
+      const t = progress / HOLD_THRESHOLD;
+      yOffset = HOLD_HEIGHT * t;
+      opacity = 1 - t * 0.15;
+    } else {
+      // Release phase: -84 → -140px, fade from 0.85 → 0
+      const t = (progress - HOLD_THRESHOLD) / (1 - HOLD_THRESHOLD);
+      yOffset = HOLD_HEIGHT + (FULL_HEIGHT - HOLD_HEIGHT) * t;
+      opacity = 0.85 - t * 0.85;
+    }
+
     el.style.transform = `translateX(-50%) translateY(${yOffset}px)`;
     el.style.opacity = `${Math.max(0, Math.min(1, opacity))}`;
   }
