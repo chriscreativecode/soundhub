@@ -652,8 +652,9 @@ manager.addEventListener(
       this.spawnNoteAnimation(noteId, keyEl, instanceId);
 
       // Listen to PROGRESS events to animate the floating note in real-time
+      // Use originalId because createNewInstance assigns instance IDs like 'piano-C4:1'
       const progressHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
-        if (soundEvent.soundId === noteId && soundEvent.progress !== undefined) {
+        if (soundEvent.originalId === noteId && soundEvent.progress !== undefined) {
           this.updateNoteAnimationProgress(instanceId, soundEvent.progress);
         }
       };
@@ -661,7 +662,7 @@ manager.addEventListener(
 
       // Listen to ENDED event to clean up the animation
       const endedHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
-        if (soundEvent.soundId === noteId) {
+        if (soundEvent.originalId === noteId) {
           this.cleanupAnimation(instanceId);
           this.soundManager.removeEventListener(SoundEventsEnum.PROGRESS, progressHandler);
           this.soundManager.removeEventListener(SoundEventsEnum.ENDED, endedHandler);
