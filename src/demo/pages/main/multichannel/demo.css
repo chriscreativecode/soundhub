@@ -456,17 +456,15 @@ body.dark-theme .piano-key--white.active { background: #b89fee; }
 }
 
 .piano-page-content #pianoContainer {
-  flex: 0 0 auto;
+  flex: 1;
 }
 
 /* ── Info panel ────────────────────────────────────────────────────────── */
 .piano-info {
   margin-top: 32px;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
   padding: 20px 24px;
-  background: var(--color-surface);
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--border-radius);
   font-size: 0.85rem;
   line-height: 1.6;
   color: var(--color-text);
