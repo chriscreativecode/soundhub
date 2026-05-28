@@ -32,8 +32,8 @@
 ## Dev Server
 
 - Start the dev server in a **separate terminal window** at the beginning of a work session so it stays alive across builds and git operations:
-  - Demo: `start "sound-manager-dev" cmd /c "npm run dev"`
-  - Docs: `start "sound-manager-docs" cmd /c "npm run dev:docs"`
+  - Demo: `start cmd /k npm run dev`
+  - Docs: `start cmd /k npm run dev:docs`
 - This keeps the main terminal free for builds, commits, and other CLI operations.
 - The dev server uses Vite HMR, so source changes (including the result of `npm run build`) are reflected without needing a restart after a build and commit.
 
