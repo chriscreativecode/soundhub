@@ -63,9 +63,6 @@ export class SpatialDemo {
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
   private loopEnabled = true;
-  private freeMoveRafId: number | null = null;
-  private freeMovePending = false;
-
   constructor() {
     const config: SoundManagerConfig = {
       autoMuteOnHidden: false,
@@ -74,7 +71,7 @@ export class SpatialDemo {
       debug: false,
       defaultPanType: SoundPanType.Spatial,
       loopSounds: true,
-      maxLoops: 1,
+      maxLoops: 0,
       defaultVolume: 1,
       defaultPlaybackRate: 1,
       defaultPan: 0,
@@ -316,13 +313,7 @@ export class SpatialDemo {
         this.lastMouseRelative = { x: relativeX, z: relativeZ };
 
         if (this.autoRotate) return;
-        if (!this.freeMovePending) {
-          this.freeMovePending = true;
-          this.freeMoveRafId = requestAnimationFrame(() => {
-            this.freeMovePending = false;
-            this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveLabel, freeMoveCoords);
-          });
-        }
+        this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveLabel, freeMoveCoords);
       });
 
       autoRotateCheckbox.addEventListener('change', () => {
@@ -364,7 +355,6 @@ export class SpatialDemo {
     // Stop auto rotate & cancel pending free move frame when switching away
     if (tab !== 'free-move') {
       this.stopAutoRotate();
-      this.cancelFreeMoveFrame();
       if (this.soundManager.isPlaying(this.selectedSound)) {
         try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
       }
@@ -462,7 +452,7 @@ export class SpatialDemo {
         this.selectedSound
       );
 
-      // Update info (use textContent instead of innerHTML for performance)
+      // // Update info (use textContent instead of innerHTML for performance)
       labelEl.textContent = `Auto Rotate: (${x.toFixed(2)}, 0.00, ${z.toFixed(2)})`;
       coordsEl.textContent = 'Testing all spatial angles automatically';
 
@@ -486,14 +476,6 @@ export class SpatialDemo {
     const dy = 50 - relativeZ * 100;
     // atan2(dy, dx): 0° = right, 90° = down  → we want "down" (typical emoji speaker orientation)
     return Math.atan2(dy, dx) * (180 / Math.PI);
-  }
-
-  private cancelFreeMoveFrame(): void {
-    if (this.freeMoveRafId !== null) {
-      cancelAnimationFrame(this.freeMoveRafId);
-      this.freeMoveRafId = null;
-    }
-    this.freeMovePending = false;
   }
 
   private stopAutoRotate(): void {
