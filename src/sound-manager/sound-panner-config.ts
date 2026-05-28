@@ -74,7 +74,7 @@ export const DEFAULT_PANNER_CONFIG: SoundPannerConfig = {
   distanceModel: DistanceModel.Inverse,
   refDistance: 1,
   maxDistance: 10000,
-  rolloffFactor: 0.2,
+  rolloffFactor: 1,
   coneInnerAngle: 360,
   coneOuterAngle: 360,
   coneOuterGain: 0,
