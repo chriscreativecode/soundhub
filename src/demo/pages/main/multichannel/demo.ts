@@ -337,15 +337,15 @@ export class PianoDemo {
   private updateSliderVisual(): void {
     if (!this.volumeSliderFill || !this.volumeSliderThumb || !this.volumeValueDisplay) return;
     const percent = Math.round(this.globalVolume * 100);
-    this.volumeSliderFill.style.height = `${percent}%`;
-    this.volumeSliderThumb.style.bottom = `${percent}%`;
+    this.volumeSliderFill.style.width = `${percent}%`;
+    this.volumeSliderThumb.style.left = `${percent}%`;
     this.volumeValueDisplay.textContent = `${percent}%`;
   }
 
-  private sliderPositionToVolume(trackTop: number, trackHeight: number, clientY: number): number {
-    const relativeY = clientY - trackTop;
-    // Bottom of track = volume 1, top = volume 0
-    return 1 - Math.max(0, Math.min(1, relativeY / trackHeight));
+  private sliderPositionToVolume(trackLeft: number, trackWidth: number, clientX: number): number {
+    const relativeX = clientX - trackLeft;
+    // Left of track = volume 0, right = volume 1
+    return Math.max(0, Math.min(1, relativeX / trackWidth));
   }
 
   private setVolume(vol: number): void {
@@ -363,7 +363,7 @@ export class PianoDemo {
     // Immediately update volume to click position
     if (this.volumeSliderTrack) {
       const rect = this.volumeSliderTrack.getBoundingClientRect();
-      const vol = this.sliderPositionToVolume(rect.top, rect.height, e.clientY);
+      const vol = this.sliderPositionToVolume(rect.left, rect.width, e.clientX);
       this.setVolume(vol);
     }
   }
@@ -371,7 +371,7 @@ export class PianoDemo {
   private onSliderPointerMove(e: PointerEvent): void {
     if (!this.isDraggingSlider || !this.volumeSliderTrack) return;
     const rect = this.volumeSliderTrack.getBoundingClientRect();
-    const vol = this.sliderPositionToVolume(rect.top, rect.height, e.clientY);
+    const vol = this.sliderPositionToVolume(rect.left, rect.width, e.clientX);
     this.setVolume(vol);
   }
 
