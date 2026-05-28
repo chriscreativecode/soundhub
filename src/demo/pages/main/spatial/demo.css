@@ -253,7 +253,8 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   rotate: var(--speaker-angle, 0deg);
   pointer-events: none;
   z-index: 2;
-  transition: none;
+  transition: rotate 0.05s linear;
+  will-change: rotate;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--speaker-color) 60%, transparent));
 }
 
