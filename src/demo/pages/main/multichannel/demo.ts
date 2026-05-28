@@ -223,7 +223,7 @@ export class PianoDemo {
       autoMuteOnHidden: true,
       autoResumeOnFocus: true,
       loopSounds: false,
-      trackProgress: false,
+      trackProgress: true,
       debug: false,
       defaultVolume: 1,
     };
@@ -427,8 +427,20 @@ await manager.loadSounds([
 // 3️⃣ Speel een noot bij toetsaanslag
 manager.play('piano-C4');
 
-// 4️⃣ Luister naar het ENDED event om
-//    animaties te synchroniseren
+// 4️⃣ Luister naar het PROGRESS event voor
+//    real-time voortgang (0.0 tot 1.0)
+manager.addEventListener(
+  SoundEventsEnum.PROGRESS,
+  (event) => {
+    if (event.soundId === 'piano-C4') {
+      // event.progress is een ratio van 0 tot 1
+      updateAnimationProgress(event.progress);
+    }
+  }
+);
+
+// 5️⃣ Luister naar het ENDED event om
+//    animaties op te ruimen
 manager.addEventListener(
   SoundEventsEnum.ENDED,
   (event) => {
@@ -448,10 +460,15 @@ manager.addEventListener(
         Dit zorgt ervoor dat het als een echt instrument klinkt.
       </p>
       <p>
-        Door te luisteren naar het <code>SoundEventsEnum.ENDED</code>
-        event weet je precies wanneer een noot is afgelopen. Hiermee kun
-        je eenvoudig animaties zoals de zwevende noten synchroniseren met
-        de daadwerkelijke geluidsduur.
+        Met het <code>SoundEventsEnum.PROGRESS</code> event volg je in
+        real-time hoe ver een sound is met afspelen (ratio van 0 tot 1).
+        Hiermee kun je animaties zoals de zwevende noten live
+        synchroniseren met de afspeelpositie van het geluid.
+      </p>
+      <p>
+        Het <code>SoundEventsEnum.ENDED</code> event geeft aan wanneer
+        een noot volledig is afgelopen, zodat je de animatie netjes kunt
+        opruimen.
       </p>
       <div class="info-code-block">
         <pre><code class="language-typescript">${this.escapeHtml(codeSnippet)}</code></pre>
@@ -614,26 +631,38 @@ manager.addEventListener(
 
     keyEl.classList.add('active');
 
-    // Note animation and cleanup logic (piano only: samples have a duration)
+    // Note animation and cleanup logic
     if (this.currentEngine === 'piano') {
-      const duration = this.noteDurations.get(noteId) ?? 2;
       const count = (this.instanceCount.get(noteId) ?? 0) + 1;
       this.instanceCount.set(noteId, count);
       const instanceId = `${noteId}-${count}`;
 
-      this.spawnNoteAnimation(noteId, keyEl, duration, instanceId);
+      this.spawnNoteAnimation(noteId, keyEl, instanceId);
 
-      const handler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
-        if (soundEvent.soundId === noteId) {
-          this.cleanupAnimation(instanceId);
-          this.soundManager.removeEventListener(SoundEventsEnum.ENDED, handler);
+      // Listen to PROGRESS events to animate the floating note in real-time
+      const progressHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
+        if (soundEvent.soundId === noteId && soundEvent.progress !== undefined) {
+          this.updateNoteAnimationProgress(instanceId, soundEvent.progress);
         }
       };
-      this.soundManager.addEventListener(SoundEventsEnum.ENDED, handler);
+      this.soundManager.addEventListener(SoundEventsEnum.PROGRESS, progressHandler);
+
+      // Listen to ENDED event to clean up the animation
+      const endedHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
+        if (soundEvent.soundId === noteId) {
+          this.cleanupAnimation(instanceId);
+          this.soundManager.removeEventListener(SoundEventsEnum.PROGRESS, progressHandler);
+          this.soundManager.removeEventListener(SoundEventsEnum.ENDED, endedHandler);
+        }
+      };
+      this.soundManager.addEventListener(SoundEventsEnum.ENDED, endedHandler);
+
+      // Safety fallback: cleanup after duration + buffer
+      const duration = this.noteDurations.get(noteId) ?? 2;
       setTimeout(() => this.cleanupAnimation(instanceId), (duration + 0.5) * 1000);
     } else {
       // Synthesizer: spawn a short animation
-      this.spawnNoteAnimation(noteId, keyEl, 1.5, `synth-${noteId}-${Date.now()}`);
+      this.spawnNoteAnimation(noteId, keyEl, `synth-${noteId}-${Date.now()}`);
       setTimeout(() => {
         // Cleanup animation after a reasonable time
         const anims = document.querySelectorAll('[id^="anim-synth-"]');
@@ -655,7 +684,7 @@ manager.addEventListener(
 
   // ── Animation helpers ────────────────────────────────────────────────────
 
-  private spawnNoteAnimation(noteId: string, keyEl: HTMLElement, duration: number, instanceId: string): void {
+  private spawnNoteAnimation(noteId: string, keyEl: HTMLElement, instanceId: string): void {
     const note = NOTES.find(n => n.id === noteId);
     if (!note) return;
 
@@ -668,7 +697,6 @@ manager.addEventListener(
     const anim = document.createElement('div');
     anim.className = 'note-anim';
     anim.id = `anim-${instanceId}`;
-    anim.style.setProperty('--duration', `${Math.min(duration, 4)}s`);
     anim.style.left = `${keyRect.left - stageRect.left + keyRect.width / 2}px`;
     anim.style.top = `${keyRect.top - stageRect.top}px`;
     anim.innerHTML = `<span class="note-anim-icon">♪</span><span class="note-anim-label">${note.label}</span>`;
@@ -676,8 +704,23 @@ manager.addEventListener(
     stage.appendChild(anim);
   }
 
+  private updateNoteAnimationProgress(instanceId: string, progress: number): void {
+    const el = document.getElementById(`anim-${instanceId}`);
+    if (!el) return;
+
+    // Map progress (0→1) to vertical translation (0→-140px) and opacity (1→0)
+    const yOffset = progress * -140;
+    const opacity = 1 - progress * 0.85; // fade to 0.15 opacity by end
+    el.style.transform = `translateX(-50%) translateY(${yOffset}px)`;
+    el.style.opacity = `${Math.max(0, Math.min(1, opacity))}`;
+  }
+
   private cleanupAnimation(instanceId: string): void {
     const el = document.getElementById(`anim-${instanceId}`);
-    if (el) el.remove();
+    if (!el) return;
+    // Fade out quickly before removing
+    el.style.transition = 'opacity 0.3s ease-out';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 350);
   }
 }

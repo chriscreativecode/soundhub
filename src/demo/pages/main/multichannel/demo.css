@@ -468,9 +468,8 @@ body.dark-theme .piano-key--white.active { background: #b89fee; }
 
 /* ── Info panel ────────────────────────────────────────────────────────── */
 .piano-info {
-  flex: 1;
-  min-width: 280px;
-  max-width: 420px;
+  margin-top: 32px;
+  width: 100%;
   padding: 20px 24px;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
@@ -539,7 +538,7 @@ body.dark-theme .info-code-block {
   }
 
   .piano-info {
-    max-width: 100%;
+    margin-top: 24px;
   }
 }
 
