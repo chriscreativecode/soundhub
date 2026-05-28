@@ -652,34 +652,28 @@ manager.addEventListener(
 
   private triggerNoteStart(noteId: string, keyEl: HTMLElement): void {
     if (this.currentEngine === 'piano') {
-      // Listen once for the PLAY event to capture the SoundManager-assigned instanceId (e.g. 'piano-C4:3')
-      const playHandler = (soundEvent: import('../../../../sound-manager/sound-event.interface').SoundEvent) => {
-        if (soundEvent.originalId === noteId && soundEvent.instanceId) {
-          const count = (this.instanceCount.get(noteId) ?? 0) + 1;
-          this.instanceCount.set(noteId, count);
-          const animInstanceId = `${noteId}-${count}`;
-          this.soundInstanceToAnim.set(soundEvent.instanceId, animInstanceId);
-          this.spawnNoteAnimation(noteId, keyEl, animInstanceId);
-
-          // Safety fallback: cleanup after duration + buffer
-          const duration = this.noteDurations.get(noteId) ?? 2;
-          setTimeout(() => {
-            if (this.soundInstanceToAnim.has(soundEvent.instanceId!)) {
-              this.cleanupAnimation(animInstanceId);
-              this.soundInstanceToAnim.delete(soundEvent.instanceId!);
-            }
-          }, (duration + 0.5) * 1000);
-
-          this.soundManager.removeEventListener(SoundEventsEnum.STARTED, playHandler);
-        }
-      };
-      this.soundManager.addEventListener(SoundEventsEnum.STARTED, playHandler);
-
+      let soundInstance: import('../../../../sound-manager/sound.interface').Sound | undefined;
       try {
-        this.soundManager.play(noteId);
+        soundInstance = this.soundManager.play(noteId);
       } catch {
-        this.soundManager.removeEventListener(SoundEventsEnum.STARTED, playHandler);
         return;
+      }
+
+      if (soundInstance) {
+        const count = (this.instanceCount.get(noteId) ?? 0) + 1;
+        this.instanceCount.set(noteId, count);
+        const animInstanceId = `${noteId}-${count}`;
+        this.soundInstanceToAnim.set(soundInstance.id, animInstanceId);
+        this.spawnNoteAnimation(noteId, keyEl, animInstanceId);
+
+        // Safety fallback: cleanup after duration + buffer
+        const duration = this.noteDurations.get(noteId) ?? 2;
+        setTimeout(() => {
+          if (this.soundInstanceToAnim.has(soundInstance!.id)) {
+            this.cleanupAnimation(animInstanceId);
+            this.soundInstanceToAnim.delete(soundInstance!.id);
+          }
+        }, (duration + 0.5) * 1000);
       }
     } else {
       const note = NOTES.find(n => n.id === noteId);
