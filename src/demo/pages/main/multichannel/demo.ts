@@ -424,35 +424,35 @@ export class PianoDemo {
     const infoPanel = document.getElementById('pianoInfo');
     if (!infoPanel) return;
 
-    const codeSnippet = `// 1️⃣ Creëer SoundManager met multichannel config
+    const codeSnippet = `// 1️⃣ Create SoundManager with multichannel config
 const manager = new SoundManager({
   createNewInstance: true,
 });
 
-// 2️⃣ Laad alle piano samples
+// 2️⃣ Load all piano samples
 await manager.loadSounds([
   { id: 'piano-C4', url: 'C4.mp3' },
   { id: 'piano-D4', url: 'D4.mp3' },
-  // ... meer noten
+  // ... more notes
 ]);
 
-// 3️⃣ Speel een noot bij toetsaanslag
+// 3️⃣ Play a note on key press
 manager.play('piano-C4');
 
-// 4️⃣ Luister naar het PROGRESS event voor
-//    real-time voortgang (0.0 tot 1.0)
+// 4️⃣ Listen to the PROGRESS event for
+//    real-time progress (0.0 to 1.0)
 manager.addEventListener(
   SoundEventsEnum.PROGRESS,
   (event) => {
     if (event.soundId === 'piano-C4') {
-      // event.progress is een ratio van 0 tot 1
+      // event.progress is a ratio from 0 to 1
       updateAnimationProgress(event.progress);
     }
   }
 );
 
-// 5️⃣ Luister naar het ENDED event om
-//    animaties op te ruimen
+// 5️⃣ Listen to the ENDED event to
+//    clean up animations
 manager.addEventListener(
   SoundEventsEnum.ENDED,
   (event) => {
@@ -465,22 +465,22 @@ manager.addEventListener(
     infoPanel.innerHTML = `
       <h3>🎹 Multichannel Audio</h3>
       <p>
-        Deze piano gebruikt <strong>multichannel audio</strong> via de
-        <code>createNewInstance: true</code> optie. Elke toetsaanslag
-        start een <em>nieuwe geluidsinstantie</em>, waardoor je meerdere
-        noten tegelijk kunt horen zonder dat de vorige wordt afgebroken.
-        Dit zorgt ervoor dat het als een echt instrument klinkt.
+        This piano uses <strong>multichannel audio</strong> via the
+        <code>createNewInstance: true</code> option. Each keystroke
+        starts a <em>new sound instance</em>, allowing you to hear multiple
+        notes simultaneously without cutting off the previous one.
+        This makes it sound like a real instrument.
       </p>
       <p>
-        Met het <code>SoundEventsEnum.PROGRESS</code> event volg je in
-        real-time hoe ver een sound is met afspelen (ratio van 0 tot 1).
-        Hiermee kun je animaties zoals de zwevende noten live
-        synchroniseren met de afspeelpositie van het geluid.
+        With the <code>SoundEventsEnum.PROGRESS</code> event you can track
+        in real-time how far a sound is through playback (ratio from 0 to 1).
+        This allows you to synchronize animations like the floating notes
+        live with the playback position of the sound.
       </p>
       <p>
-        Het <code>SoundEventsEnum.ENDED</code> event geeft aan wanneer
-        een noot volledig is afgelopen, zodat je de animatie netjes kunt
-        opruimen.
+        The <code>SoundEventsEnum.ENDED</code> event indicates when
+        a note has completely finished, so you can clean up the animation
+        properly.
       </p>
       <div class="info-code-block">
         <pre><code class="language-typescript">${this.escapeHtml(codeSnippet)}</code></pre>
