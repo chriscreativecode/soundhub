@@ -40,7 +40,6 @@ export class SoundManagerDemo {
   private soundManager: SoundManager;
   private soundControls: Map<string, SoundControl> = new Map();
   private containerElement: HTMLElement;
-  private loadingState: boolean = false;
   private soundManagerConfig: SoundManagerConfig = DEMO_CONFIG;
 
 
@@ -67,6 +66,7 @@ export class SoundManagerDemo {
       this.render();
       this.initializeTheme();
       this.initializeEventListeners();
+      this.loadDemoSounds();
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
     }
@@ -80,11 +80,6 @@ export class SoundManagerDemo {
   }
 
   private initializeEventListeners(): void {
-    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
-    if (preloadBtn) {
-      preloadBtn.addEventListener("click", () => this.loadDemoSounds());
-    }
-
     this.soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
     //  console.log('sound loaded', event);
     });
@@ -123,13 +118,7 @@ export class SoundManagerDemo {
   }
 
   private async loadDemoSounds(): Promise<void> {
-    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
-    if (!preloadBtn || this.loadingState) return;
-
     try {
-      this.loadingState = true;
-      this.updateLoadingState(true);
-
       const soundsToLoad = [
         { id: "intro-speach", url: introSpeach },
         { id: "piano-tone", url: pianoTone },
@@ -153,21 +142,6 @@ export class SoundManagerDemo {
       this.createSoundControls(soundsToLoad);
     } catch (error) {
       console.error("Error loading sounds:", error);
-    } finally {
-      this.loadingState = false;
-      this.updateLoadingState(false);
-    }
-  }
-
-  private updateLoadingState(loading: boolean): void {
-    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
-    if (!preloadBtn) return;
-
-    preloadBtn.disabled = loading;
-    if (loading) {
-      preloadBtn.classList.add("loading");
-    } else {
-      preloadBtn.classList.remove("loading");
     }
   }
 
