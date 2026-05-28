@@ -5,7 +5,9 @@ import { SoundManager } from "../../../sound-manager/sound-manager";
 import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../../../sound-manager/sound-panner-config";
 import { SoundState } from "../../../sound-manager/sound-state.interface";
 import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
+/* @ts-ignore */
 import "./../../shared.css";
+/* @ts-ignore */
 import "./sound-control.component.css";
 /* @ts-ignore */
 import soundControlComponentHtml from "./sound-control.component.html?raw";
@@ -691,7 +693,8 @@ export class SoundControl {
   }
 
   private log(...args: any[]) {
-    if (process.env.NODE_ENV === "development") {
+    /* @ts-ignore */
+    if (import.meta.env.DEV) {
       // console.log(...args);
     }
   }
