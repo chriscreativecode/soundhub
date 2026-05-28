@@ -383,6 +383,10 @@ export class SpatialDemo {
     speakerEl.style.left = `${relativeX * 100}%`;
     speakerEl.style.top = `${relativeZ * 100}%`;
 
+    // Rotate speaker to face the listener (center of room)
+    const angleDeg = this.computeSpeakerAngle(relativeX, relativeZ);
+    speakerEl.style.setProperty('--speaker-angle', `${angleDeg}deg`);
+
     // Update spatial position
     this.soundManager.setSpatialPosition(
       Math.round(x * 100) / 100,
@@ -428,6 +432,10 @@ export class SpatialDemo {
       speakerEl.style.left = `${relativeX * 100}%`;
       speakerEl.style.top = `${relativeZ * 100}%`;
 
+      // Rotate speaker to face the listener (center of room)
+      const angleDeg = this.computeSpeakerAngle(relativeX, relativeZ);
+      speakerEl.style.setProperty('--speaker-angle', `${angleDeg}deg`);
+
       this.soundManager.setSpatialPosition(
         Math.round(x * 100) / 100,
         0,
@@ -444,6 +452,22 @@ export class SpatialDemo {
     };
 
     this.autoRotateRafId = requestAnimationFrame(animate);
+  }
+
+  /**
+   * Compute the rotation angle (in degrees) so the speaker icon points
+   * toward the center of the room (the listener).
+   *
+   * @param relativeX  0..1 horizontal position of the speaker in the room
+   * @param relativeZ  0..1 vertical position (top=0, bottom=1)
+   * @returns          CSS rotation angle in degrees
+   */
+  private computeSpeakerAngle(relativeX: number, relativeZ: number): number {
+    // Vector from speaker to center (50%, 50%)
+    const dx = 50 - relativeX * 100;
+    const dy = 50 - relativeZ * 100;
+    // atan2(dy, dx): 0° = right, 90° = down  → we want "down" (typical emoji speaker orientation)
+    return Math.atan2(dy, dx) * (180 / Math.PI);
   }
 
   private stopAutoRotate(): void {
