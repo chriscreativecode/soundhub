@@ -91,21 +91,22 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   flex-wrap: wrap;
 }
 .sound-selector-label { font-size: 0.875rem; font-weight: 500; color: var(--color-text); white-space: nowrap; }
-.sound-selector-btns { display: flex; gap: var(--spacing-sm); }
-.sound-select-btn {
+.sound-select-dropdown {
   background: var(--color-surface-secondary);
   color: var(--color-text);
   border: 1px solid var(--color-border);
-  padding: 4px 12px;
+  padding: 6px 12px;
   border-radius: var(--border-radius);
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 200px;
+  appearance: auto;
 }
-.sound-select-btn.active {
-  background: var(--speaker-color);
-  color: white;
+.sound-select-dropdown:focus {
+  outline: none;
   border-color: var(--speaker-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--speaker-color) 30%, transparent);
 }
 
 /* Room layout */
@@ -272,7 +273,7 @@ body.dark-theme { --color-text-secondary: #b0b0b0; }
 body.dark-theme .theme-icon--moon { opacity: 1; stroke: #ffb74d; }
 body.dark-theme .theme-icon--sun  { opacity: 0; }
 body.dark-theme .room-border { border-color: #404040; background: #1a1a1a; }
-body.dark-theme .sound-select-btn { background: #2a2a2a; border-color: #404040; }
+body.dark-theme .sound-select-dropdown { background: #2a2a2a; border-color: #404040; }
 body.dark-theme .coord-row { background: #1a1a1a; border-color: #404040; }
 body.dark-theme .active-speaker-info { background: #1a1a1a; }
 
