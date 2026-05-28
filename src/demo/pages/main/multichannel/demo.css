@@ -455,6 +455,73 @@ body.dark-theme .piano-key--white {
 body.dark-theme .piano-key--white:hover  { background: #d8c8ff; }
 body.dark-theme .piano-key--white.active { background: #b89fee; }
 
+/* ── Piano + Info page layout ──────────────────────────────────────────── */
+.piano-page-content {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.piano-page-content #pianoContainer {
+  flex: 0 0 auto;
+}
+
+/* ── Info panel ────────────────────────────────────────────────────────── */
+.piano-info {
+  flex: 1;
+  min-width: 280px;
+  max-width: 420px;
+  padding: 20px 24px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--border-radius);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.piano-info h3 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--piano-accent);
+}
+
+.piano-info p {
+  margin: 0 0 14px 0;
+}
+
+.piano-info p:last-of-type {
+  margin-bottom: 0;
+}
+
+/* ── Code block in info panel ─────────────────────────────────────────── */
+.info-code-block {
+  margin: 16px 0 0 0;
+  padding: 14px 16px;
+  background: #1e1e2e;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.info-code-block pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.info-code-block code {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  color: #cdd6f4;
+}
+
+/* dark theme: code block stays dark */
+body.dark-theme .info-code-block {
+  background: #11111b;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   :root {
@@ -465,6 +532,15 @@ body.dark-theme .piano-key--white.active { background: #b89fee; }
   }
   .piano-key--white .key-shortcut { display: none; }
   .piano-key--black .key-shortcut { display: none; }
+
+  .piano-page-content {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .piano-info {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 600px) {
@@ -478,4 +554,9 @@ body.dark-theme .piano-key--white.active { background: #b89fee; }
   .piano-key--white .key-label { display: none; }
   .piano-key--black .key-label { display: none; }
   .piano-hint-keys { gap: 4px 10px; }
+
+  .piano-info {
+    padding: 14px 16px;
+    font-size: 0.8rem;
+  }
 }

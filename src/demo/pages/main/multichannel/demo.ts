@@ -312,6 +312,9 @@ export class PianoDemo {
     `;
     container.appendChild(wrapper);
 
+    // Populate info panel with explanation and code snippet
+    this.buildInfoPanel();
+
     const keyboard = wrapper.querySelector<HTMLElement>('#pianoKeyboard')!;
     this.buildKeyboard(keyboard);
 
@@ -401,6 +404,68 @@ export class PianoDemo {
     this.currentEngine = engine;
     // Blur the dropdown so keyboard events reach the piano again
     this.soundSelect?.blur();
+  }
+
+  // ── Info panel ───────────────────────────────────────────────────────────
+
+  private buildInfoPanel(): void {
+    const infoPanel = document.getElementById('pianoInfo');
+    if (!infoPanel) return;
+
+    const codeSnippet = `// 1️⃣ Creëer SoundManager met multichannel config
+const manager = new SoundManager({
+  createNewInstance: true,
+});
+
+// 2️⃣ Laad alle piano samples
+await manager.loadSounds([
+  { id: 'piano-C4', url: 'C4.mp3' },
+  { id: 'piano-D4', url: 'D4.mp3' },
+  // ... meer noten
+]);
+
+// 3️⃣ Speel een noot bij toetsaanslag
+manager.play('piano-C4');
+
+// 4️⃣ Luister naar het ENDED event om
+//    animaties te synchroniseren
+manager.addEventListener(
+  SoundEventsEnum.ENDED,
+  (event) => {
+    if (event.soundId === 'piano-C4') {
+      cleanupAnimation('piano-C4');
+    }
+  }
+);`;
+
+    infoPanel.innerHTML = `
+      <h3>🎹 Multichannel Audio</h3>
+      <p>
+        Deze piano gebruikt <strong>multichannel audio</strong> via de
+        <code>createNewInstance: true</code> optie. Elke toetsaanslag
+        start een <em>nieuwe geluidsinstantie</em>, waardoor je meerdere
+        noten tegelijk kunt horen zonder dat de vorige wordt afgebroken.
+        Dit zorgt ervoor dat het als een echt instrument klinkt.
+      </p>
+      <p>
+        Door te luisteren naar het <code>SoundEventsEnum.ENDED</code>
+        event weet je precies wanneer een noot is afgelopen. Hiermee kun
+        je eenvoudig animaties zoals de zwevende noten synchroniseren met
+        de daadwerkelijke geluidsduur.
+      </p>
+      <div class="info-code-block">
+        <pre><code class="language-typescript">${this.escapeHtml(codeSnippet)}</code></pre>
+      </div>
+    `;
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"')
+      .replace(/'/g, '&#039;');
   }
 
   // ── Keyboard building ────────────────────────────────────────────────────
