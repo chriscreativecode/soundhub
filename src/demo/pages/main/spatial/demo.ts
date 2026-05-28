@@ -63,6 +63,7 @@ export class SpatialDemo {
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
   private loopEnabled = true;
+  private lastSpeakerAngle = 0;
   constructor() {
     const config: SoundManagerConfig = {
       autoMuteOnHidden: false,
@@ -476,7 +477,18 @@ export class SpatialDemo {
     const dx = 50 - relativeX * 100;
     const dy = 50 - relativeZ * 100;
     // atan2(dy, dx): 0° = right, 90° = down  → we want "down" (typical emoji speaker orientation)
-    return Math.atan2(dy, dx) * (180 / Math.PI);
+    let rawAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    // Unwrap: prevent discontinuities at the ±180° boundary.
+    // Without this, the icon snaps 358° when crossing the right side of the room.
+    let delta = rawAngle - this.lastSpeakerAngle;
+    if (delta > 180) {
+      rawAngle -= 360;
+    } else if (delta < -180) {
+      rawAngle += 360;
+    }
+    this.lastSpeakerAngle = rawAngle;
+    return rawAngle;
   }
 
   private stopAutoRotate(): void {
