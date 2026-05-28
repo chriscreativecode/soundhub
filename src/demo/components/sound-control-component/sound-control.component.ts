@@ -523,8 +523,10 @@ export class SoundControl {
   }
   private updateVolumeDisplay(value: number): void {
     this.handleRangeInput(this.volumeSlider, value);
-    const volumeValue = this.element.querySelector(".volume-value") as HTMLSpanElement;
-    volumeValue.textContent = `${Math.round(value * 100)}%`;
+    const volumeValueTop = this.element.querySelector(".volume-value-top") as HTMLSpanElement;
+    if (volumeValueTop) {
+      volumeValueTop.textContent = `${Math.round(value * 100)}%`;
+    }
   }
 
   private handlePanInput = (e: Event): void => {
