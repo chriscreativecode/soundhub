@@ -293,7 +293,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   <!-- 
     Alternative UMD options:
     - Download and use local file: <script src="/path/to/sound-manager-ts.umd.js"></script>
-    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.5.7/dist/sound-manager-ts.umd.js"></script>
+    - Specific version: <script src="https://unpkg.com/sound-manager-ts@5.5.8/dist/sound-manager-ts.umd.js"></script>
   -->
   
   <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
@@ -1159,6 +1159,10 @@ Features are automatically adapted based on browser support:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.5.8
+
+- 🐛 Bug Fix: `STARTED` and `ENDED` events now include `originalId` and `instanceId` fields, consistent with `PROGRESS`. Previously, `STARTED` also used the raw `id` parameter for `soundId` instead of the actual instance ID (e.g. `piano-C4:3`), making it impossible to correlate events across instances when using `createNewInstance: true`.
 
 ### 5.5.7
 
