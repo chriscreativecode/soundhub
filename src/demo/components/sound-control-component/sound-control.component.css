@@ -94,12 +94,40 @@
   min-width: 200px; /* Minimum width for sliders */
 }
 
+.volume-slider-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: unset;
+  width: 40px;
+}
+
+.volume-slider {
+  writing-mode: bt-lr; /* Firefox */
+  -webkit-appearance: slider-vertical; /* Chromium */
+  appearance: slider-vertical;
+  width: 8px;
+  height: 120px;
+  padding: 0;
+  cursor: pointer;
+}
+
 .volume-value {
   min-width: 30px;
   white-space: nowrap;
   text-align: right;
-  white-space: nowrap;
   font-size: var(--range-value-size);
+}
+
+.volume-value-top {
+  text-align: center;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.volume-value-bottom {
+  text-align: center;
 }
 
 .time-display {
