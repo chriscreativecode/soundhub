@@ -2,17 +2,13 @@ import "../../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import laserZap from "../../../../sounds/laser-zap.wav";
+import helicopter from "../../../../sounds/helicopter.wav";
 // @ts-ignore
-import explosion from "../../../../sounds/explosion.wav";
+import xylophoneMelody from "../../../../sounds/xylophone-melody.wav";
 // @ts-ignore
-import whoosh from "../../../../sounds/whoosh.wav";
+import bassDrop from "../../../../sounds/bass-drop.wav";
 // @ts-ignore
-import powerUp from "../../../../sounds/power-up.wav";
-// @ts-ignore
-import glitch from "../../../../sounds/glitch.wav";
-// @ts-ignore
-import alienSignal from "../../../../sounds/alien-signal.wav";
+import birdsForest from "../../../../sounds/birds-forest.mp3";
 
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
@@ -44,19 +40,17 @@ const SPEAKERS: SpeakerDef[] = [
 ];
 
 const SOUND_OPTIONS = [
-  { id: 'laser-zap', label: '🔫 Laser Zap', url: laserZap },
-  { id: 'explosion', label: '💥 Explosion', url: explosion },
-  { id: 'whoosh', label: '🌬️ Whoosh', url: whoosh },
-  { id: 'power-up', label: '⚡ Power Up', url: powerUp },
-  { id: 'glitch', label: '🤖 Glitch', url: glitch },
-  { id: 'alien-signal', label: '👽 Alien Signal', url: alienSignal },
+  { id: 'helicopter', label: '🚁 Helicopter', url: helicopter },
+  { id: 'xylophone-melody', label: '🎵 Xylophone Melody', url: xylophoneMelody },
+  { id: 'bass-drop', label: '🔊 Bass Drop', url: bassDrop },
+  { id: 'birds-forest', label: '🌳 Forest & Birds', url: birdsForest },
 ];
 
 export class SpatialDemo {
   private soundManager: SoundManager;
   private activeSpeaker: string | null = null;
   private loaded = false;
-  private selectedSound = 'laser-zap';
+  private selectedSound = 'helicopter';
 
   constructor() {
     const config: SoundManagerConfig = {
