@@ -1,5 +1,9 @@
 import "../../../shared.css";
 import "./demo.css";
+import hljs from 'highlight.js/lib/core';
+import typescript from 'highlight.js/lib/languages/typescript';
+
+hljs.registerLanguage('typescript', typescript);
 
 // @ts-ignore
 import c4   from "../../../../sounds/piano/C4.mp3";
@@ -427,7 +431,7 @@ export class PianoDemo {
 
     const codeSnippet = `// 1️⃣ Create SoundManager with multichannel config
 const manager = new SoundManager({
-  createNewInstance: true,
+  createNewInstance: true, // each play() creates a new independent instance
 });
 
 // 2️⃣ Load all piano samples
@@ -437,28 +441,41 @@ await manager.loadSounds([
   // ... more notes
 ]);
 
-// 3️⃣ Play a note on key press
-manager.play('piano-C4');
+// Track which sound instance belongs to which animation element
+const instanceMap = new Map();
 
-// 4️⃣ Listen to the PROGRESS event for
-//    real-time progress (0.0 to 1.0)
+// 3️⃣ Play a note — play() returns a Sound with a unique id per instance,
+//    so pressing the same key twice gives two independent instances
+function onKeyPress(noteId: string): void {
+  const instance = manager.play(noteId);
+  if (instance) {
+    const animEl = spawnNoteAnimation(noteId); // create floating ♪ element
+    instanceMap.set(instance.id, animEl);
+  }
+}
+
+// 4️⃣ Listen to PROGRESS — use event.instanceId (not soundId!)
+//    so each instance drives its own animation independently
 manager.addEventListener(
   SoundEventsEnum.PROGRESS,
   (event) => {
-    if (event.soundId === 'piano-C4') {
-      // event.progress is a ratio from 0 to 1
-      updateAnimationProgress(event.progress);
+    if (!event.instanceId) return;
+    const animEl = instanceMap.get(event.instanceId);
+    if (animEl) {
+      updateAnimation(animEl, event.progress); // progress: 0.0 → 1.0
     }
   }
 );
 
-// 5️⃣ Listen to the ENDED event to
-//    clean up animations
+// 5️⃣ Listen to ENDED — clean up only the finished instance's animation
 manager.addEventListener(
   SoundEventsEnum.ENDED,
   (event) => {
-    if (event.soundId === 'piano-C4') {
-      cleanupAnimation('piano-C4');
+    if (!event.instanceId) return;
+    const animEl = instanceMap.get(event.instanceId);
+    if (animEl) {
+      cleanupAnimation(animEl);
+      instanceMap.delete(event.instanceId);
     }
   }
 );`;
@@ -487,6 +504,9 @@ manager.addEventListener(
         <pre><code class="language-typescript">${this.escapeHtml(codeSnippet)}</code></pre>
       </div>
     `;
+
+    const codeEl = infoPanel.querySelector<HTMLElement>('pre code');
+    if (codeEl) hljs.highlightElement(codeEl);
   }
 
   private escapeHtml(text: string): string {
