@@ -57,6 +57,7 @@ export class SpatialDemo {
   private freeMovePlaying = false;
   private freeMovePos = { x: 0, z: 0 };
   private autoRotate = false;
+  private lastMouseRelative = { x: 0.5, z: 0.5 };
   private autoRotateRafId: number | null = null;
   private autoRotateAngle = 0;
   private isMouseOverRoom = false;
@@ -301,10 +302,12 @@ export class SpatialDemo {
       });
 
       room.addEventListener('mousemove', (e) => {
-        if (this.autoRotate) return;
         const rect = room.getBoundingClientRect();
         const relativeX = (e.clientX - rect.left) / rect.width;
         const relativeZ = (e.clientY - rect.top) / rect.height;
+        this.lastMouseRelative = { x: relativeX, z: relativeZ };
+
+        if (this.autoRotate) return;
         this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveInfo);
       });
 
@@ -315,6 +318,8 @@ export class SpatialDemo {
           this.startAutoRotate(speakerEl, freeMoveInfo);
         } else {
           this.stopAutoRotate();
+          // Restore speaker position to last known mouse position
+          this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveInfo);
         }
       });
 
