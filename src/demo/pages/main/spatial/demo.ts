@@ -207,19 +207,27 @@ export class SpatialDemo {
           </div>
 
           <div class="free-move-controls">
-            <div class="auto-rotate-toggle">
+            <div class="toggle-card ${this.autoRotate ? 'is-active' : ''}" id="autoRotateCard">
+              <div class="toggle-card-header">
+                <span class="toggle-card-icon">🔄</span>
+                <span class="toggle-card-label">Auto Rotate</span>
+              </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="autoRotateToggle" ${this.autoRotate ? 'checked' : ''}>
-                <span class="toggle-slider round"></span>
+                <span class="toggle-slider"></span>
               </label>
-              <span class="toggle-label">🔄 Auto Rotate</span>
+              <span class="toggle-card-status">${this.autoRotate ? 'ON' : 'OFF'}</span>
             </div>
-            <div class="auto-rotate-toggle">
+            <div class="toggle-card ${this.loopEnabled ? 'is-active' : ''}" id="loopCard">
+              <div class="toggle-card-header">
+                <span class="toggle-card-icon">🔁</span>
+                <span class="toggle-card-label">Loop Sound</span>
+              </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="loopToggle" ${this.loopEnabled ? 'checked' : ''}>
-                <span class="toggle-slider round"></span>
+                <span class="toggle-slider"></span>
               </label>
-              <span class="toggle-label">🔁 Loop Sound</span>
+              <span class="toggle-card-status">${this.loopEnabled ? 'ON' : 'OFF'}</span>
             </div>
           </div>
 
@@ -302,6 +310,7 @@ export class SpatialDemo {
 
       autoRotateCheckbox.addEventListener('change', () => {
         this.autoRotate = autoRotateCheckbox.checked;
+        this.updateToggleCard('autoRotateCard', this.autoRotate);
         if (this.autoRotate) {
           this.startAutoRotate(speakerEl, freeMoveInfo);
         } else {
@@ -311,6 +320,7 @@ export class SpatialDemo {
 
       loopToggle.addEventListener('change', () => {
         this.loopEnabled = loopToggle.checked;
+        this.updateToggleCard('loopCard', this.loopEnabled);
         if (!this.loopEnabled) {
           try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
           this.freeMoveSoundStarted = false;
@@ -444,6 +454,17 @@ export class SpatialDemo {
     this.autoRotate = false;
     const checkbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
     if (checkbox) checkbox.checked = false;
+    this.updateToggleCard('autoRotateCard', false);
+  }
+
+  private updateToggleCard(cardId: string, isActive: boolean): void {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    card.classList.toggle('is-active', isActive);
+    const statusEl = card.querySelector('.toggle-card-status');
+    if (statusEl) {
+      statusEl.textContent = isActive ? 'ON' : 'OFF';
+    }
   }
 
   // ── Sound loading & Speaker Grid ────────────────────────────────────────

@@ -142,37 +142,44 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   position: relative;
 }
 
-/* Spatial tabs */
+/* Spatial tabs — pill-style segmented control */
 .spatial-tabs {
-  display: flex;
+  display: inline-flex;
   gap: 0;
   margin-bottom: var(--spacing-md);
-  border-bottom: 2px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  border-radius: 28px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
 }
 .spatial-tab {
-  background: none;
+  background: transparent;
   border: none;
-  padding: 10px 20px;
-  font-size: 0.9rem;
+  padding: 10px 24px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  border-radius: 24px;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  position: relative;
 }
-.spatial-tab:hover {
+.spatial-tab:hover:not(.active) {
   color: var(--color-text);
+  background: color-mix(in srgb, var(--speaker-color) 8%, transparent);
 }
 .spatial-tab.active {
-  color: var(--speaker-color);
-  border-bottom-color: var(--speaker-color);
+  background: var(--speaker-color);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--speaker-color) 40%, transparent);
 }
 .spatial-tab-content {
-  animation: tabFadeIn 0.2s ease;
+  animation: tabFadeIn 0.25s ease;
 }
 @keyframes tabFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -234,24 +241,54 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--speaker-color) 80%, transparent));
 }
 
-/* Auto Rotate controls */
+/* Auto Rotate & Loop controls — toggle cards */
 .free-move-controls {
   display: flex;
   justify-content: center;
+  gap: var(--spacing-md);
   margin-top: var(--spacing-md);
+  flex-wrap: wrap;
 }
 
-.auto-rotate-toggle {
+.toggle-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
+  padding: 14px 20px;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  min-width: 170px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.toggle-card.is-active {
+  border-color: var(--speaker-color);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--speaker-color) 20%, transparent);
+}
+
+.toggle-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toggle-card-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.toggle-card-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+  user-select: none;
 }
 
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 22px;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
 }
 .toggle-switch input {
   opacity: 0;
@@ -262,20 +299,21 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background-color: #ccc;
-  transition: 0.3s;
-  border-radius: 22px;
+  background-color: #c0c0c0;
+  transition: 0.3s ease;
+  border-radius: 26px;
 }
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
-  left: 2px;
-  bottom: 2px;
-  background-color: white;
-  transition: 0.3s;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background: #ffffff;
+  transition: 0.3s ease;
   border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 input:checked + .toggle-slider {
   background-color: var(--speaker-color);
@@ -283,11 +321,17 @@ input:checked + .toggle-slider {
 input:checked + .toggle-slider:before {
   transform: translateX(22px);
 }
-.toggle-label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--color-text);
-  user-select: none;
+
+.toggle-card-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  transition: color 0.25s ease;
+}
+.toggle-card.is-active .toggle-card-status {
+  color: var(--speaker-color);
 }
 
 /* Speaker buttons */
