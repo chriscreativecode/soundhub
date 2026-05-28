@@ -51,6 +51,16 @@ export class SpatialDemo {
   private activeSpeaker: string | null = null;
   private loaded = false;
   private selectedSound = 'helicopter';
+  private activeTab: 'speaker-grid' | 'free-move' = 'speaker-grid';
+
+  // Free Move state
+  private freeMovePlaying = false;
+  private freeMovePos = { x: 0, z: 0 };
+  private autoRotate = false;
+  private autoRotateRafId: number | null = null;
+  private autoRotateAngle = 0;
+  private isMouseOverRoom = false;
+  private freeMoveSoundStarted = false;
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -59,7 +69,7 @@ export class SpatialDemo {
       createNewInstance: false,
       debug: false,
       defaultPanType: SoundPanType.Spatial,
-      loopSounds: false,
+      loopSounds: true,
       maxLoops: 1,
       defaultVolume: 1,
       defaultPlaybackRate: 1,
@@ -98,8 +108,8 @@ export class SpatialDemo {
     container.innerHTML = `
       <div class="control-group spatial-info">
         <p class="spatial-description">
-          Test your surround sound speaker setup. Select a test sound, then click a speaker button to
-          hear it from that position. Useful for verifying your TV or home theatre speaker placement.
+          Test your surround sound speaker setup. Select a test sound, then use the Speaker Grid or
+          Free Move tab to hear it from different positions.
           <br><br>
           <strong>Note:</strong> For best results, use headphones or a proper surround sound system.
           The listener is positioned at the center of the room.
@@ -115,54 +125,99 @@ export class SpatialDemo {
       </div>
 
       <div class="control-group spatial-room-panel">
-        <div class="room-layout-wrapper">
-          <div class="room-label-top">↑ Front (TV / Screen)</div>
-          <div class="room-layout">
-            <div class="room-border">
-              ${SPEAKERS.filter(s => s.id !== 'sub').map(s => `
-                <button
-                  class="speaker-btn"
-                  data-speaker="${s.id}"
-                  style="grid-row:${s.gridRow};grid-column:${s.gridCol}"
-                  title="${s.description}"
-                  disabled
-                >
-                  <span class="speaker-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
-                      <path d="M18.584 5.106a.75.75 0 0 1 1.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 0 1-1.06-1.06 8.25 8.25 0 0 0 0-11.668.75.75 0 0 1 0-1.06Z" />
-                      <path d="M15.932 7.757a.75.75 0 0 1 1.061 0 6 6 0 0 1 0 8.486.75.75 0 0 1-1.06-1.061 4.5 4.5 0 0 0 0-6.364.75.75 0 0 1 0-1.061Z" />
-                    </svg>
-                  </span>
-                  <span class="speaker-short-label">${s.shortLabel}</span>
-                  <span class="speaker-label">${s.label}</span>
-                </button>
-              `).join('')}
-
-              <div class="listener-dot" style="grid-row:2;grid-column:2" title="You are here">
-                <span class="listener-icon">👤</span>
-                <span class="listener-label">You</span>
-              </div>
-            </div>
-          </div>
-          <div class="room-label-bottom">↓ Behind you</div>
-        </div>
-
-        <!-- Subwoofer separate -->
-        <div class="sub-row">
-          <button class="speaker-btn sub-btn" data-speaker="sub" disabled>
-            <span class="speaker-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.757 3.63 8.25 4.51 8.25H6.75Z" />
-              </svg>
-            </span>
-            <span class="speaker-short-label">SUB</span>
-            <span class="speaker-label">Subwoofer (LFE)</span>
+        <!-- Tab navigation -->
+        <div class="spatial-tabs">
+          <button class="spatial-tab ${this.activeTab === 'speaker-grid' ? 'active' : ''}" data-tab="speaker-grid">
+            🔊 Speaker Grid
+          </button>
+          <button class="spatial-tab ${this.activeTab === 'free-move' ? 'active' : ''}" data-tab="free-move">
+            🎯 Free Move
           </button>
         </div>
 
-        <div class="active-speaker-info" id="activeSpeakerInfo">
-          <span class="active-label">Click a speaker to test it</span>
+        <!-- Tab 1: Speaker Grid -->
+        <div class="spatial-tab-content" id="tabSpeakerGrid" style="${this.activeTab === 'speaker-grid' ? '' : 'display:none'}">
+          <div class="room-layout-wrapper">
+            <div class="room-label-top">↑ Front (TV / Screen)</div>
+            <div class="room-layout">
+              <div class="room-border">
+                ${SPEAKERS.filter(s => s.id !== 'sub').map(s => `
+                  <button
+                    class="speaker-btn"
+                    data-speaker="${s.id}"
+                    style="grid-row:${s.gridRow};grid-column:${s.gridCol}"
+                    title="${s.description}"
+                    disabled
+                  >
+                    <span class="speaker-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
+                        <path d="M18.584 5.106a.75.75 0 0 1 1.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 0 1-1.06-1.06 8.25 8.25 0 0 0 0-11.668.75.75 0 0 1 0-1.06Z" />
+                        <path d="M15.932 7.757a.75.75 0 0 1 1.061 0 6 6 0 0 1 0 8.486.75.75 0 0 1-1.06-1.061 4.5 4.5 0 0 0 0-6.364.75.75 0 0 1 0-1.061Z" />
+                      </svg>
+                    </span>
+                    <span class="speaker-short-label">${s.shortLabel}</span>
+                    <span class="speaker-label">${s.label}</span>
+                  </button>
+                `).join('')}
+
+                <div class="listener-dot" style="grid-row:2;grid-column:2" title="You are here">
+                  <span class="listener-icon">👤</span>
+                  <span class="listener-label">You</span>
+                </div>
+              </div>
+            </div>
+            <div class="room-label-bottom">↓ Behind you</div>
+          </div>
+
+          <div class="sub-row">
+            <button class="speaker-btn sub-btn" data-speaker="sub" disabled>
+              <span class="speaker-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.757 3.63 8.25 4.51 8.25H6.75Z" />
+                </svg>
+              </span>
+              <span class="speaker-short-label">SUB</span>
+              <span class="speaker-label">Subwoofer (LFE)</span>
+            </button>
+          </div>
+
+          <div class="active-speaker-info" id="activeSpeakerInfo">
+            <span class="active-label">Click a speaker to test it</span>
+          </div>
+        </div>
+
+        <!-- Tab 2: Free Move -->
+        <div class="spatial-tab-content" id="tabFreeMove" style="${this.activeTab === 'free-move' ? '' : 'display:none'}">
+          <p class="free-move-desc">
+            Move your mouse over the room to position the sound anywhere.
+            The speaker icon follows your cursor for real-time spatial audio.
+          </p>
+          <div class="room-layout-wrapper">
+            <div class="room-label-top">↑ Front (TV / Screen)</div>
+            <div class="room-layout">
+              <div class="room-border free-move-room" id="freeMoveRoom">
+                <div class="free-move-tv-label">📺 TV</div>
+                <div class="free-move-listener" id="freeMoveListener">👤</div>
+                <div class="free-move-speaker" id="freeMoveSpeaker" style="left:50%;top:50%">🔊</div>
+              </div>
+            </div>
+            <div class="room-label-bottom">↓ Behind you</div>
+          </div>
+
+          <div class="free-move-controls">
+            <div class="auto-rotate-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" id="autoRotateToggle" ${this.autoRotate ? 'checked' : ''}>
+                <span class="toggle-slider round"></span>
+              </label>
+              <span class="toggle-label">🔄 Auto Rotate</span>
+            </div>
+          </div>
+
+          <div class="active-speaker-info" id="freeMoveInfo">
+            <span class="active-label">Move your mouse over the room</span>
+          </div>
         </div>
       </div>
 
@@ -184,13 +239,195 @@ export class SpatialDemo {
   }
 
   private attachUIListeners(): void {
+    // Sound selector dropdown
     const select = document.getElementById('soundSelect') as HTMLSelectElement;
     if (select) {
       select.addEventListener('change', () => {
+        const wasPlaying = this.soundManager.isPlaying(this.selectedSound);
+        if (wasPlaying) {
+          try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+        }
         this.selectedSound = select.value;
+        this.freeMoveSoundStarted = false;
+        if (this.activeTab === 'free-move' && this.isMouseOverRoom) {
+          this.startFreeMoveSound();
+        }
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll<HTMLButtonElement>('.spatial-tab').forEach(tabBtn => {
+      tabBtn.addEventListener('click', () => {
+        const tab = tabBtn.dataset.tab as 'speaker-grid' | 'free-move';
+        this.switchTab(tab);
+      });
+    });
+
+    // Free Move mouse tracking
+    const room = document.getElementById('freeMoveRoom');
+    const speakerEl = document.getElementById('freeMoveSpeaker');
+    const freeMoveInfo = document.getElementById('freeMoveInfo');
+    const autoRotateCheckbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
+
+    if (room && speakerEl && freeMoveInfo && autoRotateCheckbox) {
+      room.addEventListener('mouseenter', () => {
+        this.isMouseOverRoom = true;
+        room.classList.add('free-move-active');
+        if (!this.freeMoveSoundStarted) {
+          this.startFreeMoveSound();
+        }
+      });
+
+      room.addEventListener('mouseleave', () => {
+        this.isMouseOverRoom = false;
+        room.classList.remove('free-move-active');
+      });
+
+      room.addEventListener('mousemove', (e) => {
+        if (this.autoRotate) return;
+        const rect = room.getBoundingClientRect();
+        const relativeX = (e.clientX - rect.left) / rect.width;
+        const relativeZ = (e.clientY - rect.top) / rect.height;
+        this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveInfo);
+      });
+
+      autoRotateCheckbox.addEventListener('change', () => {
+        this.autoRotate = autoRotateCheckbox.checked;
+        if (this.autoRotate) {
+          this.startAutoRotate(speakerEl, freeMoveInfo);
+        } else {
+          this.stopAutoRotate();
+        }
       });
     }
   }
+
+  private switchTab(tab: 'speaker-grid' | 'free-move'): void {
+    this.activeTab = tab;
+
+    document.querySelectorAll('.spatial-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.spatial-tab[data-tab="${tab}"]`)?.classList.add('active');
+
+    const gridTab = document.getElementById('tabSpeakerGrid')!;
+    const freeTab = document.getElementById('tabFreeMove')!;
+    gridTab.style.display = tab === 'speaker-grid' ? '' : 'none';
+    freeTab.style.display = tab === 'free-move' ? '' : 'none';
+
+    // Stop auto rotate when switching away
+    if (tab !== 'free-move') {
+      this.stopAutoRotate();
+      if (this.soundManager.isPlaying(this.selectedSound)) {
+        try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+      }
+      this.freeMoveSoundStarted = false;
+    }
+  }
+
+  // ── Free Move ───────────────────────────────────────────────────────────
+
+  private startFreeMoveSound(): void {
+    if (this.freeMoveSoundStarted) return;
+    try {
+      this.soundManager.play(this.selectedSound);
+      this.freeMoveSoundStarted = true;
+    } catch { /* ignore */ }
+  }
+
+  private updateFreeMovePosition(
+    relativeX: number,
+    relativeZ: number,
+    speakerEl: HTMLElement,
+    infoEl: HTMLElement
+  ): void {
+    // Map 0..1 to spatial -1..1
+    const x = (relativeX - 0.5) * 2;
+    const z = (relativeZ - 0.5) * 2;
+
+    // Only update if changed significantly
+    const dx = Math.abs(x - this.freeMovePos.x);
+    const dz = Math.abs(z - this.freeMovePos.z);
+    if (dx < 0.015 && dz < 0.015) return;
+
+    this.freeMovePos = { x, z };
+
+    // Move speaker icon
+    speakerEl.style.left = `${relativeX * 100}%`;
+    speakerEl.style.top = `${relativeZ * 100}%`;
+
+    // Update spatial position
+    this.soundManager.setSpatialPosition(
+      Math.round(x * 100) / 100,
+      0,
+      Math.round(z * 100) / 100,
+      this.selectedSound
+    );
+
+    // Update info
+    infoEl.innerHTML = `
+      <span class="active-label">Position: <strong>(${x.toFixed(2)}, 0.00, ${z.toFixed(2)})</strong></span>
+      <span class="active-coords">Move your mouse to explore spatial audio</span>
+    `;
+  }
+
+  // ── Auto Rotate ─────────────────────────────────────────────────────────
+
+  private startAutoRotate(speakerEl: HTMLElement, infoEl: HTMLElement): void {
+    if (this.autoRotateRafId !== null) return;
+
+    if (!this.freeMoveSoundStarted) {
+      this.startFreeMoveSound();
+    }
+
+    const room = document.getElementById('freeMoveRoom')!;
+    const radius = 0.8;
+    let lastTime = performance.now();
+    const SPEED = 0.6; // radians per second
+
+    const animate = (now: number) => {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      this.autoRotateAngle += SPEED * dt;
+
+      const x = Math.cos(this.autoRotateAngle) * radius;
+      const z = Math.sin(this.autoRotateAngle) * radius;
+
+      const relativeX = (x + 1) / 2;
+      const relativeZ = (z + 1) / 2;
+
+      this.freeMovePos = { x, z };
+
+      speakerEl.style.left = `${relativeX * 100}%`;
+      speakerEl.style.top = `${relativeZ * 100}%`;
+
+      this.soundManager.setSpatialPosition(
+        Math.round(x * 100) / 100,
+        0,
+        Math.round(z * 100) / 100,
+        this.selectedSound
+      );
+
+      infoEl.innerHTML = `
+        <span class="active-label">Auto Rotate: <strong>(${x.toFixed(2)}, 0.00, ${z.toFixed(2)})</strong></span>
+        <span class="active-coords">Testing all spatial angles automatically</span>
+      `;
+
+      this.autoRotateRafId = requestAnimationFrame(animate);
+    };
+
+    this.autoRotateRafId = requestAnimationFrame(animate);
+  }
+
+  private stopAutoRotate(): void {
+    if (this.autoRotateRafId !== null) {
+      cancelAnimationFrame(this.autoRotateRafId);
+      this.autoRotateRafId = null;
+    }
+    this.autoRotate = false;
+    const checkbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
+    if (checkbox) checkbox.checked = false;
+  }
+
+  // ── Sound loading & Speaker Grid ────────────────────────────────────────
 
   private async loadSounds(): Promise<void> {
     if (this.loaded) return;
