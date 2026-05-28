@@ -230,6 +230,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   position: absolute;
   font-size: 1.8rem;
   transform: translate(-50%, -50%);
+  rotate: var(--speaker-angle, 0deg);
   pointer-events: none;
   z-index: 2;
   transition: none;
