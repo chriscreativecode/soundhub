@@ -233,7 +233,8 @@ export class SpatialDemo {
           </div>
 
           <div class="active-speaker-info" id="freeMoveInfo">
-            <span class="active-label">Move your mouse over the room</span>
+            <span class="active-label" id="freeMoveLabel">Move your mouse over the room</span>
+            <span class="active-coords" id="freeMoveCoords"></span>
           </div>
         </div>
       </div>
@@ -283,11 +284,12 @@ export class SpatialDemo {
     // Free Move mouse tracking
     const room = document.getElementById('freeMoveRoom');
     const speakerEl = document.getElementById('freeMoveSpeaker');
-    const freeMoveInfo = document.getElementById('freeMoveInfo');
+    const freeMoveLabel = document.getElementById('freeMoveLabel');
+    const freeMoveCoords = document.getElementById('freeMoveCoords');
     const autoRotateCheckbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
     const loopToggle = document.getElementById('loopToggle') as HTMLInputElement;
 
-    if (room && speakerEl && freeMoveInfo && autoRotateCheckbox && loopToggle) {
+    if (room && speakerEl && freeMoveLabel && freeMoveCoords && autoRotateCheckbox && loopToggle) {
       room.addEventListener('mouseenter', () => {
         this.isMouseOverRoom = true;
         room.classList.add('free-move-active');
@@ -308,18 +310,18 @@ export class SpatialDemo {
         this.lastMouseRelative = { x: relativeX, z: relativeZ };
 
         if (this.autoRotate) return;
-        this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveInfo);
+        this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveLabel, freeMoveCoords);
       });
 
       autoRotateCheckbox.addEventListener('change', () => {
         this.autoRotate = autoRotateCheckbox.checked;
         this.updateToggleCard('autoRotateCard', this.autoRotate);
         if (this.autoRotate) {
-          this.startAutoRotate(speakerEl, freeMoveInfo);
+          this.startAutoRotate(speakerEl, freeMoveLabel, freeMoveCoords);
         } else {
           this.stopAutoRotate();
           // Restore speaker position to last known mouse position
-          this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveInfo);
+          this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveLabel, freeMoveCoords);
         }
       });
 
@@ -371,7 +373,8 @@ export class SpatialDemo {
     relativeX: number,
     relativeZ: number,
     speakerEl: HTMLElement,
-    infoEl: HTMLElement
+    labelEl: HTMLElement,
+    coordsEl: HTMLElement
   ): void {
     // Map 0..1 to spatial -1..1
     const x = (relativeX - 0.5) * 2;
@@ -400,16 +403,14 @@ export class SpatialDemo {
       this.selectedSound
     );
 
-    // Update info
-    infoEl.innerHTML = `
-      <span class="active-label">Position: <strong>(${x.toFixed(2)}, 0.00, ${z.toFixed(2)})</strong></span>
-      <span class="active-coords">Move your mouse to explore spatial audio</span>
-    `;
+    // Update info (use textContent instead of innerHTML for performance)
+    labelEl.textContent = `Position: (${x.toFixed(2)}, 0.00, ${z.toFixed(2)})`;
+    coordsEl.textContent = 'Move your mouse to explore spatial audio';
   }
 
   // ── Auto Rotate ─────────────────────────────────────────────────────────
 
-  private startAutoRotate(speakerEl: HTMLElement, infoEl: HTMLElement): void {
+  private startAutoRotate(speakerEl: HTMLElement, labelEl: HTMLElement, coordsEl: HTMLElement): void {
     if (this.autoRotateRafId !== null) return;
 
     if (!this.freeMoveSoundStarted) {
@@ -417,7 +418,7 @@ export class SpatialDemo {
     }
 
     const room = document.getElementById('freeMoveRoom')!;
-    const radius = 0.8;
+    const radius = 0.65;
     let lastTime = performance.now();
     const SPEED = 0.6; // radians per second
 
@@ -448,10 +449,9 @@ export class SpatialDemo {
         this.selectedSound
       );
 
-      infoEl.innerHTML = `
-        <span class="active-label">Auto Rotate: <strong>(${x.toFixed(2)}, 0.00, ${z.toFixed(2)})</strong></span>
-        <span class="active-coords">Testing all spatial angles automatically</span>
-      `;
+      // Update info (use textContent instead of innerHTML for performance)
+      labelEl.textContent = `Auto Rotate: (${x.toFixed(2)}, 0.00, ${z.toFixed(2)})`;
+      coordsEl.textContent = 'Testing all spatial angles automatically';
 
       this.autoRotateRafId = requestAnimationFrame(animate);
     };
