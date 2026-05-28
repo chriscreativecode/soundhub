@@ -63,6 +63,8 @@ export class SpatialDemo {
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
   private loopEnabled = true;
+  private freeMoveRafId: number | null = null;
+  private freeMovePending = false;
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -314,7 +316,13 @@ export class SpatialDemo {
         this.lastMouseRelative = { x: relativeX, z: relativeZ };
 
         if (this.autoRotate) return;
-        this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveLabel, freeMoveCoords);
+        if (!this.freeMovePending) {
+          this.freeMovePending = true;
+          this.freeMoveRafId = requestAnimationFrame(() => {
+            this.freeMovePending = false;
+            this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveLabel, freeMoveCoords);
+          });
+        }
       });
 
       autoRotateCheckbox.addEventListener('change', () => {
@@ -353,9 +361,10 @@ export class SpatialDemo {
     gridTab.style.display = tab === 'speaker-grid' ? '' : 'none';
     freeTab.style.display = tab === 'free-move' ? '' : 'none';
 
-    // Stop auto rotate when switching away
+    // Stop auto rotate & cancel pending free move frame when switching away
     if (tab !== 'free-move') {
       this.stopAutoRotate();
+      this.cancelFreeMoveFrame();
       if (this.soundManager.isPlaying(this.selectedSound)) {
         try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
       }
@@ -387,7 +396,7 @@ export class SpatialDemo {
     // Only update if changed significantly
     const dx = Math.abs(x - this.freeMovePos.x);
     const dz = Math.abs(z - this.freeMovePos.z);
-    if (dx < 0.015 && dz < 0.015) return;
+    if (dx < 0.001 && dz < 0.001) return;
 
     this.freeMovePos = { x, z };
 
@@ -477,6 +486,14 @@ export class SpatialDemo {
     const dy = 50 - relativeZ * 100;
     // atan2(dy, dx): 0° = right, 90° = down  → we want "down" (typical emoji speaker orientation)
     return Math.atan2(dy, dx) * (180 / Math.PI);
+  }
+
+  private cancelFreeMoveFrame(): void {
+    if (this.freeMoveRafId !== null) {
+      cancelAnimationFrame(this.freeMoveRafId);
+      this.freeMoveRafId = null;
+    }
+    this.freeMovePending = false;
   }
 
   private stopAutoRotate(): void {
