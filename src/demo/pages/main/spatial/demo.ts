@@ -2,9 +2,17 @@ import "../../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import pianoTone from "../../../../sounds/piano-tone.mp3";
+import laserZap from "../../../../sounds/laser-zap.wav";
 // @ts-ignore
-import introSpeach from "../../../../sounds/intro-text-speach.mp3";
+import explosion from "../../../../sounds/explosion.wav";
+// @ts-ignore
+import whoosh from "../../../../sounds/whoosh.wav";
+// @ts-ignore
+import powerUp from "../../../../sounds/power-up.wav";
+// @ts-ignore
+import glitch from "../../../../sounds/glitch.wav";
+// @ts-ignore
+import alienSignal from "../../../../sounds/alien-signal.wav";
 
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
@@ -36,15 +44,19 @@ const SPEAKERS: SpeakerDef[] = [
 ];
 
 const SOUND_OPTIONS = [
-  { id: 'piano', label: 'Piano Tone', url: pianoTone },
-  { id: 'speech', label: 'Intro Speech', url: introSpeach },
+  { id: 'laser-zap', label: '🔫 Laser Zap', url: laserZap },
+  { id: 'explosion', label: '💥 Explosion', url: explosion },
+  { id: 'whoosh', label: '🌬️ Whoosh', url: whoosh },
+  { id: 'power-up', label: '⚡ Power Up', url: powerUp },
+  { id: 'glitch', label: '🤖 Glitch', url: glitch },
+  { id: 'alien-signal', label: '👽 Alien Signal', url: alienSignal },
 ];
 
 export class SpatialDemo {
   private soundManager: SoundManager;
   private activeSpeaker: string | null = null;
   private loaded = false;
-  private selectedSound = 'piano';
+  private selectedSound = 'laser-zap';
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -99,14 +111,12 @@ export class SpatialDemo {
           The listener is positioned at the center of the room.
         </p>
         <div class="sound-selector-row">
-          <label class="sound-selector-label">Test sound:</label>
-          <div class="sound-selector-btns">
+          <label class="sound-selector-label" for="soundSelect">Test sound:</label>
+          <select class="sound-select-dropdown" id="soundSelect">
             ${SOUND_OPTIONS.map(s => `
-              <button class="sound-select-btn ${s.id === this.selectedSound ? 'active' : ''}" data-sound="${s.id}">
-                ${s.label}
-              </button>
+              <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
             `).join('')}
-          </div>
+          </select>
         </div>
       </div>
 
@@ -180,13 +190,12 @@ export class SpatialDemo {
   }
 
   private attachUIListeners(): void {
-    document.querySelectorAll<HTMLButtonElement>('.sound-select-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.selectedSound = btn.dataset.sound!;
-        document.querySelectorAll('.sound-select-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+    const select = document.getElementById('soundSelect') as HTMLSelectElement;
+    if (select) {
+      select.addEventListener('change', () => {
+        this.selectedSound = select.value;
       });
-    });
+    }
   }
 
   private async loadSounds(): Promise<void> {
