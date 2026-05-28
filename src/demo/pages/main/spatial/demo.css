@@ -142,6 +142,154 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   position: relative;
 }
 
+/* Spatial tabs */
+.spatial-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--color-border);
+}
+.spatial-tab {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.spatial-tab:hover {
+  color: var(--color-text);
+}
+.spatial-tab.active {
+  color: var(--speaker-color);
+  border-bottom-color: var(--speaker-color);
+}
+.spatial-tab-content {
+  animation: tabFadeIn 0.2s ease;
+}
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Free Move room */
+.free-move-desc {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.free-move-room {
+  display: block !important;
+  height: 300px;
+  position: relative;
+  cursor: none;
+  overflow: hidden;
+  min-height: 300px;
+}
+.free-move-room.free-move-active {
+  border-color: var(--speaker-color);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--speaker-color) 20%, transparent);
+}
+
+.free-move-tv-label {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.free-move-listener {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.free-move-speaker {
+  position: absolute;
+  font-size: 1.8rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+  transition: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--speaker-color) 60%, transparent));
+}
+
+.free-move-room.free-move-active .free-move-speaker {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--speaker-color) 80%, transparent));
+}
+
+/* Auto Rotate controls */
+.free-move-controls {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-md);
+}
+
+.auto-rotate-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 22px;
+}
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+input:checked + .toggle-slider {
+  background-color: var(--speaker-color);
+}
+input:checked + .toggle-slider:before {
+  transform: translateX(22px);
+}
+.toggle-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text);
+  user-select: none;
+}
+
 /* Speaker buttons */
 .speaker-btn {
   display: flex;
