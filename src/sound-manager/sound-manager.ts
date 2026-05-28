@@ -376,9 +376,12 @@ export class SoundManager implements SoundManagerInterface {
       this.removeEventListenersForInstance(sound.id);
     }
 
+    const originalId = sound.id.includes(':') ? sound.id.split(':')[0] : sound.id;
     this.dispatchEvent({
       type: SoundEventsEnum.ENDED,
       soundId: sound.id,
+      originalId,
+      instanceId: sound.id,
       timestamp: this.context.currentTime,
       sound,
     });
@@ -768,9 +771,12 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       if (!skipDispatchEvent) {
+        const originalId = sound.id.includes(':') ? sound.id.split(':')[0] : sound.id;
         this.dispatchEvent({
           type: SoundEventsEnum.STARTED,
-          soundId: id,
+          soundId: sound.id,
+          originalId,
+          instanceId: sound.id,
           timestamp: this.context.currentTime,
           sound,
         });
