@@ -137,6 +137,8 @@ export class SpatialDemo {
           </button>
         </div>
 
+        <div class="spatial-tab-content-wrapper">
+
         <!-- Tab 1: Speaker Grid -->
         <div class="spatial-tab-content" id="tabSpeakerGrid" style="${this.activeTab === 'speaker-grid' ? '' : 'display:none'}">
           <div class="room-layout-wrapper">
@@ -237,6 +239,8 @@ export class SpatialDemo {
             <span class="active-coords" id="freeMoveCoords"></span>
           </div>
         </div>
+
+        </div><!-- /.spatial-tab-content-wrapper -->
       </div>
 
       <div class="control-group spatial-coords-panel">
