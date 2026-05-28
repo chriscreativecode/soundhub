@@ -61,6 +61,7 @@ export class SpatialDemo {
   private autoRotateAngle = 0;
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
+  private loopEnabled = true;
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -213,6 +214,13 @@ export class SpatialDemo {
               </label>
               <span class="toggle-label">🔄 Auto Rotate</span>
             </div>
+            <div class="auto-rotate-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" id="loopToggle" ${this.loopEnabled ? 'checked' : ''}>
+                <span class="toggle-slider round"></span>
+              </label>
+              <span class="toggle-label">🔁 Loop Sound</span>
+            </div>
           </div>
 
           <div class="active-speaker-info" id="freeMoveInfo">
@@ -268,8 +276,9 @@ export class SpatialDemo {
     const speakerEl = document.getElementById('freeMoveSpeaker');
     const freeMoveInfo = document.getElementById('freeMoveInfo');
     const autoRotateCheckbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
+    const loopToggle = document.getElementById('loopToggle') as HTMLInputElement;
 
-    if (room && speakerEl && freeMoveInfo && autoRotateCheckbox) {
+    if (room && speakerEl && freeMoveInfo && autoRotateCheckbox && loopToggle) {
       room.addEventListener('mouseenter', () => {
         this.isMouseOverRoom = true;
         room.classList.add('free-move-active');
@@ -297,6 +306,16 @@ export class SpatialDemo {
           this.startAutoRotate(speakerEl, freeMoveInfo);
         } else {
           this.stopAutoRotate();
+        }
+      });
+
+      loopToggle.addEventListener('change', () => {
+        this.loopEnabled = loopToggle.checked;
+        if (!this.loopEnabled) {
+          try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+          this.freeMoveSoundStarted = false;
+        } else if (this.isMouseOverRoom || this.autoRotate) {
+          this.startFreeMoveSound();
         }
       });
     }
