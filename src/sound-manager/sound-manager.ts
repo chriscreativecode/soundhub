@@ -323,7 +323,7 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    // Check if we've reached max loops (0 means infinite)
+    // Check if we've reached max loops (0 or -1 means infinite)
     if (
       sound.playOptions?.maxLoops !== undefined &&
       sound.playOptions?.maxLoops > 0 &&
