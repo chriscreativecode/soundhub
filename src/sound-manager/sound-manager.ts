@@ -2554,6 +2554,14 @@ export class SoundManager implements SoundManagerInterface {
         sound.pannerNode.coneInnerAngle = mergedConfig.coneInnerAngle!;
         sound.pannerNode.coneOuterAngle = mergedConfig.coneOuterAngle!;
         sound.pannerNode.coneOuterGain = mergedConfig.coneOuterGain!;
+
+        // Wire the audio graph only when the panner is first created.
+        // Repeated disconnect/connect on every call triggers the onended event
+        // (see AudioNodeConnector), breaking animation loops and accumulating
+        // duplicate pannerNode→gainNode connections.
+        source?.disconnect();
+        source?.connect(sound.pannerNode);
+        sound.pannerNode.connect(sound.gainNode);
       } else if (soundPannerConfig && Object.keys(soundPannerConfig).length !== 0) {
         // If panner exists and new config is provided, update only the provided values
         Object.entries(soundPannerConfig).forEach(([key, value]) => {
@@ -2562,18 +2570,6 @@ export class SoundManager implements SoundManagerInterface {
           }
         });
       }
-
-      // Reconnect the audio nodes with the panner
-      source?.disconnect();
-      source?.connect(sound.pannerNode);
-      sound.pannerNode.connect(sound.gainNode);
-
-
-      // Example usage to set the position of the sound source
-      //pannerNode.positionX.setValueAtTime(1, audioContext.currentTime); // 1 meter to the right
-      //pannerNode.positionY.setValueAtTime(0, audioContext.currentTime); // Same height as the listener
-      //pannerNode.positionZ.setValueAtTime(-1, audioContext.currentTime); // 1 meter behind the listener
-
 
       // Update position
       sound.pannerNode.positionX.setValueAtTime(x, this.context.currentTime);
