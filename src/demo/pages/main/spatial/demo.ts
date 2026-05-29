@@ -46,6 +46,9 @@ const SOUND_OPTIONS = [
   { id: 'birds-forest', label: '🌳 Forest & Birds', url: birdsForest },
 ];
 
+const SVG_VOLUME_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06C18.01 19.86 21 16.28 21 12c0-4.28-2.99-7.86-7-8.77z"/></svg>`;
+const SVG_VOLUME_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
+
 export class SpatialDemo {
   private soundManager: SoundManager;
   private activeSpeaker: string | null = null;
@@ -221,8 +224,10 @@ export class SpatialDemo {
               </label>
               <span class="toggle-card-status">${this.autoRotate ? 'ON' : 'OFF'}</span>
             </div>
-            <button class="mute-btn" id="muteBtn" title="Mute / Unmute" aria-label="Mute or unmute sound">
-              <span class="mute-icon">${this.muted ? '🔇' : '🔊'}</span>
+            <button class="mute-btn${this.muted ? ' is-muted' : ''}" id="muteBtn" aria-label="Mute or unmute sound">
+              <div class="mute-btn-icon">${this.muted ? SVG_VOLUME_OFF : SVG_VOLUME_ON}</div>
+              <span class="mute-btn-label">Mute</span>
+              <span class="mute-btn-status">${this.muted ? 'ON' : 'OFF'}</span>
             </button>
           </div>
 
@@ -262,7 +267,10 @@ export class SpatialDemo {
           try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
         }
         this.selectedSound = select.value;
+        this.muted = false;
         this.freeMoveSoundStarted = false;
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) this.updateMuteBtnUI(muteBtn);
         if (this.activeTab === 'free-move' && this.isMouseOverRoom) {
           this.startFreeMoveSound();
         }
@@ -327,12 +335,17 @@ export class SpatialDemo {
       muteBtn.addEventListener('click', () => {
         this.muted = !this.muted;
         this.soundManager.toggleMute(this.selectedSound);
-        const muteIcon = muteBtn.querySelector('.mute-icon');
-        if (muteIcon) {
-          muteIcon.textContent = this.muted ? '🔇' : '🔊';
-        }
+        this.updateMuteBtnUI(muteBtn);
       });
     }
+  }
+
+  private updateMuteBtnUI(btn: Element): void {
+    btn.classList.toggle('is-muted', this.muted);
+    const icon = btn.querySelector('.mute-btn-icon');
+    const status = btn.querySelector('.mute-btn-status');
+    if (icon) icon.innerHTML = this.muted ? SVG_VOLUME_OFF : SVG_VOLUME_ON;
+    if (status) status.textContent = this.muted ? 'ON' : 'OFF';
   }
 
   private switchTab(tab: 'speaker-grid' | 'free-move'): void {
