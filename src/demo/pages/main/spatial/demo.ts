@@ -335,7 +335,6 @@ export class SpatialDemo {
         this.lastMouseRelative = { x: relativeX, z: relativeZ };
 
         if (this.autoRotate) return;
-        if (this.freeMoveMuted) return;
         this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveLabel, freeMoveCoords);
       });
 
@@ -360,9 +359,16 @@ export class SpatialDemo {
         this.soundManager.toggleMute(this.selectedSound);
         this.updateMuteBtnUI(muteBtn, this.freeMoveMuted);
 
-        // If unmuting while mouse is over the room and sound hasn't started, start it
-        if (!this.freeMoveMuted && this.isMouseOverRoom && !this.freeMoveSoundStarted) {
-          this.startFreeMoveSound();
+        if (this.freeMoveMuted) {
+          room.style.cursor = 'default';
+          speakerEl.style.display = 'none';
+        } else {
+          room.style.cursor = '';
+          speakerEl.style.display = '';
+          // If unmuting while mouse is over the room and sound hasn't started, start it
+          if (this.isMouseOverRoom && !this.freeMoveSoundStarted) {
+            this.startFreeMoveSound();
+          }
         }
       });
     }
@@ -397,6 +403,12 @@ export class SpatialDemo {
     const freeMoveMuteBtn = document.getElementById('freeMoveMuteBtn');
     if (speakerGridMuteBtn) this.updateMuteBtnUI(speakerGridMuteBtn, false);
     if (freeMoveMuteBtn) this.updateMuteBtnUI(freeMoveMuteBtn, false);
+
+    // Reset free-move room cursor and speaker visibility
+    const freeMoveRoom = document.getElementById('freeMoveRoom');
+    const freeMoveSpeaker = document.getElementById('freeMoveSpeaker');
+    if (freeMoveRoom) freeMoveRoom.style.cursor = '';
+    if (freeMoveSpeaker) freeMoveSpeaker.style.display = '';
 
     // Stop auto rotate & cancel pending free move frame when switching away
     if (tab !== 'free-move') {
