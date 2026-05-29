@@ -366,7 +366,7 @@ export class SpatialDemo {
           room.style.cursor = '';
           speakerEl.style.display = '';
           // If unmuting while mouse is over the room and sound hasn't started, start it
-          if (this.isMouseOverRoom && !this.freeMoveSoundStarted) {
+          if ((this.isMouseOverRoom || this.autoRotate) && !this.freeMoveSoundStarted) {
             this.startFreeMoveSound();
           }
         }
