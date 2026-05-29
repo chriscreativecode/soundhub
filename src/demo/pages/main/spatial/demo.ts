@@ -62,7 +62,7 @@ export class SpatialDemo {
   private autoRotateAngle = 0;
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
-  private loopEnabled = true;
+  private muted = false;
   private lastSpeakerAngle = 0;
   constructor() {
     const config: SoundManagerConfig = {
@@ -221,17 +221,9 @@ export class SpatialDemo {
               </label>
               <span class="toggle-card-status">${this.autoRotate ? 'ON' : 'OFF'}</span>
             </div>
-            <div class="toggle-card ${this.loopEnabled ? 'is-active' : ''}" id="loopCard">
-              <div class="toggle-card-header">
-                <span class="toggle-card-icon">🔁</span>
-                <span class="toggle-card-label">Loop Sound</span>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="loopToggle" ${this.loopEnabled ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-card-status">${this.loopEnabled ? 'ON' : 'OFF'}</span>
-            </div>
+            <button class="mute-btn" id="muteBtn" title="Mute / Unmute" aria-label="Mute or unmute sound">
+              <span class="mute-icon">${this.muted ? '🔇' : '🔊'}</span>
+            </button>
           </div>
 
           <div class="active-speaker-info" id="freeMoveInfo">
@@ -291,9 +283,9 @@ export class SpatialDemo {
     const freeMoveLabel = document.getElementById('freeMoveLabel');
     const freeMoveCoords = document.getElementById('freeMoveCoords');
     const autoRotateCheckbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
-    const loopToggle = document.getElementById('loopToggle') as HTMLInputElement;
+    const muteBtn = document.getElementById('muteBtn');
 
-    if (room && speakerEl && freeMoveLabel && freeMoveCoords && autoRotateCheckbox && loopToggle) {
+    if (room && speakerEl && freeMoveLabel && freeMoveCoords && autoRotateCheckbox && muteBtn) {
       room.addEventListener('mouseenter', () => {
         this.isMouseOverRoom = true;
         room.classList.add('free-move-active');
@@ -305,6 +297,9 @@ export class SpatialDemo {
       room.addEventListener('mouseleave', () => {
         this.isMouseOverRoom = false;
         room.classList.remove('free-move-active');
+        if (!this.autoRotate) {
+          this.stopFreeMoveSound();
+        }
       });
 
       room.addEventListener('mousemove', (e) => {
@@ -324,20 +319,17 @@ export class SpatialDemo {
           this.startAutoRotate(speakerEl, freeMoveLabel, freeMoveCoords);
         } else {
           this.stopAutoRotate();
-          // Restore speaker position to last known mouse position
+          // Restore speaker position to last known mouse position (sound keeps playing from that position)
           this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveLabel, freeMoveCoords);
         }
       });
 
-      loopToggle.addEventListener('change', () => {
-        this.loopEnabled = loopToggle.checked;
-        this.updateToggleCard('loopCard', this.loopEnabled);
-        this.soundManager.setLoop(this.selectedSound, this.loopEnabled);
-        if (!this.loopEnabled) {
-          try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
-          this.freeMoveSoundStarted = false;
-        } else if (this.isMouseOverRoom || this.autoRotate) {
-          this.startFreeMoveSound();
+      muteBtn.addEventListener('click', () => {
+        this.muted = !this.muted;
+        this.soundManager.toggleMute(this.selectedSound);
+        const muteIcon = muteBtn.querySelector('.mute-icon');
+        if (muteIcon) {
+          muteIcon.textContent = this.muted ? '🔇' : '🔊';
         }
       });
     }
@@ -499,6 +491,13 @@ export class SpatialDemo {
     const checkbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
     if (checkbox) checkbox.checked = false;
     this.updateToggleCard('autoRotateCard', false);
+  }
+
+  private stopFreeMoveSound(): void {
+    if (this.freeMoveSoundStarted) {
+      try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+      this.freeMoveSoundStarted = false;
+    }
   }
 
   private updateToggleCard(cardId: string, isActive: boolean): void {
