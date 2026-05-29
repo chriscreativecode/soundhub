@@ -345,8 +345,12 @@ export class SpatialDemo {
           this.startAutoRotate(speakerEl, freeMoveLabel, freeMoveCoords);
         } else {
           this.stopAutoRotate();
-          // Restore speaker position to last known mouse position (sound keeps playing from that position)
-          this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveLabel, freeMoveCoords);
+          if (this.isMouseOverRoom) {
+            // Restore speaker position to last known mouse position (sound keeps playing from that position)
+            this.updateFreeMovePosition(this.lastMouseRelative.x, this.lastMouseRelative.z, speakerEl, freeMoveLabel, freeMoveCoords);
+          } else {
+            this.stopFreeMoveSound();
+          }
         }
       });
 
