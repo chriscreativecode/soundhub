@@ -249,8 +249,10 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .free-move-speaker {
   position: absolute;
   font-size: 1.8rem;
+  line-height: 1;
   transform: translate(-50%, -50%);
   rotate: var(--speaker-angle, 0deg);
+  transform-origin: center;
   pointer-events: none;
   z-index: 2;
   transition: rotate 0.05s linear;
