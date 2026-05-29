@@ -476,19 +476,18 @@ export class SpatialDemo {
     // Vector from speaker to center (50%, 50%)
     const dx = 50 - relativeX * 100;
     const dy = 50 - relativeZ * 100;
-    // atan2(dy, dx): 0° = right, 90° = down  → we want "down" (typical emoji speaker orientation)
-    let rawAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+    const rawAngle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-    // Unwrap: prevent discontinuities at the ±180° boundary.
-    // Without this, the icon snaps 358° when crossing the right side of the room.
-    let delta = rawAngle - this.lastSpeakerAngle;
-    if (delta > 180) {
-      rawAngle -= 360;
-    } else if (delta < -180) {
-      rawAngle += 360;
-    }
-    this.lastSpeakerAngle = rawAngle;
-    return rawAngle;
+    // Normalize lastSpeakerAngle to (-180, 180] before computing delta so the
+    // shortest-path rotation is always found correctly, even after many full
+    // revolutions where lastSpeakerAngle has accumulated to e.g. 3780°.
+    const lastMod = ((this.lastSpeakerAngle % 360) + 360) % 360;
+    let delta = rawAngle - lastMod;
+    if (delta > 180) delta -= 360;
+    else if (delta < -180) delta += 360;
+
+    this.lastSpeakerAngle += delta;
+    return this.lastSpeakerAngle;
   }
 
   private stopAutoRotate(): void {
