@@ -399,7 +399,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
   <span class="hljs-comment">&lt;!-- 
     Alternative UMD options:
     - Download and use local file: &lt;script src=&quot;/path/to/sound-manager-ts.umd.js&quot;&gt;&lt;/script&gt;
-    - Specific version: &lt;script src=&quot;https://unpkg.com/sound-manager-ts@5.5.7/dist/sound-manager-ts.umd.js&quot;&gt;&lt;/script&gt;
+    - Specific version: &lt;script src=&quot;https://unpkg.com/sound-manager-ts@5.5.8/dist/sound-manager-ts.umd.js&quot;&gt;&lt;/script&gt;
   --&gt;</span>
   
   <span class="hljs-comment">&lt;!-- Option 2: ESM Version (Modern browsers/bundlers) --&gt;</span>
@@ -1217,6 +1217,15 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="-version-history" tabindex="-1">📋 Version History</h2>
+<h3 id="558" tabindex="-1">5.5.8</h3>
+<ul>
+<li>🐛 Bug Fix: <code>STARTED</code> and <code>ENDED</code> events now include <code>originalId</code> and <code>instanceId</code> fields, consistent with <code>PROGRESS</code>. Previously, <code>STARTED</code> also used the raw <code>id</code> parameter for <code>soundId</code> instead of the actual instance ID (e.g. <code>piano-C4:3</code>), making it impossible to correlate events across instances when using <code>createNewInstance: true</code>.</li>
+<li>🐛 Bug Fix: <code>fadeIn</code> now respects an explicit <code>endVolume</code> of <code>0</code>. Previously, any end-volume of <code>0</code> was silently overridden to <code>1</code>, making it impossible to fade in to silence.</li>
+<li>🐛 Bug Fix: Progress-tracking duration check now correctly handles non-default <code>playbackRate</code>. The formula was <code>duration * playbackRate</code>, which caused the end-of-segment trigger to fire far too late (or never) at speeds other than 1×. Corrected to <code>(duration + startTime) / playbackRate</code>.</li>
+<li>🐛 Bug Fix: Default <code>rolloffFactor</code> for spatial audio changed from <code>0.2</code> to <code>1</code> (the Web Audio API spec default for the <code>inverse</code> distance model). The previous value caused sounds to remain almost equally loud regardless of distance. <strong>⚠️ Breaking change for spatial audio users</strong> — sounds will attenuate more realistically with distance. Override via <code>pannerNodeConfig: { rolloffFactor: 0.2 }</code> to restore the old behaviour.</li>
+<li>🔧 Internal: Removed a redundant <code>reconnectAudioNodes</code> call inside <code>play()</code>. The audio graph was already wired by <code>setupAudioSource</code>, so the second connect/disconnect cycle was unnecessary.</li>
+<li>⚡ Performance: <code>setSpatialPosition</code> no longer allocates a temporary configuration object on every call. The <code>mergedConfig</code> object (merged from <code>DEFAULT_PANNER_CONFIG</code>, the manager config, and the per-call config) is now created only once, when the <code>PannerNode</code> is first set up. This eliminates three object spreads and GC pressure when updating spatial position at high frequency (e.g. 60 fps in an animation loop).</li>
+</ul>
 <h3 id="557" tabindex="-1">5.5.7</h3>
 <ul>
 <li>✨ Added <code>getMasterOutput()</code> method that returns the master output <code>AudioNode</code> for external connections such as an <code>AnalyserNode</code>.</li>
