@@ -315,7 +315,7 @@ export class SpatialDemo {
       room.addEventListener('mouseenter', () => {
         this.isMouseOverRoom = true;
         room.classList.add('free-move-active');
-        if (!this.freeMoveSoundStarted) {
+        if (!this.freeMoveMuted && !this.freeMoveSoundStarted) {
           this.startFreeMoveSound();
         }
       });
@@ -335,6 +335,7 @@ export class SpatialDemo {
         this.lastMouseRelative = { x: relativeX, z: relativeZ };
 
         if (this.autoRotate) return;
+        if (this.freeMoveMuted) return;
         this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveLabel, freeMoveCoords);
       });
 
@@ -358,6 +359,11 @@ export class SpatialDemo {
         this.freeMoveMuted = !this.freeMoveMuted;
         this.soundManager.toggleMute(this.selectedSound);
         this.updateMuteBtnUI(muteBtn, this.freeMoveMuted);
+
+        // If unmuting while mouse is over the room and sound hasn't started, start it
+        if (!this.freeMoveMuted && this.isMouseOverRoom && !this.freeMoveSoundStarted) {
+          this.startFreeMoveSound();
+        }
       });
     }
   }
@@ -406,6 +412,7 @@ export class SpatialDemo {
 
   private startFreeMoveSound(): void {
     if (this.freeMoveSoundStarted) return;
+    if (this.freeMoveMuted) return;
     try {
       this.soundManager.play(this.selectedSound);
       this.freeMoveSoundStarted = true;
