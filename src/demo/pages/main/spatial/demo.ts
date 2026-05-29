@@ -456,7 +456,9 @@ export class SpatialDemo {
         Math.round(x * 100) / 100,
         0,
         Math.round(z * 100) / 100,
-        this.selectedSound
+        this.selectedSound,
+        undefined,
+        true
       );
 
       // // Update info (use textContent instead of innerHTML for performance)

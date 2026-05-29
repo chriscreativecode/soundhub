@@ -2551,15 +2551,15 @@ export class SoundManager implements SoundManagerInterface {
     };
 
     try {
-      // Merge configurations in order of precedence
-      const mergedConfig: SoundPannerConfig = {
-        ...DEFAULT_PANNER_CONFIG, // Start with default config
-        ...(this.config.pannerNodeConfig || {}), // Override with sound manager config if exists
-        ...(soundPannerConfig || {}), // Override with specific config if provided
-      };
-
       // Create a panner node if it doesn't exist
       if (!sound.pannerNode) {
+        // mergedConfig is only needed here (one-time setup), not on every position update
+        const mergedConfig: SoundPannerConfig = {
+          ...DEFAULT_PANNER_CONFIG, // Start with default config
+          ...(this.config.pannerNodeConfig || {}), // Override with sound manager config if exists
+          ...(soundPannerConfig || {}), // Override with specific config if provided
+        };
+
         sound.pannerNode = this.context.createPanner();
         sound.pannerNode.panningModel = mergedConfig.panningModel!;
         sound.pannerNode.distanceModel = mergedConfig.distanceModel!;
