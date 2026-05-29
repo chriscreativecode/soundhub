@@ -2,7 +2,7 @@ import "../../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import helicopter from "../../../../sounds/helicopter.wav";
+import helicopter from "../../../../sounds/helicopter.mp3";
 // @ts-ignore
 import xylophoneMelody from "../../../../sounds/xylophone-melody.wav";
 // @ts-ignore
@@ -65,7 +65,8 @@ export class SpatialDemo {
   private autoRotateAngle = 0;
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
-  private muted = false;
+  private speakerGridMuted = false;
+  private freeMoveMuted = false;
   private lastSpeakerAngle = 0;
   constructor() {
     const config: SoundManagerConfig = {
@@ -189,6 +190,12 @@ export class SpatialDemo {
             </button>
           </div>
 
+          <div class="free-move-controls">
+            <button class="mute-btn" id="speakerGridMuteBtn" aria-label="Mute or unmute sound">
+              ${SVG_VOLUME_ON}
+            </button>
+          </div>
+
           <div class="active-speaker-info" id="activeSpeakerInfo">
             <span class="active-label">Click a speaker to test it</span>
           </div>
@@ -224,10 +231,8 @@ export class SpatialDemo {
               </label>
               <span class="toggle-card-status">${this.autoRotate ? 'ON' : 'OFF'}</span>
             </div>
-            <button class="mute-btn${this.muted ? ' is-muted' : ''}" id="muteBtn" aria-label="Mute or unmute sound">
-              <div class="mute-btn-icon">${this.muted ? SVG_VOLUME_OFF : SVG_VOLUME_ON}</div>
-              <span class="mute-btn-label">Mute</span>
-              <span class="mute-btn-status">${this.muted ? 'ON' : 'OFF'}</span>
+            <button class="mute-btn" id="freeMoveMuteBtn" aria-label="Mute or unmute sound">
+              ${SVG_VOLUME_ON}
             </button>
           </div>
 
@@ -267,13 +272,26 @@ export class SpatialDemo {
           try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
         }
         this.selectedSound = select.value;
-        this.muted = false;
+        this.speakerGridMuted = false;
+        this.freeMoveMuted = false;
         this.freeMoveSoundStarted = false;
-        const muteBtn = document.getElementById('muteBtn');
-        if (muteBtn) this.updateMuteBtnUI(muteBtn);
+        const speakerGridMuteBtn = document.getElementById('speakerGridMuteBtn');
+        const freeMoveMuteBtn = document.getElementById('freeMoveMuteBtn');
+        if (speakerGridMuteBtn) this.updateMuteBtnUI(speakerGridMuteBtn, false);
+        if (freeMoveMuteBtn) this.updateMuteBtnUI(freeMoveMuteBtn, false);
         if (this.activeTab === 'free-move' && this.isMouseOverRoom) {
           this.startFreeMoveSound();
         }
+      });
+    }
+
+    // Speaker Grid mute button
+    const speakerGridMuteBtn = document.getElementById('speakerGridMuteBtn');
+    if (speakerGridMuteBtn) {
+      speakerGridMuteBtn.addEventListener('click', () => {
+        this.speakerGridMuted = !this.speakerGridMuted;
+        this.soundManager.toggleMute(this.selectedSound);
+        this.updateMuteBtnUI(speakerGridMuteBtn, this.speakerGridMuted);
       });
     }
 
@@ -291,7 +309,7 @@ export class SpatialDemo {
     const freeMoveLabel = document.getElementById('freeMoveLabel');
     const freeMoveCoords = document.getElementById('freeMoveCoords');
     const autoRotateCheckbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
-    const muteBtn = document.getElementById('muteBtn');
+    const muteBtn = document.getElementById('freeMoveMuteBtn');
 
     if (room && speakerEl && freeMoveLabel && freeMoveCoords && autoRotateCheckbox && muteBtn) {
       room.addEventListener('mouseenter', () => {
@@ -333,19 +351,16 @@ export class SpatialDemo {
       });
 
       muteBtn.addEventListener('click', () => {
-        this.muted = !this.muted;
+        this.freeMoveMuted = !this.freeMoveMuted;
         this.soundManager.toggleMute(this.selectedSound);
-        this.updateMuteBtnUI(muteBtn);
+        this.updateMuteBtnUI(muteBtn, this.freeMoveMuted);
       });
     }
   }
 
-  private updateMuteBtnUI(btn: Element): void {
-    btn.classList.toggle('is-muted', this.muted);
-    const icon = btn.querySelector('.mute-btn-icon');
-    const status = btn.querySelector('.mute-btn-status');
-    if (icon) icon.innerHTML = this.muted ? SVG_VOLUME_OFF : SVG_VOLUME_ON;
-    if (status) status.textContent = this.muted ? 'ON' : 'OFF';
+  private updateMuteBtnUI(btn: Element, muted: boolean): void {
+    btn.classList.toggle('is-muted', muted);
+    btn.innerHTML = muted ? SVG_VOLUME_OFF : SVG_VOLUME_ON;
   }
 
   private switchTab(tab: 'speaker-grid' | 'free-move'): void {
@@ -358,6 +373,20 @@ export class SpatialDemo {
     const freeTab = document.getElementById('tabFreeMove')!;
     gridTab.style.display = tab === 'speaker-grid' ? '' : 'none';
     freeTab.style.display = tab === 'free-move' ? '' : 'none';
+
+    // Reset mute state: unmute if currently muted, reset both booleans, update both button UIs
+    if (this.speakerGridMuted) {
+      this.soundManager.toggleMute(this.selectedSound);
+    }
+    if (this.freeMoveMuted) {
+      this.soundManager.toggleMute(this.selectedSound);
+    }
+    this.speakerGridMuted = false;
+    this.freeMoveMuted = false;
+    const speakerGridMuteBtn = document.getElementById('speakerGridMuteBtn');
+    const freeMoveMuteBtn = document.getElementById('freeMoveMuteBtn');
+    if (speakerGridMuteBtn) this.updateMuteBtnUI(speakerGridMuteBtn, false);
+    if (freeMoveMuteBtn) this.updateMuteBtnUI(freeMoveMuteBtn, false);
 
     // Stop auto rotate & cancel pending free move frame when switching away
     if (tab !== 'free-move') {

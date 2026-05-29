@@ -358,63 +358,34 @@ input:checked + .toggle-slider:before {
   color: var(--speaker-color);
 }
 
-/* Mute button */
+/* Mute button — compact icon-only */
 .mute-btn {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
+  justify-content: center;
+  padding: 8px;
   background: var(--color-surface-secondary);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  min-width: 120px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-  color: var(--color-text);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+  color: var(--color-text-secondary);
+  line-height: 1;
 }
 .mute-btn:hover {
   border-color: var(--speaker-color);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--speaker-color) 20%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--speaker-color) 20%, transparent);
+  color: var(--speaker-color);
 }
 .mute-btn:active {
-  transform: scale(0.98);
-}
-.mute-btn-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary);
-  transition: color 0.25s ease;
-  pointer-events: none;
-}
-.mute-btn-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  pointer-events: none;
-}
-.mute-btn-status {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-secondary);
-  transition: color 0.25s ease;
-  pointer-events: none;
+  transform: scale(0.95);
 }
 .mute-btn.is-muted {
   border-color: #ef4444;
-}
-.mute-btn.is-muted .mute-btn-icon {
-  color: #ef4444;
-}
-.mute-btn.is-muted .mute-btn-status {
   color: #ef4444;
 }
 .mute-btn.is-muted:hover {
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
 }
 
 /* Speaker buttons */
