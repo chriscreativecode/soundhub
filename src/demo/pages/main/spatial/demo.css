@@ -269,6 +269,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .free-move-controls {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: var(--spacing-md);
   margin-top: var(--spacing-md);
   flex-wrap: wrap;
@@ -276,7 +277,6 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 
 .toggle-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 10px;
   padding: 14px 20px;
