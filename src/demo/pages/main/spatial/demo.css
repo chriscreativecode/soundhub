@@ -15,7 +15,7 @@
 }
 
 /* Header */
-.spatial-header { padding: var(--spacing-md); }
+.spatial-header { padding: var(--spacing-md); flex: none; }
 
 .demo-nav {
   margin-bottom: var(--spacing-md);
