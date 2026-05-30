@@ -255,6 +255,7 @@ export class MasterControl {
         this.isMuted = true;
         this.updateMuteIcons(true);
         this.updateMasterVolume(0);
+        this.updateButtonStates({ fadeInBtn: false, fadeOutBtn: true });
         break;
 
       case SoundEventsEnum.MASTER_PAN_CHANGED:
