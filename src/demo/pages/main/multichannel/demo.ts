@@ -1,5 +1,7 @@
 import "../../../shared.css";
 import "./demo.css";
+
+declare function gtag(...args: any[]): void;
 import hljs from 'highlight.js/lib/core';
 import typescript from 'highlight.js/lib/languages/typescript';
 
@@ -419,6 +421,7 @@ export class PianoDemo {
     this.keyElements.forEach(el => el.classList.remove('active'));
     this.draggedNotes.clear();
     this.currentEngine = engine;
+    gtag('event', 'piano_engine_switch', { engine: engine, demo: 'multichannel' });
     // Blur the dropdown so keyboard events reach the piano again
     this.soundSelect?.blur();
   }

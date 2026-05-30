@@ -16,6 +16,8 @@ import { Sound } from "../../../sound-manager/sound.interface";
 import { LocalStorageManagerManager } from "../../services/local-storage-manager";
 import { SoundPanType } from "../../../sound-manager/sound-pan-type.enum";
 
+declare function gtag(...args: any[]): void;
+
 export interface SoundControlState {
   isPlaying: boolean;
   isPaused: boolean;
@@ -720,8 +722,10 @@ export class SoundControl {
 
     if (isPaused) {
       this.soundManager.resume(this.id);
+      gtag('event', 'sound_play', { sound_id: this.id, action: 'resume', demo: 'general' });
     } else {
       this.soundManager.play(this.id, this.currentOptions);
+      gtag('event', 'sound_play', { sound_id: this.id, action: 'play', demo: 'general' });
     }
     this.updateState();
   }

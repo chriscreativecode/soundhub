@@ -1,5 +1,7 @@
 import "./../../shared.css";
 import "./landing.css";
+
+declare function gtag(...args: any[]): void;
 import { LocalStorageManagerManager } from "../../services/local-storage-manager";
 import hljs from 'highlight.js/lib/core';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -53,6 +55,14 @@ qsTabs.forEach(tab => {
     document.querySelectorAll<HTMLElement>('.qs-panel').forEach(panel => {
       panel.style.display = panel.dataset.panel === target ? 'block' : 'none';
     });
+  });
+});
+
+document.querySelectorAll<HTMLAnchorElement>('.landing-card[href]').forEach(card => {
+  card.addEventListener('click', () => {
+    const href = card.getAttribute('href') ?? '';
+    const demo = href.replace('./', '').replace('/', '') || 'unknown';
+    gtag('event', 'demo_nav_click', { demo });
   });
 });
 

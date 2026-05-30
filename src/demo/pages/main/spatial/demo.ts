@@ -1,6 +1,8 @@
 import "../../../shared.css";
 import "./demo.css";
 
+declare function gtag(...args: any[]): void;
+
 // @ts-ignore
 import helicopterNew from "../../../../sounds/helicopter-new.mp3";
 // @ts-ignore
@@ -278,6 +280,7 @@ export class SpatialDemo {
           try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
         }
         this.selectedSound = select.value;
+        gtag('event', 'spatial_sound_select', { sound_id: this.selectedSound, demo: 'spatial' });
         this.speakerGridMuted = false;
         this.freeMoveMuted = false;
         this.freeMoveSoundStarted = false;
@@ -415,6 +418,8 @@ export class SpatialDemo {
     const freeMoveSpeaker = document.getElementById('freeMoveSpeaker');
     if (freeMoveRoom) freeMoveRoom.style.cursor = '';
     if (freeMoveSpeaker) freeMoveSpeaker.style.display = '';
+
+    gtag('event', 'demo_tab_open', { tab_name: tab, demo: 'spatial' });
 
     // Stop auto rotate & cancel pending free move frame when switching away
     if (tab !== 'free-move') {
