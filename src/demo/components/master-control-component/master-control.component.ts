@@ -273,6 +273,16 @@ export class MasterControl {
 
       case SoundEventsEnum.MASTER_VOLUME_CHANGED:
         this.updateMasterVolume(event);
+        // Sync mute state with volume during fades
+        if (typeof event.volume === "number") {
+          if (event.volume > 0 && this.isMuted) {
+            this.isMuted = false;
+            this.updateMuteIcons(false);
+          } else if (event.volume === 0 && !this.isMuted) {
+            this.isMuted = true;
+            this.updateMuteIcons(true);
+          }
+        }
         break;
 
       case SoundEventsEnum.STARTED:
@@ -286,12 +296,14 @@ export class MasterControl {
 
       case SoundEventsEnum.FADE_MASTER_IN_COMPLETED:
         this.updateMasterVolume(event);
+        this.isMuted = false;
         this.updateMuteIcons(false);
         this.updateButtonStates({ fadeInBtn: true, fadeOutBtn: false });
         break;
 
       case SoundEventsEnum.FADE_MASTER_OUT_COMPLETED:
         this.updateMasterVolume(event);
+        this.isMuted = true;
         this.updateMuteIcons(true);
         this.updateButtonStates({ fadeInBtn: false, fadeOutBtn: true });
         break;
