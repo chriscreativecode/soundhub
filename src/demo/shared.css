@@ -2,21 +2,7 @@
 /* Reset and Base Styles */
 /* ==================== */
 body {
-  --s: 24px;
-  /* control the size */
-  --c1: #4480bc;
-  --c2: #295d91;
-
-  --_g:
-    var(--c1) 0% 5%, var(--c2) 6% 15%, var(--c1) 16% 25%, var(--c2) 26% 35%, var(--c1) 36% 45%,
-    var(--c2) 46% 55%, var(--c1) 56% 65%, var(--c2) 66% 75%, var(--c1) 76% 85%, var(--c2) 86% 95%,
-    #0000 96%;
-  background:
-    radial-gradient(50% 50% at 100% 0, var(--_g)),
-    radial-gradient(50% 50% at 0 100%, var(--_g)),
-    radial-gradient(50% 50%, var(--_g)),
-    radial-gradient(50% 50%, var(--_g)) calc(var(--s)/2) calc(var(--s)/2) var(--c1);
-  background-size: var(--s) var(--s);
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf8 50%, #f5f0ff 100%);
   padding: 0;
   margin: 0;
 }
@@ -421,8 +407,7 @@ input[type="range"]::-moz-range-thumb:active {
 /* Theme Overrides */
 /* ==================== */
 body.dark-theme {
-  --c1: #0f0f0f;
-  --c2: #2f2f32;
+  background: linear-gradient(135deg, #0b0f1a 0%, #141828 50%, #1a1030 100%);
 
   --color-primary: #66bb6a;
   --color-primary-rgb: 102, 187, 106;
