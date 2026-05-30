@@ -1168,6 +1168,8 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 - 🐛 Bug Fix: Default `rolloffFactor` for spatial audio changed from `0.2` to `1` (the Web Audio API spec default for the `inverse` distance model). The previous value caused sounds to remain almost equally loud regardless of distance. **⚠️ Breaking change for spatial audio users** — sounds will attenuate more realistically with distance. Override via `pannerNodeConfig: { rolloffFactor: 0.2 }` to restore the old behaviour.
 - 🔧 Internal: Removed a redundant `reconnectAudioNodes` call inside `play()`. The audio graph was already wired by `setupAudioSource`, so the second connect/disconnect cycle was unnecessary.
 - ⚡ Performance: `setSpatialPosition` no longer allocates a temporary configuration object on every call. The `mergedConfig` object (merged from `DEFAULT_PANNER_CONFIG`, the manager config, and the per-call config) is now created only once, when the `PannerNode` is first set up. This eliminates three object spreads and GC pressure when updating spatial position at high frequency (e.g. 60 fps in an animation loop).
+- ⚡ Performance: `isSpatialAudioSupported()` now caches its result after the first call. Previously it created and immediately closed a temporary `AudioContext` on every invocation — causing severe animation jitter when `setSpatialPosition` was called at 60 fps (e.g. in an auto-rotate loop). The check now runs once and the result is stored in `_spatialAudioSupported`.
+- ⚡ Performance: `setSpatialPosition` no longer spreads the entire `playOptions` object on every call. The `panSpatialPosition` property is now updated in place, eliminating per-frame object allocation and GC pressure.
 
 ### 5.5.7
 
