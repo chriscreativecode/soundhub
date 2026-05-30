@@ -351,8 +351,10 @@ export class SpatialDemo {
         this.autoRotate = autoRotateCheckbox.checked;
         this.updateToggleCard('autoRotateCard', this.autoRotate);
         if (this.autoRotate) {
+          room.style.cursor = 'pointer';
           this.startAutoRotate(speakerEl, freeMoveLabel, freeMoveCoords);
         } else {
+          room.style.cursor = '';
           this.stopAutoRotate();
           if (this.isMouseOverRoom) {
             // Restore speaker position to last known mouse position (sound keeps playing from that position)
@@ -372,7 +374,7 @@ export class SpatialDemo {
           room.style.cursor = 'default';
           speakerEl.style.display = 'none';
         } else {
-          room.style.cursor = '';
+          room.style.cursor = this.autoRotate ? 'pointer' : '';
           speakerEl.style.display = '';
           // If unmuting while mouse is over the room and sound hasn't started, start it
           if ((this.isMouseOverRoom || this.autoRotate) && !this.freeMoveSoundStarted) {
