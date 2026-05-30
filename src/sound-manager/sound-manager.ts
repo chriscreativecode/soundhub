@@ -38,6 +38,7 @@ export class SoundManager implements SoundManagerInterface {
   private ticker: Ticker;
   private lastError: Error | null = null;
   private masterSpatialPosition: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
+  private _spatialAudioSupported: boolean | null = null;
   private readonly DEFAULT_PRECISION: number = 2;
   private soundGroups: Map<string, SoundGroup> = new Map();
   private instanceCounters: Map<string, number> = new Map();
@@ -2478,31 +2479,26 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public isSpatialAudioSupported(): boolean {
+    if (this._spatialAudioSupported !== null) {
+      return this._spatialAudioSupported;
+    }
     try {
-      // Check for basic Web Audio API support
       if (!("AudioContext" in window || "webkitAudioContext" in window)) {
-        return false;
+        return (this._spatialAudioSupported = false);
       }
-
-      // Check for PannerNode support
       if (!("PannerNode" in window)) {
-        return false;
+        return (this._spatialAudioSupported = false);
       }
-
-      // Check for specific spatial audio properties
       const tempContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const hasRequiredProperties =
         "positionX" in tempContext.listener &&
         "positionY" in tempContext.listener &&
         "positionZ" in tempContext.listener;
-
-      // Cleanup
       tempContext.close();
-
-      return hasRequiredProperties;
+      return (this._spatialAudioSupported = hasRequiredProperties);
     } catch (error) {
       this.debugLog("Spatial audio support check failed:", error);
-      return false;
+      return (this._spatialAudioSupported = false);
     }
   }
 
@@ -2545,10 +2541,11 @@ export class SoundManager implements SoundManagerInterface {
     }
     sound.panType = SoundPanType.Spatial;
 
-    sound.playOptions = {
-      ...sound.playOptions,
-      panSpatialPosition: { x, y, z },
-    };
+    if (sound.playOptions) {
+      sound.playOptions.panSpatialPosition = { x, y, z };
+    } else {
+      sound.playOptions = { panSpatialPosition: { x, y, z } };
+    }
 
     try {
       // Create a panner node if it doesn't exist
