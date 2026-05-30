@@ -776,7 +776,7 @@ manager.addEventListener(
         el.style.opacity = `${Math.max(0, Math.min(1, opacity))}`;
 
         if (t >= 1) {
-          // Animation complete — clean up
+          // Animation complete clean up
           el.style.transition = 'opacity 0.2s ease-out';
           el.style.opacity = '0';
           setTimeout(() => el.remove(), 250);

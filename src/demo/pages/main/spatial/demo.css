@@ -49,6 +49,9 @@
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .spatial-subtitle .tagline {
@@ -57,6 +60,21 @@
   font-style: normal;
   color: var(--speaker-color);
   letter-spacing: -0.01em;
+}
+
+.speaker-test {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-surface);
+  background: var(--color-text-secondary);
+  border-radius: 999px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 /* Theme toggle */
@@ -142,7 +160,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   position: relative;
 }
 
-/* Spatial tabs — classic folder-style tabs */
+/* Spatial tabs classic folder-style tabs */
 .spatial-tabs {
   display: flex;
   gap: 0;
@@ -265,7 +283,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--speaker-color) 80%, transparent));
 }
 
-/* Auto Rotate & Loop controls — toggle cards */
+/* Auto Rotate & Loop controls toggle cards */
 .free-move-controls {
   display: flex;
   justify-content: center;
@@ -358,7 +376,7 @@ input:checked + .toggle-slider:before {
   color: var(--speaker-color);
 }
 
-/* Mute button — compact icon-only */
+/* Mute button compact icon-only */
 .mute-btn {
   display: inline-flex;
   align-items: center;
