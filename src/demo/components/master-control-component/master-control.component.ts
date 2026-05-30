@@ -281,10 +281,14 @@ export class MasterControl {
         break;
 
       case SoundEventsEnum.FADE_MASTER_IN_COMPLETED:
+        this.updateMasterVolume(event);
+        this.updateMuteIcons(false);
         this.updateButtonStates({ fadeInBtn: true, fadeOutBtn: false });
         break;
 
       case SoundEventsEnum.FADE_MASTER_OUT_COMPLETED:
+        this.updateMasterVolume(event);
+        this.updateMuteIcons(true);
         this.updateButtonStates({ fadeInBtn: false, fadeOutBtn: true });
         break;
 
