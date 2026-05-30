@@ -443,6 +443,33 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 }
 
 /* ==================== */
+/* Disabled Card (WIP)  */
+/* ==================== */
+.landing-card--disabled {
+  cursor: default;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.landing-card--disabled:hover {
+  transform: none;
+  box-shadow: var(--panel-shadow);
+}
+
+.card-wip-badge {
+  margin-top: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-secondary);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--border-radius);
+  display: inline-block;
+  align-self: flex-start;
+  letter-spacing: 0.02em;
+}
+
+/* ==================== */
 /* Stats Strip          */
 /* ==================== */
 .stats-strip {
@@ -811,6 +838,15 @@ body.dark-theme .landing-card {
 
 body.dark-theme .landing-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .landing-card--disabled:hover {
+  box-shadow: var(--panel-shadow);
+}
+
+body.dark-theme .card-wip-badge {
+  background: #2a2a2a;
+  color: #b0b0b0;
 }
 
 body.dark-theme .card-description code {

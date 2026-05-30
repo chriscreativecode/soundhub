@@ -2,13 +2,17 @@ import "../../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import helicopter from "../../../../sounds/helicopter.mp3";
+import helicopterNew from "../../../../sounds/helicopter-new.mp3";
 // @ts-ignore
-import xylophoneMelody from "../../../../sounds/xylophone-melody.wav";
+import ambientSoundEffect from "../../../../sounds/ambient-sound-effect.mp3";
 // @ts-ignore
-import bassDrop from "../../../../sounds/bass-drop.wav";
+import underSeaMagma from "../../../../sounds/under-sea-magma.mp3";
+// @ts-ignore
+import waterBubbles from "../../../../sounds/waterbubbles.mp3";
 // @ts-ignore
 import birdsForest from "../../../../sounds/birds-forest.mp3";
+// @ts-ignore
+import rain from "../../../../sounds/rain.mp3";
 
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
@@ -40,10 +44,12 @@ const SPEAKERS: SpeakerDef[] = [
 ];
 
 const SOUND_OPTIONS = [
-  { id: 'helicopter', label: '🚁 Helicopter', url: helicopter },
-  { id: 'xylophone-melody', label: '🎵 Xylophone Melody', url: xylophoneMelody },
-  { id: 'bass-drop', label: '🔊 Bass Drop', url: bassDrop },
-  { id: 'birds-forest', label: '🌳 Forest & Birds', url: birdsForest },
+  { id: 'helicopter-new',       label: '🚁 Helicopter',      url: helicopterNew },
+  { id: 'ambient-sound-effect', label: '🌌 Ambient Sound',   url: ambientSoundEffect },
+  { id: 'under-sea-magma',      label: '🌋 Under-Sea Magma', url: underSeaMagma },
+  { id: 'waterbubbles',         label: '🫧 Water Bubbles',   url: waterBubbles },
+  { id: 'birds-forest',         label: '🌳 Forest & Birds',  url: birdsForest },
+  { id: 'rain',                 label: '🌧️ Rain',            url: rain },
 ];
 
 const SVG_VOLUME_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06C18.01 19.86 21 16.28 21 12c0-4.28-2.99-7.86-7-8.77z"/></svg>`;
@@ -53,7 +59,7 @@ export class SpatialDemo {
   private soundManager: SoundManager;
   private activeSpeaker: string | null = null;
   private loaded = false;
-  private selectedSound = 'helicopter';
+  private selectedSound = 'helicopter-new';
   private activeTab: 'speaker-grid' | 'free-move' = 'speaker-grid';
 
   // Free Move state
