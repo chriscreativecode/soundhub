@@ -5,11 +5,13 @@ import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";
 import { SoundPannerConfig } from "../../../sound-manager/sound-panner-config";
 import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
-import "./../../shared.css";
+/* @ts-ignore */
 import "./master-control.component.css";
 /* @ts-ignore */
 import masterControlComponentHtml from "./master-control.component.html?raw";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
+/* @ts-ignore */
+import "../../shared.css";
 
 const SPATIAL_SETTINGS_MAPPING: { [key: string]: keyof SoundPannerConfig } = {
   'panning-model-select': 'panningModel',
@@ -27,6 +29,8 @@ export class MasterControl {
   private containerElement: HTMLElement;
   private soundManagerConfig: SoundManagerConfig;
   private spatialGrid: SpatialGrid;
+
+  private isMuted: boolean = false;
 
   private readonly BUTTON_IDS = [
     "pauseAllBtn",
@@ -248,6 +252,7 @@ export class MasterControl {
   private handleSoundEvent = (event: SoundEvent): void => {
     switch (event.type) {
       case SoundEventsEnum.MUTE_GLOBAL:
+        this.isMuted = true;
         this.updateMuteIcons(true);
         this.updateMasterVolume(0);
         break;
@@ -259,9 +264,8 @@ export class MasterControl {
         break;
 
       case SoundEventsEnum.UNMUTE_GLOBAL:
+        this.isMuted = false;
         this.updateMuteIcons(false);
-        // Assuming the sound manager provides the previous volume in the event
-        // If not, you might need to store the previous volume value
         if (typeof event.volume === "number") {
           this.updateMasterVolume(event.volume);
         }
@@ -374,6 +378,7 @@ export class MasterControl {
   }
 
   private initializeMuteState(): void {
+    this.isMuted = false;
     this.updateMuteIcons(false);
   }
 
@@ -423,6 +428,14 @@ export class MasterControl {
   }
 
   private setGlobalVolume(volume: number): void {
+    // If volume > 0 while muted, unmute first to restore audio
+    if (volume > 0 && this.isMuted) {
+      this.soundManager.unmuteAllSounds();
+    }
+    // If volume === 0 while not muted, mute to show the correct mute icon
+    if (volume === 0 && !this.isMuted) {
+      this.soundManager.muteAllSounds();
+    }
     this.soundManager.setGlobalVolume(volume);
     document.getElementById("masterVolumeValue")!.textContent = `${Math.round(volume * 100)}%`;
   }
