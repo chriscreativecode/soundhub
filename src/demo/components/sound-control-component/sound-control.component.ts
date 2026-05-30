@@ -50,6 +50,7 @@ export class SoundControl {
   private soundManagerConfig: SoundManagerConfig;
   private spatialGrid: SpatialGrid;
   private isUpdatingUI = false;
+  private isMasterMuted = false;
   private loopCheckbox: HTMLInputElement;
   private maxLoopsSelect: HTMLSelectElement;
   private loopSettings: HTMLElement;
@@ -287,9 +288,12 @@ export class SoundControl {
       this.soundManager.setPlaybackRate(this.id, newPlaybackRate, true);
     }
 
-    this.updateVolumeDisplay(this.state.volume);
+    // When master is muted, force volume to 0 and show mute icon regardless of per-sound state
+    const effectiveVolume = this.isMasterMuted ? 0 : this.state.volume;
+    const effectiveMuted = this.isMasterMuted || this.state.isMuted;
+    this.updateVolumeDisplay(effectiveVolume);
     this.updatePanDisplay(this.state.pan);
-    this.updateMuteButtonIcon(this.state.isMuted);
+    this.updateMuteButtonIcon(effectiveMuted);
     this.updateProgress(this.state.progress);
     this.updateTimeDisplay(this.state.elapsedTime);
 
@@ -565,13 +569,22 @@ export class SoundControl {
       console.log(`Progress for a piano_c instance: ${event.progress}`);
     }
 
-    // First check if this event is for this specific sound or if it's a global event we should ignore
+    // Handle master mute/unmute — reflect in per-sound UI
+    if (event.type === SoundEventsEnum.MUTE_GLOBAL) {
+      this.isMasterMuted = true;
+      this.updateUIFromState();
+      return;
+    }
+    if (event.type === SoundEventsEnum.UNMUTE_GLOBAL) {
+      this.isMasterMuted = false;
+      this.updateUIFromState();
+      return;
+    }
+
+    // Ignore other master events and events for other sounds
     if ((event.soundId && event.soundId !== this.id) ||
       event.type === SoundEventsEnum.MASTER_PAN_CHANGED ||
-      event.type === SoundEventsEnum.MASTER_VOLUME_CHANGED ||
-      event.type === SoundEventsEnum.MUTE_GLOBAL ||
-      event.type === SoundEventsEnum.UNMUTE_GLOBAL) {
-      // Ignore master events and events for other sounds
+      event.type === SoundEventsEnum.MASTER_VOLUME_CHANGED) {
       return;
     }
     // Handle global events (those without soundId) or events specific to this sound
