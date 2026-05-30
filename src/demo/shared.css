@@ -222,9 +222,9 @@ input[type="range"]::-moz-range-thumb:active {
 }
 
 .control-group:not(.control-group .control-group) {
-  border: 5px solid rgb(51 95 143 / 48%);
   border-radius: 5px;
   margin-bottom: 0;
+  box-shadow: 0 6px 20px rgba(51, 95, 143, 0.22), 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .control-group h4 {
@@ -452,7 +452,8 @@ body.dark-theme .control-content {
 }
 
 body.dark-theme .control-group:not(.control-group .control-group) {
-  border-color: #404040;
+  border: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 body.dark-theme .copyright {
