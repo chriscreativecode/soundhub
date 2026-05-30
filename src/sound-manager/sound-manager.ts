@@ -2574,13 +2574,22 @@ export class SoundManager implements SoundManagerInterface {
         source?.disconnect();
         source?.connect(sound.pannerNode);
         sound.pannerNode.connect(sound.gainNode);
-      } else if (soundPannerConfig && Object.keys(soundPannerConfig).length !== 0) {
-        // If panner exists and new config is provided, update only the provided values
-        Object.entries(soundPannerConfig).forEach(([key, value]) => {
-          if (value !== undefined) {
-            (sound.pannerNode as any)[key] = value;
-          }
-        });
+      } else {
+        // Panner node already exists.
+        // Re-route source through pannerNode in case removePan() was called above
+        // (which disconnected the source from any panner and connected it directly to gainNode).
+        source?.disconnect();
+        source?.connect(sound.pannerNode);
+        sound.pannerNode.connect(sound.gainNode);
+
+        if (soundPannerConfig && Object.keys(soundPannerConfig).length !== 0) {
+          // If panner exists and new config is provided, update only the provided values
+          Object.entries(soundPannerConfig).forEach(([key, value]) => {
+            if (value !== undefined) {
+              (sound.pannerNode as any)[key] = value;
+            }
+          });
+        }
       }
 
       // Update position
