@@ -832,8 +832,24 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .quick-start-section .qs-tab.qs-tab--active {
   background: rgba(74, 107, 255, 0.08);
   color: #e2e8f0;
-  border-color: #4a6bff;
-  border-bottom: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 3px solid #4a6bff;
+}
+
+.quick-start-section .qs-tab .lang-badge {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+
+.lang-badge--cdn {
+  background: #e76f51;
+  color: #fff;
 }
 
 .qs-pre {
