@@ -2,7 +2,8 @@
 /* Reset and Base Styles */
 /* ==================== */
 body {
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf8 50%, #f5f0ff 100%);
+  background: radial-gradient(ellipse at 50% -5%, #c5d5ff 0%, #96abeb 35%, #768aa9 70%, #f5f0ff 100%) fixed;
+  min-height: 100vh;
   padding: 0;
   margin: 0;
 }
@@ -259,6 +260,7 @@ input[type="range"]::-moz-range-thumb:active {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  line-height: 0;
 }
 
 
@@ -407,8 +409,7 @@ input[type="range"]::-moz-range-thumb:active {
 /* Theme Overrides */
 /* ==================== */
 body.dark-theme {
-  background: linear-gradient(135deg, #0b0f1a 0%, #141828 50%, #1a1030 100%);
-
+  background: radial-gradient(ellipse at 50% -5%, #2a0e5e 0%, #2d205e 25%, #110d35 55%, #050414 100%);
   --color-primary: #66bb6a;
   --color-primary-rgb: 102, 187, 106;
   --color-primary-hover: #4caf50;
@@ -442,9 +443,20 @@ body.dark-theme .theme-icon--sun {
 }
 
 body.dark-theme .control-group {
-  background: var(--panel-background);
+  background: #1e1e1eb5;
   box-shadow: var(--panel-shadow);
   border: 1px solid rgb(86, 86, 86);
+}
+
+/* In dark mode, nested control-groups inside a sound-control card should be
+   transparent — the parent card provides the background. This keeps sections
+   like Play Control, Panning, and Spatial Audio visually unified as one block. */
+body.dark-theme .sound-control .control-group {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  margin-bottom: 0;
+  padding: var(--spacing-md) 0;
 }
 
 body.dark-theme .control-content {
