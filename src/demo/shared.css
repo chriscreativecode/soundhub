@@ -409,7 +409,7 @@ input[type="range"]::-moz-range-thumb:active {
 /* Theme Overrides */
 /* ==================== */
 body.dark-theme {
-  background: radial-gradient(ellipse at 50% -5%, #2a0e5e 0%, #2d205e 25%, #110d35 55%, #050414 100%);
+  background: radial-gradient(ellipse at 50% -5%, #0e5e4e 0%, #205e44 25%, #0d351c 55%, #050414 100%);
   --color-primary: #66bb6a;
   --color-primary-rgb: 102, 187, 106;
   --color-primary-hover: #4caf50;
