@@ -1,0 +1,48 @@
+<div class="spatial-settings">
+  <div class="spatial-setting-group">
+    <label>Panning Model:</label>
+    <select class="panning-model-select">
+      <option value="HRTF">HRTF</option>
+      <option value="equalpower">Equal Power</option>
+    </select>
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Distance Model:</label>
+    <select class="distance-model-select">
+      <option value="inverse">Inverse</option>
+      <option value="linear">Linear</option>
+      <option value="exponential">Exponential</option>
+    </select>
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Reference Distance:</label>
+    <input type="number" class="ref-distance-input" min="0" value="1" step="0.1">
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Max Distance:</label>
+    <input type="number" class="max-distance-input" min="1" value="10000" step="100">
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Rolloff Factor:</label>
+    <input type="number" class="rolloff-factor-input" min="0" value="0.2" step="0.1">
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Cone Inner Angle:</label>
+    <input type="number" class="cone-inner-angle-input" min="0" max="360" value="360" step="1">
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Cone Outer Angle:</label>
+    <input type="number" class="cone-outer-angle-input" min="0" max="360" value="360" step="1">
+  </div>
+
+  <div class="spatial-setting-group">
+    <label>Cone Outer Gain:</label>
+    <input type="number" class="cone-outer-gain-input" min="0" max="1" value="0" step="0.1">
+  </div>
+</div>
