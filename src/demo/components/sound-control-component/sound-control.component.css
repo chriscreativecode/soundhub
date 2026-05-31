@@ -258,3 +258,25 @@
     justify-content: space-between;
   }
 }
+
+/* ==================== */
+/* Dark Theme — unified card block */
+/* ==================== */
+body.dark-theme .sound-control {
+  background: #1e1e1eb5;
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Add subtle separators between the three main content rows
+   (Play Control, Panning/Progress, Spatial Audio) so they
+   still read as distinct sections within the unified card. */
+body.dark-theme .sound-control > .control-content {
+  border-top: 1px solid var(--color-border);
+  margin-top: 0;
+}
+
+body.dark-theme .sound-control > .control-content:first-of-type {
+  border-top: none;
+}
