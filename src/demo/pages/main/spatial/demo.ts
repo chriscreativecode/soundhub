@@ -17,6 +17,7 @@ import birdsForest from "../../../../sounds/birds-forest.mp3";
 import rain from "../../../../sounds/rain.mp3";
 
 import { AudioControllerComponent } from '../../../components/audio-controller-component/audio-controller.component';
+import { EqualizerComponent } from '../../../components/equalizer-component/equalizer.component';
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
 import { SoundPanType } from '../../../../sound-manager/sound-pan-type.enum';
@@ -77,6 +78,8 @@ export class SpatialDemo {
   private speakerGridMuted = false;
   private freeMoveMuted = false;
   private lastSpeakerAngle = 0;
+  private equalizer: EqualizerComponent | null = null;
+
   constructor() {
     const config: SoundManagerConfig = {
       autoMuteOnHidden: false,
@@ -95,6 +98,7 @@ export class SpatialDemo {
     };
     this.soundManager = new SoundManager(config);
     this.initAudioController();
+    this.initEqualizer();
     this.initTheme();
     this.renderUI();
     this.loadSounds();
@@ -104,6 +108,16 @@ export class SpatialDemo {
     const controllerEl = document.getElementById('spatialAudioController');
     if (controllerEl) {
       new AudioControllerComponent(controllerEl);
+    }
+  }
+
+  private initEqualizer(): void {
+    const container = document.getElementById('spatialEqualizer');
+    if (container) {
+      const audioCtx = this.soundManager.getContext();
+      const analyser = audioCtx.createAnalyser();
+      this.soundManager.getMasterOutput().connect(analyser);
+      this.equalizer = new EqualizerComponent(container, analyser);
     }
   }
 
