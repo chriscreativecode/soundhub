@@ -37,7 +37,7 @@
       <rect x="743" y="210" width="29" height="90"  fill="#4a6bff" />
     </svg>
   </g>
-  <g>
+  <g transform="translate(518,356.5)">
     <ellipse cx="77" cy="75" rx="77" ry="75" fill="#ffffff" stroke="#000000" stroke-width="4" />
     <path d="M77 75L23 25" fill="none" stroke="#000000" stroke-width="4" />
   </g>
