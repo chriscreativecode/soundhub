@@ -556,6 +556,21 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   font-weight: 600;
   color: var(--card-color, var(--color-primary));
   margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.card-cta-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.qs-link-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  vertical-align: middle;
+  margin-left: 0.1rem;
 }
 
 /* ==================== */
