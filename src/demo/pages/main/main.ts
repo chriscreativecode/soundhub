@@ -66,6 +66,40 @@ document.querySelectorAll<HTMLAnchorElement>('.landing-card[href]').forEach(card
   });
 });
 
+// About modal
+const aboutBtn = document.getElementById('aboutBtn') as HTMLButtonElement | null;
+const aboutModal = document.getElementById('aboutModal') as HTMLElement | null;
+const aboutBackdrop = document.getElementById('aboutBackdrop') as HTMLElement | null;
+const modalCloseBtn = document.getElementById('modalCloseBtn') as HTMLButtonElement | null;
+
+function openModal(): void {
+  if (aboutBackdrop) aboutBackdrop.classList.add('visible');
+  if (aboutModal) aboutModal.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(): void {
+  if (aboutBackdrop) aboutBackdrop.classList.remove('visible');
+  if (aboutModal) aboutModal.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+if (aboutBtn && aboutModal && aboutBackdrop) {
+  aboutBtn.addEventListener('click', openModal);
+
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', closeModal);
+  }
+
+  aboutBackdrop.addEventListener('click', closeModal);
+
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && aboutModal.classList.contains('visible')) {
+      closeModal();
+    }
+  });
+}
+
 const copyBtn = document.getElementById('qs-copy-btn') as HTMLButtonElement | null;
 if (copyBtn) {
   const iconCopy = copyBtn.querySelector('.qs-icon-copy') as SVGElement;

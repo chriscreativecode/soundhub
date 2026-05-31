@@ -230,6 +230,12 @@
             </div>
           </div>
         </div>
+        <button class="about-btn" id="aboutBtn" type="button" title="About this project">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+            <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+          </svg>
+          About
+        </button>
         <div class="theme-toggle-container">
           <div class="theme-icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -249,14 +255,6 @@
               <span class="theme-slider round"></span>
             </label>
           </div>
-        </div>
-      </div>
-      <div class="landing-quote-block">
-        <span class="landing-quote-mark" aria-hidden="true">&ldquo;</span>
-        <p class="landing-tagline">Advanced Audio Controller for Modern Web Apps</p>
-        <div class="landing-about">
-          <p>I originally built a sound library in ActionScript 3.0, back when Flash was still the go-to for anything interactive on the web. When Flash faded out, I wanted to bring that same level of audio control to modern JavaScript projects, so I rebuilt it from scratch using TypeScript and the Web Audio API.</p>
-          <p>The goal was simple: make audio management feel easy. No more digging through timing calculations or keeping track of audio states yourself. Just listen to sound events or call <code>getSoundState('soundId')</code> to get all the data you need, ready to plug straight into your UI.</p>
         </div>
       </div>
     </div>
@@ -506,6 +504,24 @@ sm.play("click");</code></pre>
 
       </div>
     </main>
+
+    <!-- About Modal -->
+    <div class="modal-backdrop" id="aboutBackdrop"></div>
+    <div class="about-modal" id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle">
+      <button class="modal-close-btn" id="modalCloseBtn" type="button" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="20" height="20">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="about-modal-content">
+        <span class="landing-quote-mark" aria-hidden="true">&ldquo;</span>
+        <p class="landing-tagline" id="aboutModalTitle">Advanced Audio Controller for Modern Web Apps</p>
+        <div class="landing-about">
+          <p>I originally built a sound library in ActionScript 3.0, back when Flash was still the go-to for anything interactive on the web. When Flash faded out, I wanted to bring that same level of audio control to modern JavaScript projects, so I rebuilt it from scratch using TypeScript and the Web Audio API.</p>
+          <p>The goal was simple: make audio management feel easy. No more digging through timing calculations or keeping track of audio states yourself. Just listen to sound events or call <code>getSoundState('soundId')</code> to get all the data you need, ready to plug straight into your UI.</p>
+        </div>
+      </div>
+    </div>
 
   </div>
 
