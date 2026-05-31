@@ -3,6 +3,7 @@ import "./demo.css";
 
 // @ts-ignore
 import { SoundManagerConfig } from "../../../../sound-manager/sound-manager-config";
+import { AudioControllerComponent } from "../../../components/audio-controller-component/audio-controller.component";
 import { MasterControl } from "../../../components/master-control-component/master-control.component";
 import { SoundControl } from "../../../components/sound-control-component/sound-control.component";
 import { WaveVisualizerComponent } from "../../../components/wave-visualizer-component/wave-visualizer.component";
@@ -72,6 +73,7 @@ export class SoundManagerDemo {
   private initialize(): void {
     try {
       this.render();
+      this.initializeAudioController();
       this.initializeTheme();
       this.initializeEventListeners();
       this.loadDemoSounds();
@@ -85,6 +87,13 @@ export class SoundManagerDemo {
       throw new Error("Element not found");
     }
     this.containerElement.innerHTML = demoTemplate;
+  }
+
+  private initializeAudioController(): void {
+    const controllerEl = document.getElementById('generalAudioController');
+    if (controllerEl) {
+      new AudioControllerComponent(controllerEl);
+    }
   }
 
   private initializeEventListeners(): void {

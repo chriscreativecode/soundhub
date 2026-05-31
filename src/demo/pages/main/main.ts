@@ -1,5 +1,6 @@
 import "./../../shared.css";
 import "./landing.css";
+import { AudioControllerComponent } from "../../components/audio-controller-component/audio-controller.component";
 
 declare function gtag(...args: any[]): void;
 import { LocalStorageManagerManager } from "../../services/local-storage-manager";
@@ -12,6 +13,12 @@ import 'highlight.js/styles/github-dark.min.css';
 hljs.registerLanguage('typescript', typescript);
 hljs.registerLanguage('javascript', javascript);
 hljs.registerLanguage('html', xml);
+
+// Initialize the audio controller SVG animation on the landing page
+const landingController = document.getElementById('landingAudioController');
+if (landingController) {
+  new AudioControllerComponent(landingController);
+}
 
 document.querySelectorAll<HTMLElement>('.qs-panel code').forEach(block => {
   hljs.highlightElement(block);

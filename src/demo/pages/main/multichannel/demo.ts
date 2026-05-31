@@ -56,6 +56,7 @@ import bb5  from "../../../../sounds/piano/Bb5.mp3";
 // @ts-ignore
 import b5   from "../../../../sounds/piano/B5.mp3";
 
+import { AudioControllerComponent } from '../../../components/audio-controller-component/audio-controller.component';
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
 import { SoundEventsEnum } from '../../../../sound-manager/sound-events.enum';
@@ -248,8 +249,16 @@ export class PianoDemo {
     };
     this.soundManager = new SoundManager(config);
     this.synthEngine = new SynthEngine(this.soundManager.getContext());
+    this.initAudioController();
     this.initTheme();
     this.init();
+  }
+
+  private initAudioController(): void {
+    const controllerEl = document.getElementById('multichannelAudioController');
+    if (controllerEl) {
+      new AudioControllerComponent(controllerEl);
+    }
   }
 
   private initTheme(): void {
