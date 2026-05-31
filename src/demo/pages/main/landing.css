@@ -811,7 +811,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   bottom: -1px;
   padding: 0.4rem 1.1rem;
   border-radius: 6px 6px 0 0;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-bottom: none;
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.45);
@@ -825,13 +825,15 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .quick-start-section .qs-tab:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.09);
   color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: none;
 }
 
 .quick-start-section .qs-tab.qs-tab--active {
-  background: #1a1a2e;
+  background: rgba(74, 107, 255, 0.08);
   color: #e2e8f0;
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: #4a6bff;
+  border-bottom: none;
 }
 
 .qs-pre {
