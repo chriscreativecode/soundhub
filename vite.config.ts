@@ -94,7 +94,7 @@ const demoMainConfig: UserConfig = {
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "dist/demo/main"),
+    outDir: path.resolve(__dirname, "dist/demo"),
     emptyOutDir: true,
     rollupOptions: {
       input: {
