@@ -26,6 +26,8 @@ export class EqualizerComponent {
   private rafId: number | null = null;
   private running = false;
   private readonly barCount: number;
+  // Precomputed [binLo, binHi] range for each bar (logarithmic frequency mapping)
+  private readonly barBinRanges: Array<[number, number]>;
 
   /**
    * @param container  The `.audio-controller` element that already contains the SVG
@@ -33,7 +35,8 @@ export class EqualizerComponent {
    */
   constructor(container: HTMLElement, analyser: AnalyserNode) {
     this.analyser = analyser;
-    this.analyser.fftSize = 64;
+    this.analyser.fftSize = 256;
+    this.analyser.smoothingTimeConstant = 0.8;
     this.bufferLength = this.analyser.frequencyBinCount;
     this.dataArray = new Uint8Array(this.bufferLength) as Uint8Array<ArrayBuffer>;
 
@@ -43,8 +46,13 @@ export class EqualizerComponent {
 
     if (this.barCount === 0) {
       console.warn("[Equalizer] No .wave-bar elements found in container");
+      this.barBinRanges = [];
       return;
     }
+
+    // Precompute logarithmic frequency→bin ranges so all bars are spread
+    // evenly across the musically relevant spectrum (40Hz–16kHz).
+    this.barBinRanges = this.computeLogBinRanges();
 
     // Disable CSS keyframe animation on each bar — we take over via RAF
     this.bars.forEach((bar) => {
@@ -52,6 +60,36 @@ export class EqualizerComponent {
     });
 
     this.start();
+  }
+
+  /**
+   * Build a logarithmic frequency mapping from 40Hz to 16kHz across all bars.
+   * Returns [binLo, binHi] (inclusive) for each bar.
+   */
+  private computeLogBinRanges(): Array<[number, number]> {
+    const nyquist = this.analyser.context.sampleRate / 2;
+    const minHz = 40;
+    const maxHz = 16000;
+    const logMin = Math.log(minHz);
+    const logMax = Math.log(maxHz);
+
+    const ranges: Array<[number, number]> = [];
+
+    for (let i = 0; i < this.barCount; i++) {
+      const freqLo = Math.exp(logMin + (logMax - logMin) * (i / this.barCount));
+      const freqHi = Math.exp(logMin + (logMax - logMin) * ((i + 1) / this.barCount));
+
+      let binLo = Math.floor((freqLo / nyquist) * this.bufferLength);
+      let binHi = Math.ceil((freqHi / nyquist) * this.bufferLength);
+
+      // Clamp to valid range
+      binLo = Math.max(0, Math.min(binLo, this.bufferLength - 1));
+      binHi = Math.max(binLo, Math.min(binHi, this.bufferLength - 1));
+
+      ranges.push([binLo, binHi]);
+    }
+
+    return ranges;
   }
 
   start(): void {
@@ -88,23 +126,21 @@ export class EqualizerComponent {
       total += this.dataArray[i];
     }
     const average = total / this.bufferLength;
-    const isActive = average > 2;
+    const isActive = average > 0.5;
 
-    // Map frequency bins to available bars (averaging bins per bar)
-    const step = Math.max(1, Math.floor(this.bufferLength / this.barCount));
+    for (let i = 0; i < this.barCount; i++) {
+      const [binLo, binHi] = this.barBinRanges[i];
 
-    for (let i = 0; i < this.barCount && i < this.bars.length; i++) {
+      // Average the frequency bins for this bar
       let sum = 0;
-      const startBin = i * step;
-      const endBin = Math.min(startBin + step, this.bufferLength);
-      for (let b = startBin; b < endBin; b++) {
+      const count = binHi - binLo + 1;
+      for (let b = binLo; b <= binHi; b++) {
         sum += this.dataArray[b];
       }
-      const value = sum / (endBin - startBin);
+      const value = sum / count;
 
       // Normalize to 0-1 and scale to bar height (max ~140px within 150-290 Y range)
       const norm = value / 255;
-      // Minimum 2px when active so bars are always visible, flat line when silent
       let barHeight: number;
       if (isActive) {
         barHeight = Math.max(2, norm * 140);
