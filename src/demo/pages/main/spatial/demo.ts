@@ -16,6 +16,7 @@ import birdsForest from "../../../../sounds/birds-forest.mp3";
 // @ts-ignore
 import rain from "../../../../sounds/rain.mp3";
 
+import { AudioControllerComponent } from '../../../components/audio-controller-component/audio-controller.component';
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
 import { SoundPanType } from '../../../../sound-manager/sound-pan-type.enum';
@@ -93,9 +94,17 @@ export class SpatialDemo {
       trackProgress: false,
     };
     this.soundManager = new SoundManager(config);
+    this.initAudioController();
     this.initTheme();
     this.renderUI();
     this.loadSounds();
+  }
+
+  private initAudioController(): void {
+    const controllerEl = document.getElementById('spatialAudioController');
+    if (controllerEl) {
+      new AudioControllerComponent(controllerEl);
+    }
   }
 
   private initTheme(): void {

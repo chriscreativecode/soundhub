@@ -6,6 +6,7 @@ import typescript from 'highlight.js/lib/languages/typescript';
 
 hljs.registerLanguage('typescript', typescript);
 
+import { AudioControllerComponent } from '../../../components/audio-controller-component/audio-controller.component';
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundEventsEnum } from '../../../../sound-manager/sound-events.enum';
 import { LocalStorageManagerManager } from '../../../services/local-storage-manager';
@@ -162,6 +163,7 @@ export class GroupsDemo {
     this.soundManager.createSoundGroup(AMBIENT_GROUP, { maxInstances: AMBIENT_MAX });
 
     this.render();
+    this.initAudioController();
     this.setupEventListeners();
     this.setLoadingState(true);
 
@@ -185,6 +187,15 @@ export class GroupsDemo {
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
+
+  private initAudioController(): void {
+    const controllerEl = document.getElementById('groupsAudioController');
+    if (controllerEl) {
+      new AudioControllerComponent(controllerEl, {
+        waveFillColors: ['#10b981', '#8b5cf6'],
+      });
+    }
+  }
 
   private render(): void {
     const container = document.getElementById('groupsContainer');
