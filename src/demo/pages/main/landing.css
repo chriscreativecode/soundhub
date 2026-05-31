@@ -374,6 +374,38 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   color: #4a6bff;
 }
 
+.donate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: normal;
+}
+
+.donate-btn:hover {
+  background: var(--color-surface-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.donate-btn svg {
+  flex-shrink: 0;
+  color: #e05a7a;
+}
+
 /* ==================== */
 /* About Modal + Backdrop */
 /* ==================== */
@@ -916,6 +948,25 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   margin: 0;
 }
 
+.footer-donate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  transition: color 0.15s;
+  vertical-align: middle;
+}
+
+.footer-donate-link:hover {
+  color: #e05a7a;
+}
+
+.footer-donate-link svg {
+  color: #e05a7a;
+  flex-shrink: 0;
+}
+
 /* ==================== */
 /* Dark Theme Overrides */
 /* ==================== */
@@ -999,6 +1050,20 @@ body.dark-theme .about-btn:hover {
 
 body.dark-theme .about-btn svg {
   color: #8ba8ff;
+}
+
+body.dark-theme .donate-btn {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--color-text);
+}
+
+body.dark-theme .donate-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme .donate-btn svg {
+  color: #f07a96;
 }
 
 body.dark-theme .about-modal {
