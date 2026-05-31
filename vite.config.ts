@@ -103,6 +103,7 @@ const demoMainConfig: UserConfig = {
         multichannel: path.resolve(__dirname, "src/demo/pages/main/multichannel/index.html"),
         spatial: path.resolve(__dirname, "src/demo/pages/main/spatial/index.html"),
         groups: path.resolve(__dirname, "src/demo/pages/main/groups/index.html"),
+        sprite: path.resolve(__dirname, "src/demo/pages/main/sprite/index.html"),
       },
       output: {
         entryFileNames: "assets/[name].js",
