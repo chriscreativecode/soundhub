@@ -57,6 +57,7 @@ import bb5  from "../../../../sounds/piano/Bb5.mp3";
 import b5   from "../../../../sounds/piano/B5.mp3";
 
 import { AudioControllerComponent } from '../../../components/audio-controller-component/audio-controller.component';
+import { EqualizerComponent } from '../../../components/equalizer-component/equalizer.component';
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
 import { SoundEventsEnum } from '../../../../sound-manager/sound-events.enum';
@@ -236,6 +237,7 @@ export class PianoDemo {
   private activeSynthAnims = new Map<string, SynthAnimState>();
   private synthNoteToAnimInstance = new Map<string, string>();
   private soundInstanceToAnim = new Map<string, string>(); // SoundManager instanceId → demo animation instanceId
+  private equalizer: EqualizerComponent | null = null;
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -250,6 +252,7 @@ export class PianoDemo {
     this.soundManager = new SoundManager(config);
     this.synthEngine = new SynthEngine(this.soundManager.getContext());
     this.initAudioController();
+    this.initEqualizer();
     this.initTheme();
     this.init();
   }
@@ -258,6 +261,16 @@ export class PianoDemo {
     const controllerEl = document.getElementById('multichannelAudioController');
     if (controllerEl) {
       new AudioControllerComponent(controllerEl);
+    }
+  }
+
+  private initEqualizer(): void {
+    const container = document.getElementById('multichannelEqualizer');
+    if (container) {
+      const audioCtx = this.soundManager.getContext();
+      const analyser = audioCtx.createAnalyser();
+      this.soundManager.getMasterOutput().connect(analyser);
+      this.equalizer = new EqualizerComponent(container, analyser);
     }
   }
 

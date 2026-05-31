@@ -7,6 +7,7 @@ import typescript from 'highlight.js/lib/languages/typescript';
 hljs.registerLanguage('typescript', typescript);
 
 import { AudioControllerComponent } from '../../../components/audio-controller-component/audio-controller.component';
+import { EqualizerComponent } from '../../../components/equalizer-component/equalizer.component';
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundEventsEnum } from '../../../../sound-manager/sound-events.enum';
 import { LocalStorageManagerManager } from '../../../services/local-storage-manager';
@@ -146,6 +147,7 @@ export class GroupsDemo {
   private instanceToGroup = new Map<string, string>();
   private blobUrls: string[] = [];
   private loaded = false;
+  private equalizer: EqualizerComponent | null = null;
 
   constructor() {
     this.initTheme();
@@ -164,6 +166,7 @@ export class GroupsDemo {
 
     this.render();
     this.initAudioController();
+    this.initEqualizer();
     this.setupEventListeners();
     this.setLoadingState(true);
 
@@ -194,6 +197,16 @@ export class GroupsDemo {
       new AudioControllerComponent(controllerEl, {
         waveFillColors: ['#10b981', '#8b5cf6'],
       });
+    }
+  }
+
+  private initEqualizer(): void {
+    const container = document.getElementById('groupsEqualizer');
+    if (container) {
+      const audioCtx = this.soundManager.getContext();
+      const analyser = audioCtx.createAnalyser();
+      this.soundManager.getMasterOutput().connect(analyser);
+      this.equalizer = new EqualizerComponent(container, analyser);
     }
   }
 
@@ -386,20 +399,20 @@ if (group) {
       <h3>🎛️ Sound Groups</h3>
       <p>
         <strong>Sound groups</strong> let you organise sounds into named collections
-        with a shared <code>maxInstances</code> limit. When the limit is reached,
+        with a shared <code>maxInstances</code> limit.<br/>When the limit is reached,
         the <em>oldest playing instance stops automatically</em> to make room for
-        the new one — no manual bookkeeping needed.
+        the new one no manual bookkeeping needed.
       </p>
       <p>
         Try it: rapidly click the Effects buttons until both slots are filled, then
-        click again to see the oldest instance cut off as a new one starts.
+        click again to see the oldest instance cut off as a new one starts.<br/>
         The Effects group allows <strong>2 simultaneous instances</strong> and
-        Ambient allows <strong>3</strong> — each group is completely independent.
+        Ambient allows <strong>3</strong> each group is completely independent.
       </p>
       <p>
         A typical use case is game audio: a <em>weapons</em> group capped at
         3 simultaneous shots, or a <em>footsteps</em> group that never stacks
-        more than 2 steps. The "Stop All" button shows collective group control.
+        more than 2 steps.<br/>The "Stop All" button shows collective group control.
       </p>
       <div class="info-code-block">
         <pre><code class="language-typescript">${this.escapeHtml(codeSnippet)}</code></pre>
