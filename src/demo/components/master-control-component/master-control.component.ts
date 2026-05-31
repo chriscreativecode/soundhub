@@ -1,9 +1,6 @@
-
-import { PlayOptions } from "../../../sound-manager/play-sound-options.interface";
 import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";
-import { SoundPannerConfig } from "../../../sound-manager/sound-panner-config";
 import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
 /* @ts-ignore */
 import "./master-control.component.css";
@@ -12,23 +9,32 @@ import masterControlComponentHtml from "./master-control.component.html?raw";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 /* @ts-ignore */
 import "../../shared.css";
+import { svgIcon } from "../shared/icon-utils";
+import { autoRangeProgress } from "../shared/range-input-utils";
+import { setupCollapsiblePanel } from "../shared/collapsible-panel";
+import { SpatialSettings } from "../spatial-settings-component/spatial-settings.component";
 
-const SPATIAL_SETTINGS_MAPPING: { [key: string]: keyof SoundPannerConfig } = {
-  'panning-model-select': 'panningModel',
-  'distance-model-select': 'distanceModel',
-  'ref-distance-input': 'refDistance',
-  'max-distance-input': 'maxDistance',
-  'rolloff-factor-input': 'rolloffFactor',
-  'cone-inner-angle-input': 'coneInnerAngle',
-  'cone-outer-angle-input': 'coneOuterAngle',
-  'cone-outer-gain-input': 'coneOuterGain',
+// Build icon map once
+const MASTER_ICONS = {
+  iconPlay: svgIcon("play"),
+  iconPause: svgIcon("pause"),
+  iconStop: svgIcon("stop"),
+  iconMute: svgIcon("mute"),
+  iconUnmute: svgIcon("unmute"),
+  iconFadeIn: svgIcon("fade-in"),
+  iconFadeOut: svgIcon("fade-out"),
+  iconReset: svgIcon("reset"),
+  iconCollapse: svgIcon("collapse"),
 };
 
 export class MasterControl {
   private soundManager: SoundManager;
   private containerElement: HTMLElement;
   private soundManagerConfig: SoundManagerConfig;
-  private spatialGrid: SpatialGrid;
+  private spatialGrid!: SpatialGrid;
+  private spatialSettings: SpatialSettings | null = null;
+  private collapsibleCleanup: (() => void) | null = null;
+  private cleanupRangeProgress: (() => void) | null = null;
 
   private isMuted: boolean = false;
 
@@ -42,7 +48,7 @@ export class MasterControl {
     "resetBtn",
   ] as const;
 
-  private readonly BUTTON_HANDLERS = {
+  private readonly BUTTON_HANDLERS: Record<string, () => void> = {
     pauseAllBtn: () => this.soundManager.pauseAllSounds(),
     resumeAllBtn: () => this.soundManager.resumeAllSounds(),
     stopAllBtn: () => this.soundManager.stopAllSounds(),
@@ -50,9 +56,9 @@ export class MasterControl {
     fadeInBtn: () => this.soundManager.fadeGlobalIn(),
     fadeOutBtn: () => this.soundManager.fadeGlobalOut(),
     resetBtn: () => this.soundManager.reset(),
-  } as const;
+  };
 
-  private readonly BUTTON_STATES = {
+  private readonly BUTTON_STATES: Record<string, Record<string, boolean>> = {
     [SoundEventsEnum.STARTED]: {
       pauseAllBtn: false,
       resumeAllBtn: true,
@@ -81,7 +87,7 @@ export class MasterControl {
       fadeOutBtn: true,
       fadeInBtn: false,
     },
-  } as const;
+  };
 
   constructor(container: HTMLElement, config: SoundManagerConfig, soundManager: SoundManager) {
     this.soundManagerConfig = config;
@@ -102,6 +108,19 @@ export class MasterControl {
     this.initialize();
   }
 
+  private interpolateTemplate(tpl: string): string {
+    return tpl
+      .replace(/\{\{iconPlay\}\}/g, MASTER_ICONS.iconPlay)
+      .replace(/\{\{iconPause\}\}/g, MASTER_ICONS.iconPause)
+      .replace(/\{\{iconStop\}\}/g, MASTER_ICONS.iconStop)
+      .replace(/\{\{iconMute\}\}/g, MASTER_ICONS.iconMute)
+      .replace(/\{\{iconUnmute\}\}/g, MASTER_ICONS.iconUnmute)
+      .replace(/\{\{iconFadeIn\}\}/g, MASTER_ICONS.iconFadeIn)
+      .replace(/\{\{iconFadeOut\}\}/g, MASTER_ICONS.iconFadeOut)
+      .replace(/\{\{iconReset\}\}/g, MASTER_ICONS.iconReset)
+      .replace(/\{\{iconCollapse\}\}/g, MASTER_ICONS.iconCollapse);
+  }
+
   private initialize(): void {
     try {
       this.render();
@@ -110,7 +129,7 @@ export class MasterControl {
       const masterPanningInput = document.getElementById("masterPanning") as HTMLInputElement;
       const defaultPan = this.soundManagerConfig.defaultPan ?? 0;
       if (masterPanningInput) {
-        masterPanningInput.value = ((defaultPan + 1) / 2).toString(); // Convert from -1,1 to 0,1
+        masterPanningInput.value = ((defaultPan + 1) / 2).toString();
         masterPanningInput.min = "0";
         masterPanningInput.max = "1";
         masterPanningInput.step = "0.01";
@@ -128,8 +147,24 @@ export class MasterControl {
       this.initializeEventListeners();
       this.initializeGlobalControls();
       this.spatialGrid = new SpatialGrid(this.containerElement.querySelector(".spatial-grid-container-wrapper")!, this.soundManager);
-      this.initializeSpatialSettings();
-      this.initializeSpatialControls();
+      
+      // Use shared SpatialSettings component for master spatial settings
+      const settingsContainer = this.containerElement.querySelector(".master-spatial-controls .spatial-settings") as HTMLElement;
+      if (settingsContainer) {
+        this.spatialSettings = new SpatialSettings(settingsContainer, this.soundManager, (config) => {
+          this.spatialGrid.setSpatialPositionWithConfig(config);
+        });
+      }
+
+      // Use shared collapsible panel for master spatial controls
+      const header = this.containerElement.querySelector(".master-spatial-controls > .control-header") as HTMLElement;
+      const content = this.containerElement.querySelector(".master-spatial-controls .spatial-content") as HTMLElement;
+      if (header && content) {
+        this.collapsibleCleanup = setupCollapsiblePanel(header, content, {
+          collapsedByDefault: true,
+        });
+      }
+
       this.createStickyObserver();
     } catch (error) {
       console.error("Failed to initialize SoundManagerDemo:", error);
@@ -140,12 +175,10 @@ export class MasterControl {
     if (!this.containerElement) {
       throw new Error("Element not found");
     }
-    this.containerElement.innerHTML = masterControlComponentHtml;
+    this.containerElement.innerHTML = this.interpolateTemplate(masterControlComponentHtml);
   }
 
-
   private initializeEventListeners(): void {
-    const preloadBtn = document.querySelector(".preload-btn") as HTMLButtonElement;
     const masterVolumeInput = document.getElementById("masterVolume");
     const masterPanningInput = document.getElementById("masterPanning");
 
@@ -163,22 +196,11 @@ export class MasterControl {
       });
     }
 
-    const rangeInputs = Array.from(this.containerElement.querySelectorAll('input[type="range"]'));
-    rangeInputs.forEach((element: Element) => {
-      const input = element as HTMLInputElement;
-      input.style.setProperty(
-        "--range-progress",
-        `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`
-      );
-
-      input.addEventListener("input", (e: Event) => {
-        const target = e.target as HTMLInputElement;
-        target.style.setProperty(
-          "--range-progress",
-          `${((Number(target.value) - Number(target.min)) / (Number(target.max) - Number(target.min))) * 100}%`
-        );
-      });
-    });
+    // Use shared utility for range progress styling
+    this.cleanupRangeProgress = autoRangeProgress(
+      masterVolumeInput as HTMLInputElement,
+      masterPanningInput as HTMLInputElement
+    );
   }
 
   private initializeGlobalControls(): void {
@@ -210,45 +232,6 @@ export class MasterControl {
     this.updateMasterPan(normalizedPan);
   }
 
-  private initializeSpatialSettings(): void {
-    const spatialSettings = document.querySelector(".master-spatial-controls .spatial-settings");
-    if (spatialSettings) {
-      const handleSettingChange = (e: Event) => {
-        const target = e.target as HTMLInputElement | HTMLSelectElement;
-        const value = target.type === "number" ? parseFloat(target.value) : target.value;
-        const property = SPATIAL_SETTINGS_MAPPING[target.className];
-
-
-        // Update the panner node configuration
-        const newConfig: Partial<SoundPannerConfig> = {
-          [property]: value,
-        };
-
-        this.spatialGrid.setSpatialPositionWithConfig(newConfig)
-      };
-
-      spatialSettings.querySelectorAll("select, input").forEach((element) => {
-        element.addEventListener("change", handleSettingChange);
-      });
-    }
-  }
-
-  private initializeSpatialControls(): void {
-    const collapsePanelBar = document.querySelector(".master-spatial-controls > .control-header");
-    const spatialContent = document.querySelector(".master-spatial-controls .spatial-content");
-
-    if (collapsePanelBar && spatialContent) {
-      collapsePanelBar.addEventListener("click", () => {
-        spatialContent.classList.toggle("collapsed");
-        // Optionally rotate the collapse button icon
-        const icon = collapsePanelBar.querySelector("svg");
-        if (icon) {
-          icon.style.transform = spatialContent.classList.contains("collapsed") ? "rotate(0deg)" : "rotate(180deg)";
-        }
-      });
-    }
-  }
-
   private handleSoundEvent = (event: SoundEvent): void => {
     switch (event.type) {
       case SoundEventsEnum.MUTE_GLOBAL:
@@ -274,7 +257,6 @@ export class MasterControl {
 
       case SoundEventsEnum.MASTER_VOLUME_CHANGED:
         this.updateMasterVolume(event);
-        // Sync mute state with volume during fades
         if (typeof event.volume === "number") {
           if (event.volume > 0 && this.isMuted) {
             this.isMuted = false;
@@ -312,7 +294,6 @@ export class MasterControl {
       case SoundEventsEnum.RESET:
         if (!event.resetOptions?.keepPanning) {
           this.updateMasterPan(0);
-          //this.updateMasterSpatialPosition(50, 50, 0);
           this.spatialGrid.updatePosition(50, 0, 50);
         }
         break;
@@ -366,12 +347,10 @@ export class MasterControl {
       return;
     }
 
-    // Convert from -1,1 range to 0,1 range for the slider
     const sliderValue = (pan + 1) / 2;
     masterPanningInput.value = sliderValue.toString();
     masterPanningInput.style.setProperty("--range-progress", `${sliderValue * 100}%`);
 
-    // Update display text
     if (pan === 0) {
       masterPanValue.textContent = "center";
     } else if (pan < 0) {
@@ -405,23 +384,19 @@ export class MasterControl {
     });
   }
 
-
   private createStickyObserver(): () => void {
     const soundControlsContainer = document.getElementById("masterControlContainer") as HTMLElement;
     const childContainer = soundControlsContainer.querySelector(".master-controls") as HTMLElement;
 
-    // Get the initial position of the container
     const containerRect = soundControlsContainer.getBoundingClientRect();
     const originalTop = containerRect.top + window.scrollY;
 
-    // Get the sticky top offset from CSS
     const stickyTop = parseInt(window.getComputedStyle(soundControlsContainer).top) || 0;
 
     let ticking = false;
 
     const checkStuck = () => {
       const currentTop = soundControlsContainer.getBoundingClientRect().top;
-      // Check if we've scrolled past the point where the container becomes sticky
       const isStuck = currentTop <= stickyTop && window.scrollY >= (originalTop - stickyTop);
       childContainer.classList.toggle('is-stuck', isStuck);
       ticking = false;
@@ -441,16 +416,13 @@ export class MasterControl {
   }
 
   private setGlobalVolume(volume: number): void {
-    // If volume > 0 while muted, unmute first to restore audio
     if (volume > 0 && this.isMuted) {
       this.soundManager.unmuteAllSounds();
     }
-    // If volume === 0 while not muted, mute to show the correct mute icon
     if (volume === 0 && !this.isMuted) {
       this.soundManager.muteAllSounds();
     }
     this.soundManager.setGlobalVolume(volume);
     document.getElementById("masterVolumeValue")!.textContent = `${Math.round(volume * 100)}%`;
   }
-
 }

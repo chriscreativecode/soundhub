@@ -2,27 +2,6 @@ import "../../../shared.css";
 import "./demo.css";
 
 // @ts-ignore
-import introSpeach from "../../../../sounds/intro-text-speach.mp3";
-// @ts-ignore
-import pianoTone from "../../../../sounds/piano-tone.mp3";
-// @ts-ignore
-import song from "../../../../sounds/sound-surfer-constellations.mp3";
-// @ts-ignore
-import song2 from "../../../../sounds/little-wonders.mp3";
-// @ts-ignore
-import birds from "../../../../sounds/birds-forest.mp3";
-// @ts-ignore
-import rain from "../../../../sounds/rain.mp3";
-// @ts-ignore
-import brook from "../../../../sounds/brook.mp3";
-// @ts-ignore
-import magma from "../../../../sounds/under-sea-magma.mp3";
-// @ts-ignore
-import gameSounds from "../../../../sounds/8-bit-game-sounds.mp3";
-// @ts-ignore
-import crickets from "../../../../sounds/crickets.mp3";
-
-// @ts-ignore
 import { SoundManagerConfig } from "../../../../sound-manager/sound-manager-config";
 import { MasterControl } from "../../../components/master-control-component/master-control.component";
 import { SoundControl } from "../../../components/sound-control-component/sound-control.component";
@@ -35,13 +14,42 @@ import { LocalStorageManagerManager } from "../../../services/local-storage-mana
 import { SoundEventsEnum } from "../../../../sound-manager/sound-events.enum";
 import { SoundEvent } from "../../../../sound-manager/sound-event.interface";
 
+/**
+ * Sound file manifests — keeps import lines shorter and centralised.
+ * Add new sounds here by extending the array.
+ */
+const SOUND_MANIFEST: { id: string; url: () => Promise<{ default: string }> }[] = [
+  { id: "intro-speach", url: () => import("../../../../sounds/intro-text-speach.mp3") },
+  { id: "piano-tone", url: () => import("../../../../sounds/piano-tone.mp3") },
+  { id: "game-sound", url: () => import("../../../../sounds/8-bit-game-sounds.mp3") },
+  { id: "birds", url: () => import("../../../../sounds/birds-forest.mp3") },
+  { id: "rain", url: () => import("../../../../sounds/rain.mp3") },
+  { id: "crickets", url: () => import("../../../../sounds/crickets.mp3") },
+  { id: "brook", url: () => import("../../../../sounds/brook.mp3") },
+  { id: "magma", url: () => import("../../../../sounds/under-sea-magma.mp3") },
+  { id: "little-wonders-song", url: () => import("../../../../sounds/little-wonders.mp3") },
+  { id: "sound-surfer-constellations", url: () => import("../../../../sounds/sound-surfer-constellations.mp3") },
+];
+
+/**
+ * Resolves all dynamic imports concurrently and returns an array
+ * suitable for `soundManager.loadSounds()`.
+ */
+async function resolveSoundManifest(): Promise<{ id: string; url: string }[]> {
+  const results = await Promise.all(
+    SOUND_MANIFEST.map(async (entry) => ({
+      id: entry.id,
+      url: (await entry.url()).default,
+    }))
+  );
+  return results;
+}
 
 export class SoundManagerDemo {
   private soundManager: SoundManager;
   private soundControls: Map<string, SoundControl> = new Map();
   private containerElement: HTMLElement;
   private soundManagerConfig: SoundManagerConfig = DEMO_CONFIG;
-
 
   constructor(container: HTMLElement) {
     if (!container) {
@@ -81,7 +89,7 @@ export class SoundManagerDemo {
 
   private initializeEventListeners(): void {
     this.soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
-    //  console.log('sound loaded', event);
+      // console.log('sound loaded', event);
     });
   }
 
@@ -119,18 +127,7 @@ export class SoundManagerDemo {
 
   private async loadDemoSounds(): Promise<void> {
     try {
-      const soundsToLoad = [
-        { id: "intro-speach", url: introSpeach },
-        { id: "piano-tone", url: pianoTone },
-        { id: "game-sound", url: gameSounds },
-        { id: "birds", url: birds },
-        { id: "rain", url: rain },
-        { id: "crickets", url: crickets },
-        { id: "brook", url: brook },
-        { id: "magma", url: magma },
-        { id: "little-wonders-song", url: song2 },
-        { id: "sound-surfer-constellations", url: song },
-      ];
+      const soundsToLoad = await resolveSoundManifest();
 
       await this.soundManager.loadSounds(soundsToLoad);
 
