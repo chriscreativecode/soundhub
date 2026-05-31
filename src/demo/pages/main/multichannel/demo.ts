@@ -209,6 +209,10 @@ class SynthEngine {
     });
   }
 
+  connectTo(node: AudioNode): void {
+    this.masterGain.connect(node);
+  }
+
   destroy(): void {
     this.stopAll();
     this.masterGain.disconnect();
@@ -270,6 +274,7 @@ export class PianoDemo {
       const audioCtx = this.soundManager.getContext();
       const analyser = audioCtx.createAnalyser();
       this.soundManager.getMasterOutput().connect(analyser);
+      this.synthEngine.connectTo(analyser);
       this.equalizer = new EqualizerComponent(controllerEl, analyser);
     }
   }

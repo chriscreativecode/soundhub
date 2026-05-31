@@ -34,6 +34,7 @@ dist-ssr/
 # OS and system files
 .DS_Store
 Thumbs.db
+nul
 
 # Tooling and codegen artifacts
 .codegpt/
