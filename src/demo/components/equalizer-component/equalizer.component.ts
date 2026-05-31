@@ -1,34 +1,55 @@
-import "./equalizer.component.css";
-
 /**
- * Compact canvas-based frequency equalizer.
+ * SVG-based frequency equalizer.
  *
- * Connects to an AnalyserNode (already created and connected to the audio pipeline)
- * and renders frequency-bar animations in real-time.
+ * Instead of drawing to a separate canvas, this component finds the existing
+ * `.wave-bar` SVG `<rect>` elements inside an `AudioControllerComponent` SVG
+ * and animates their height in real-time based on frequency data from an
+ * AnalyserNode.
+ *
+ * Usage:
+ * ```
+ * const controllerEl = document.getElementById('myAudioController');
+ * new AudioControllerComponent(controllerEl);
+ *
+ * const audioCtx = soundManager.getContext();
+ * const analyser = audioCtx.createAnalyser();
+ * soundManager.getMasterOutput().connect(analyser);
+ *
+ * new EqualizerComponent(controllerEl, analyser);
+ * ```
  */
 export class EqualizerComponent {
-  private readonly canvas: HTMLCanvasElement;
-  private readonly ctx: CanvasRenderingContext2D;
+  private readonly bars: SVGRectElement[];
   private readonly analyser: AnalyserNode;
-  private readonly barCount = 32;
   private readonly bufferLength: number;
-  private readonly dataArray: Uint8Array;
+  private readonly dataArray: Uint8Array<ArrayBuffer>;
   private rafId: number | null = null;
   private running = false;
+  private readonly barCount: number;
 
+  /**
+   * @param container  The `.audio-controller` element that already contains the SVG
+   * @param analyser   An AnalyserNode connected to the audio pipeline
+   */
   constructor(container: HTMLElement, analyser: AnalyserNode) {
-    // Create the canvas element
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = 240;   // logical pixels (CSS scales down)
-    this.canvas.height = 64;
-    container.classList.add("equalizer-container");
-    container.appendChild(this.canvas);
-
-    this.ctx = this.canvas.getContext("2d")!;
     this.analyser = analyser;
     this.analyser.fftSize = 64;
     this.bufferLength = this.analyser.frequencyBinCount;
     this.dataArray = new Uint8Array(this.bufferLength) as Uint8Array<ArrayBuffer>;
+
+    // Find all .wave-bar rects inside the SVG
+    this.bars = Array.from(container.querySelectorAll<SVGRectElement>(".wave-bar"));
+    this.barCount = this.bars.length;
+
+    if (this.barCount === 0) {
+      console.warn("[Equalizer] No .wave-bar elements found in container");
+      return;
+    }
+
+    // Disable CSS keyframe animation on each bar — we take over via RAF
+    this.bars.forEach((bar) => {
+      bar.style.animation = "none";
+    });
 
     this.start();
   }
@@ -45,8 +66,11 @@ export class EqualizerComponent {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
-    // Clear the canvas
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // Reset bars to a subtle resting state
+    this.bars.forEach((bar) => {
+      bar.setAttribute("height", "4");
+      bar.style.transform = "";
+    });
   }
 
   private draw = (): void => {
@@ -56,18 +80,7 @@ export class EqualizerComponent {
 
     this.analyser.getByteFrequencyData(this.dataArray);
 
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-
-    // Get theme-aware colors
-    const isDark = document.body.classList.contains("dark-theme");
-    const bgColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-    const barColor = isDark ? "rgba(14,142,232,0.8)" : "rgba(74,107,255,0.75)";
-    const barColorPeak = isDark ? "rgba(14,142,232,1)" : "rgba(74,107,255,1)";
-
-    // Clear
-    this.ctx.fillStyle = bgColor;
-    this.ctx.fillRect(0, 0, w, h);
+    if (this.barCount === 0) return;
 
     // Determine if there's significant audio activity
     let total = 0;
@@ -75,25 +88,12 @@ export class EqualizerComponent {
       total += this.dataArray[i];
     }
     const average = total / this.bufferLength;
-    const isActive = average > 2; // silence threshold
+    const isActive = average > 2;
 
-    if (!isActive) {
-      // Draw subtle flat line when silent
-      this.ctx.strokeStyle = barColor;
-      this.ctx.lineWidth = 1;
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, h / 2);
-      this.ctx.lineTo(w, h / 2);
-      this.ctx.stroke();
-      return;
-    }
-
-    // Draw frequency bars
-    const barWidth = w / this.barCount;
+    // Map frequency bins to available bars (averaging bins per bar)
     const step = Math.max(1, Math.floor(this.bufferLength / this.barCount));
 
-    for (let i = 0; i < this.barCount; i++) {
-      // Average several frequency bins per bar for smoother look
+    for (let i = 0; i < this.barCount && i < this.bars.length; i++) {
       let sum = 0;
       const startBin = i * step;
       const endBin = Math.min(startBin + step, this.bufferLength);
@@ -102,28 +102,32 @@ export class EqualizerComponent {
       }
       const value = sum / (endBin - startBin);
 
-      // Normalize: 0-255 → 0-1
+      // Normalize to 0-1 and scale to bar height (max ~140px within 150-290 Y range)
       const norm = value / 255;
-      // Scale bar height, minimum 2px when active
-      const barH = Math.max(2, norm * h * 0.9);
+      // Minimum 2px when active so bars are always visible, flat line when silent
+      let barHeight: number;
+      if (isActive) {
+        barHeight = Math.max(2, norm * 140);
+      } else {
+        barHeight = 1; // barely visible when silent
+      }
 
-      const x = i * barWidth + 1;
-      const y = h - barH;
+      const bar = this.bars[i];
 
-      // Gradient based on height
-      const gradient = this.ctx.createLinearGradient(0, h, 0, 0);
-      gradient.addColorStop(0, barColor);
-      gradient.addColorStop(0.7, barColorPeak);
-      this.ctx.fillStyle = gradient;
+      // The viewBox Y range is 150-350, bars sit at y=150 with height extending downward.
+      // Growing upward = decreasing y, increasing height.
+      // Bottom of bar stays at y=290 (150 + 140 max height).
+      const barTop = 290 - barHeight;
 
-      // Rounded bars
-      this.ctx.fillRect(x, y, Math.max(1, barWidth - 2), barH);
+      bar.setAttribute("y", String(barTop));
+      bar.setAttribute("height", String(barHeight));
+      // Remove any leftover transform from CSS animation fallback
+      bar.style.transform = "none";
     }
   };
 
-  /** Clean up animation frame and resources */
+  /** Clean up animation frame and disconnect from DOM */
   dispose(): void {
     this.stop();
-    this.canvas.remove();
   }
 }

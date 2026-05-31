@@ -201,12 +201,12 @@ export class GroupsDemo {
   }
 
   private initEqualizer(): void {
-    const container = document.getElementById('groupsEqualizer');
-    if (container) {
+    const controllerEl = document.getElementById('groupsAudioController');
+    if (controllerEl) {
       const audioCtx = this.soundManager.getContext();
       const analyser = audioCtx.createAnalyser();
       this.soundManager.getMasterOutput().connect(analyser);
-      this.equalizer = new EqualizerComponent(container, analyser);
+      this.equalizer = new EqualizerComponent(controllerEl, analyser);
     }
   }
 
