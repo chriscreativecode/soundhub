@@ -18,7 +18,12 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   fadeOutDuration: 1,
   loopSounds: true,
   maxLoops: -1,
-  pannerNodeConfig: DEFAULT_PANNER_CONFIG,
+  pannerNodeConfig: {
+    ...DEFAULT_PANNER_CONFIG,
+    refDistance: 0.5,
+    maxDistance: 10,
+    rolloffFactor: 2,
+  },
   spatialAudio: true,
   trackProgress: true,
 };
