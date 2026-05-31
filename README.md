@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
 [![npm downloads](https://img.shields.io/npm/dt/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
-[![Donate ❤](https://img.shields.io/badge/Donate-%E2%9D%A4-ff69b4)](https://www.paypal.com/donate/?business=chris-s-inbox%40outlook.com)
+[![Donate ❤](https://img.shields.io/badge/Donate-%E2%9D%A4-ff69b4)](https://www.paypal.com/donate/?hosted_button_id=M94NZXNHS8DT2)
 
 A powerful and lightweight (13KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
