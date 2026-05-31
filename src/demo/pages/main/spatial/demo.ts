@@ -112,12 +112,12 @@ export class SpatialDemo {
   }
 
   private initEqualizer(): void {
-    const container = document.getElementById('spatialEqualizer');
-    if (container) {
+    const controllerEl = document.getElementById('spatialAudioController');
+    if (controllerEl) {
       const audioCtx = this.soundManager.getContext();
       const analyser = audioCtx.createAnalyser();
       this.soundManager.getMasterOutput().connect(analyser);
-      this.equalizer = new EqualizerComponent(container, analyser);
+      this.equalizer = new EqualizerComponent(controllerEl, analyser);
     }
   }
 
