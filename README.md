@@ -1,4 +1,4 @@
-# 🎵 sound-manager-ts — TypeScript SoundManager for Web Audio API
+# 🎵 sound-manager-ts |  SoundManager for Web Audio API
 
 [![npm version](https://img.shields.io/npm/v/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -8,9 +8,9 @@
 
 A powerful and lightweight (13KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
-## Live demo
+## Live Demo's implementing the sound manager
 
-[Demo page](https://chriscreativecode.com/sound-manager-ts/demo/ "A demo showcase of my Sound Manager")
+[Visit the main demo page](https://chriscreativecode.com/sound-manager-ts/demo/ "A demo showcase of my Sound Manager")
 
 [Codepen.io (Demo / Playground) JavScript](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd "A demo in codepen.io (JavaScript)")
 
@@ -107,8 +107,8 @@ Transform your web audio experience with just a few lines of code!
 
 ## Documentation
 
-- [🎵 Modern Web Audio Manager build in TypeScript.](#-modern-web-audio-manager-build-in-typescript)
-  - [Live demo](#live-demo)
+- [🎵 sound-manager-ts |  SoundManager for Web Audio API](#-sound-manager-ts---soundmanager-for-web-audio-api)
+  - [Live Demo's implementing the sound manager](#live-demos-implementing-the-sound-manager)
   - [Why Choose This Package?](#why-choose-this-package)
   - [Features](#features)
   - [Note](#note)
@@ -141,6 +141,8 @@ Transform your web audio experience with just a few lines of code!
   - [Running the Demo](#running-the-demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
+    - [5.5.9](#559)
+    - [5.5.8](#558)
     - [5.5.7](#557)
     - [5.5.1 ~ 5.5.6](#551--556)
     - [5.5.0 - Enhanced Audio Loading \& Mobile Support](#550---enhanced-audio-loading--mobile-support)
@@ -1161,6 +1163,10 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
+### 5.5.9
+
+- 📝 Updated README heading to include the package name and added a donate button.
+
 ### 5.5.8
 
 - 🐛 Bug Fix: `STARTED` and `ENDED` events now include `originalId` and `instanceId` fields, consistent with `PROGRESS`. Previously, `STARTED` also used the raw `id` parameter for `soundId` instead of the actual instance ID (e.g. `piano-C4:3`), making it impossible to correlate events across instances when using `createNewInstance: true`.
@@ -1619,4 +1625,4 @@ This is particularly useful for creating smoother transitions and avoiding abrup
 - Core feature implementation
 
 ## 🚀 Upcoming Features
-- More interactive demo pages showcasing advanced use cases of the SoundManager.
+- None at the moment. I just finished the demo pages and am currently working on the API documentation pages.
