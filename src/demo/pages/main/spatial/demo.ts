@@ -176,6 +176,14 @@ export class SpatialDemo {
           <br><br>
           <strong>Note:</strong> For best results, use headphones or a proper surround sound system.
           The listener is positioned at the center of the room.
+          <br><br>
+          <strong>Speaker isolation limitation:</strong> Browsers can only output discrete per-speaker
+          audio when the operating system exposes the audio device as a true multi-channel PCM output
+          (e.g. a PC with a 5.1 soundcard connected directly to powered speakers or an AV receiver).
+          Soundbars connected via TV HDMI ARC, optical, or Bluetooth typically appear as a 2-channel
+          stereo device to the browser — the soundbar then applies its own upmixing to all speakers.
+          To test individual speakers in isolation, use your audio system's own companion app or a
+          streaming service that outputs native Dolby 5.1 / 7.1 (such as Netflix or Disney+).
         </p>
         <div class="sound-selector-row">
           <label class="sound-selector-label" for="soundSelect">Test sound:</label>
