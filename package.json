@@ -57,12 +57,12 @@
   "scripts": {
     "dev": "npm run dev:main",
     "dev:main": "cross-env BROWSER=chrome vite --mode demo-main",
-    "dev:docs": "vite --mode documentation-dev",
+    "dev:docs": "vite --mode readme-dev",
     "clean": "if exist dist rmdir /s /q dist",
     "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
     "build:demo": "vite build --mode demo-main",
     "build:lib": "vite build --mode lib",
-    "build:docs": "vite build --mode documentation-dev",
+    "build:docs": "vite build --mode readme-dev",
 "debug:types": "tsc --listFiles --emitDeclarationOnly",
     "preview": "vite preview"
   },

@@ -50,8 +50,8 @@ export function readmePlugin() {
       isProcessing = true;
 
       const readmeFilePath = path.resolve("README.md");
-      const templateFilePath = path.resolve("src/documentation/template.html");
-      const outputFilePath = path.resolve("src/documentation/index.html");
+      const templateFilePath = path.resolve("src/readme/template.html");
+      const outputFilePath = path.resolve("src/readme/index.html");
 
       console.log("\n📝 Updating README documentation...");
 
@@ -77,7 +77,7 @@ export function readmePlugin() {
     name: "vite-plugin-readme",
 
     configureServer(server) {
-      const outputFilePath = path.resolve("src/documentation/index.html");
+      const outputFilePath = path.resolve("src/readme/index.html");
       const outputDirectory = path.dirname(outputFilePath);
 
       try {
@@ -99,12 +99,12 @@ export function readmePlugin() {
       generateDocumentation();
 
       // Watch for changes
-      server.watcher.add([path.resolve("README.md"), path.resolve("src/documentation/template.html")]);
+      server.watcher.add([path.resolve("README.md"), path.resolve("src/readme/template.html")]);
 
       server.watcher.on("change", async (filepath) => {
         const normalizedPath = path.normalize(filepath);
         const readmeFilePath = path.normalize(path.resolve("README.md"));
-        const templateFilePath = path.normalize(path.resolve("src/documentation/template.html"));
+        const templateFilePath = path.normalize(path.resolve("src/readme/template.html"));
 
         if (normalizedPath === readmeFilePath || normalizedPath === templateFilePath) {
           await generateDocumentation();
@@ -117,7 +117,7 @@ export function readmePlugin() {
         server.middlewares.use((req, res, next) => {
           if (req.url === "/template.html") {
             try {
-              const content = fs.readFileSync(path.resolve("src/documentation/template.html"), "utf-8");
+              const content = fs.readFileSync(path.resolve("src/readme/template.html"), "utf-8");
               res.setHeader("Content-Type", "text/html");
               res.end(content);
             } catch (error) {
@@ -135,7 +135,7 @@ export function readmePlugin() {
     },
 
     closeBundle() {
-      const outputFilePath = path.resolve("src/documentation/index.html");
+      const outputFilePath = path.resolve("src/readme/index.html");
       if (!fs.existsSync(outputFilePath)) {
         console.error("Documentation was not generated during the build!");
       }

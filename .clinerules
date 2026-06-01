@@ -4,7 +4,7 @@
 
 - **TypeScript 5.7+** with strict mode enabled (`tsconfig.json`: `strict`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
 - Target: `ES2020`, Module: `ESNext`
-- All library source lives under `src/sound-manager/`. The demo (`src/demo/`) and documentation (`src/documentation/`) are excluded from the library build output.
+- All library source lives under `src/sound-manager/`. The demo (`src/demo/`) and readme (`src/readme/`) are excluded from the library build output.
 - Use `.interface.ts` suffix for interfaces (e.g. `sound-manager.interface.ts`, `sound-state.interface.ts`).
 - Use `.enum.ts` suffix for enums (e.g. `sound-events.enum.ts`, `sound-pan-type.enum.ts`).
 - All public API surface is re-exported through `src/index.ts`.
@@ -13,7 +13,7 @@
 ## Build System
 
 - **Vite 6** with `vite-plugin-dts` for generating `.d.ts` declarations.
-- Three build modes in `vite.config.ts`: `lib`, `demo-main`, `documentation-dev`.
+- Three build modes in `vite.config.ts`: `lib`, `demo-main`, `readme-dev`.
 - Library output: ES module (`sound-manager-ts.es.js`) + UMD (`sound-manager-ts.umd.js`) + types (`dist/types/`).
 - The `@` alias maps to `./src` (configured in `vite.config.ts`).
 - Run `npm run build` for a full build (clean → lib → demo → docs).
