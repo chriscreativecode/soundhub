@@ -7,7 +7,7 @@
 [![Donate ❤](https://img.shields.io/badge/Donate-%E2%9D%A4-ff69b4)](https://www.paypal.com/donate/?hosted_button_id=M94NZXNHS8DT2)
 [![API Reference](https://img.shields.io/badge/API-Reference-blue)](https://chriscreativecode.com/sound-manager-ts/docs/)
 
-A powerful and lightweight (13KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
+A powerful and lightweight (14KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
 ## Live Demo's implementing the sound manager
 
@@ -22,7 +22,7 @@ A powerful and lightweight (13KB gzipped) sound management system I crafted to m
 🚀 **Modern & Efficient**
 
 - Built on the latest Web Audio API
-- Only 13 KB gzipped
+- Only 14 KB gzipped
 - Zero dependencies
 - Easy to connect to a UI interface.
 
