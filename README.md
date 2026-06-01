@@ -520,7 +520,7 @@ soundManager.play('background-music', {
 });
 
 // Control individual sounds
-soundManager.pauseSound('background-music');
+soundManager.pause('background-music');
 soundManager.resume('background-music');
 soundManager.stop('background-music');
 soundManager.seek('background-music', 12); // Seek to 12 seconds
@@ -628,11 +628,11 @@ soundManager.toggleMute('background-music');
 soundManager.toggleGlobalMute();
 
 // Spatial audio (if enabled in config)
-soundManager.setSpatialPosition('background-music', 1, 0, -1);
+soundManager.setSpatialPosition(1, 0, -1, 'background-music');
 soundManager.resetSpatialPosition('background-music');
-soundManager.removeSpatialEffect();
+soundManager.removeSpatialEffect('background-music');
 soundManager.isSpatialAudioActive('background-music');
-soundManager.updatePannerConfig('background-music',
+soundManager.updatePannerConfigById('background-music',
     <SoundPannerConfig>{
         panningModel: PanningModel.HRTF,
         distanceModel: DistanceModel.Inverse,
@@ -684,7 +684,7 @@ export interface SoundManagerInterface {
 
   // Volume control
   getVolume(id: string): number;
-  setSoundVolume(id: string, volume: number): void;
+  setSoundVolume(id: string, volume: number, skipDispatchEvent?: boolean): void;
   getSoundVolume(id: string): number;
   setGlobalVolume(volume: number): void;
   getGlobalVolume(): number;
@@ -725,24 +725,29 @@ export interface SoundManagerInterface {
   getProgressPercentage(id: string): number;
   startProgressTracking(id: string): void;
   stopProgressTracking(id: string): void;
+  setProgressUpdateInterval(interval: number): void;
 
   // Batch operations
   stopAllSounds(): void;
   pauseAllSounds(): void;
   resumeAllSounds(): void;
   reset(options?: SoundResetOptions): void;
+  resetSound(id: string, options?: SoundResetOptions): void;
 
   // Fading
-  fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number): void;
-  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number, stopAfterFade?: boolean): void;
+  fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent?: boolean): void;
+  fadeOut(id: string, duration?: number, startVolume?: number, endVolume?: number, stopAfterFade?: boolean, skipDispatchEvent?: boolean): void;
   fadeGlobalIn(duration?: number, startVolume?: number, endVolume?: number): void;
   fadeGlobalOut(duration?: number, startVolume?: number, endVolume?: number): void;
 
   // Spatial audio
   isSpatialAudioEnabled(): boolean;
+  isSpatialAudioSupported(): boolean;
   setSpatialPosition(x: number, y: number, z: number, soundId?: string | null, soundPannerConfig?: SoundPannerConfig, skipEvent?: boolean): void;
   getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null;
   setMasterSpatialPosition(x: number, y: number, z: number, config?: SoundPannerConfig, skipEvent?: boolean): void;
+  getMasterSpatialPosition(): { x: number; y: number; z: number } | null;
+  resetMasterSpatialPosition(): void;
   resetSpatialPosition(id: string): void;
   removeSpatialEffect(id: string): void;
   isSpatialAudioActive(id: string): boolean;
@@ -761,7 +766,15 @@ export interface SoundManagerInterface {
   // Sprite logic
   setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void;
   getSpriteConfig(id: string): { [key: string]: [number, number] } | undefined;
-  removeSpriteConfig(id: string): void 
+  removeSpriteSound(spriteKey: string): void;
+  removeSpriteConfig(id: string): void;
+
+  // Sound group management
+  createSoundGroup(groupName: string, options: { maxInstances?: number; playOptions?: PlayOptions }): void;
+  addToSoundGroup(groupName: string, soundId: string): void;
+  removeFromSoundGroup(groupName: string, soundId: string): void;
+  getGroup(groupName: string): SoundGroup | undefined;
+  removeSoundGroup(groupName: string): void;
 
   // Context management
   suspendContext(): Promise<void>;
@@ -779,6 +792,7 @@ export interface SoundManagerInterface {
   getSoundIds(): string[];
   updateSoundOptions(soundId: string, options: Partial<PlayOptions>): void;
   setPlaybackRate(id: string, rate: number): void;
+  getPlaybackRate(id: string): number;
   getLastError(): Error | null;
   roundValue(value: number, decimals: number): number; // Default precision is this.DEFAULT_PRECISION
   destroy(): void;
@@ -786,6 +800,7 @@ export interface SoundManagerInterface {
   // Listeners / Event handling
   addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
   removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
+  removeEventListenersForInstance(instanceId: string): void;
   dispatchEvent(event: SoundEvent): void;
   hasEventListener(type: SoundEventsEnum): boolean;
 
@@ -847,8 +862,13 @@ export interface SoundEvent {
   progress?: number; // ratio from 0 to 1
   progressInfo?: SoundProgressStateInfo;
   resetOptions?: SoundResetOptions;
+  bufferSize?: number;
+  channels?: number;
+  fileSize?: number;
+  sampleRate?: number;
   sound?: Sound;
   soundId?: string;
+  state?: SoundStateInfo;
   timestamp?: number;
   type: SoundEventsEnum;
   volume?: number;
@@ -868,6 +888,7 @@ export enum SoundEventsEnum {
   FADE_MASTER_OUT_COMPLETED = 'fade_master_out_completed',
   FADE_OUT_COMPLETED = 'fade_out_completed',
   GLOBAL_SPATIAL_POSITION_CHANGED = 'global_spatial_position_changed',
+  LOADED = 'loaded',
   LOOP_COMPLETED = 'loop_completed',
   MASTER_PAN_CHANGED = 'master_pan_changed',
   MASTER_VOLUME_CHANGED = 'master_volume_changed',
