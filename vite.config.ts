@@ -14,7 +14,7 @@ const libConfig: UserConfig = {
       include: ['src/index.ts', 'src/sound-manager/**/*.ts'],
       exclude: [
         'src/demo/**/*',
-        'src/documentation/**/*',
+        'src/readme/**/*',
         'src/sound-manager/ticker.ts',
         'src/sound-manager/audio-node-connector.ts'
       ],
@@ -140,10 +140,10 @@ const demoMainConfig: UserConfig = {
 // };
 
 
-// Documentation development configuration
-const documentationDevConfig: UserConfig = {
+// Readme development configuration
+const readmeDevConfig: UserConfig = {
   plugins: [readmePlugin()],
-  root: "src/documentation",
+  root: "src/readme",
   base: "./",
   server: {
     port: 5173,
@@ -153,14 +153,14 @@ const documentationDevConfig: UserConfig = {
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "dist/documentation"),
+    outDir: path.resolve(__dirname, "dist/readme"),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'src/documentation/index.html')
+        main: path.resolve(__dirname, 'src/readme/index.html')
       },
       output: {
-        dir: path.resolve(__dirname, "dist/documentation"),
+        dir: path.resolve(__dirname, "dist/readme"),
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]'
@@ -172,17 +172,17 @@ const documentationDevConfig: UserConfig = {
   }
 };
 
-// Documentation production configuration
-const documentationConfig: UserConfig = {
+// Readme production configuration
+const readmeConfig: UserConfig = {
   plugins: [readmePlugin()],
-  root: "src/documentation",
+  root: "src/readme",
   base: "./",
   build: {
-    outDir: path.resolve(__dirname, "dist/documentation"),
+    outDir: path.resolve(__dirname, "dist/readme"),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'src/documentation/index.html')
+        main: path.resolve(__dirname, 'src/readme/index.html')
       },
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
@@ -207,12 +207,12 @@ export default defineConfig(({ command, mode }) => {
   //   return command === "serve" ? devSpriteConfig : demoSpriteConfig;
   // }
 
-  if (mode === "documentation-dev") {
-    return documentationDevConfig;
+  if (mode === "readme-dev") {
+    return readmeDevConfig;
   }
 
-  if (mode === "documentation") {
-    return documentationConfig;
+  if (mode === "readme") {
+    return readmeConfig;
   }
 
   // if (command === "serve") {
