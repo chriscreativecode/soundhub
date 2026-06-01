@@ -1129,24 +1129,13 @@ A comprehensive demo showcasing all features is available online:
 - [Codepen playground (JavaScript)](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd)
 - [Codepen playground (TypeScript)](https://codepen.io/Chris-Front-end-developer/pen/RNRzyym)
 
-Demo features:
+The demo includes 5 interactive pages:
 
-- Sound loading and preloading
-  - Individual sound controls
-  - Play/Pause/Stop buttons
-  - Loop controls
-  - Volume slider
-  - Pan control
-  - Fade in/out controls
-  - Seek bar with time display
-- Global controls
-  - Master volume
-  - Master pan
-  - Mute toggle
-  - Stop all sounds
-- Real-time status display
-- Event logging
-- Spatial audio controls
+- **General** - Individual sound controls: play/pause/stop, volume, pan, fade, seek, loop and playback rate, with real-time event logging
+- **Piano Keyboard** - Multichannel audio: play multiple simultaneous instances using sound groups
+- **3D Spatial Audio** - Position audio in 3D space using HRTF and EqualPower panning models
+- **Sound Groups** - Manage groups of sounds with maxInstances limits and collective controls
+- **Sound Sprites** - Split a single audio file into named regions for precise game audio playback
 
 ## Licence
 
