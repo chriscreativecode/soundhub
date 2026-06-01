@@ -22,7 +22,8 @@ import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
 import { SoundPanType } from '../../../../sound-manager/sound-pan-type.enum';
 import { LocalStorageManagerManager } from '../../../services/local-storage-manager';
-import { PanningModel, SoundPannerConfig } from '../../../../sound-manager/sound-panner-config';
+import { PanningModel, DistanceModel, SoundPannerConfig } from '../../../../sound-manager/sound-panner-config';
+import { SpatialSettings } from '../../../components/spatial-settings-component/spatial-settings.component';
 
 interface SpeakerDef {
   id: string;
@@ -105,6 +106,9 @@ export class SpatialDemo {
   private channelMerger: ChannelMergerNode | null = null;
   private activeChannelIndex: number | null = null;
 
+  // Spatial settings component
+  private spatialSettingsInstance: SpatialSettings | null = null;
+
   constructor() {
     const config: SoundManagerConfig = {
       autoMuteOnHidden: false,
@@ -127,6 +131,7 @@ export class SpatialDemo {
     this.initEqualizer();
     this.initTheme();
     this.renderUI();
+    this.initSpatialSettings();
     this.loadSounds();
   }
 
@@ -203,119 +208,135 @@ export class SpatialDemo {
         </div>
       </div>
 
-      <div class="control-group spatial-room-panel">
-        <!-- Tab navigation -->
-        <div class="spatial-tabs">
-          <button class="spatial-tab ${this.activeTab === 'speaker-grid' ? 'active' : ''}" data-tab="speaker-grid">
-            🔊 Speaker Grid
-          </button>
-          <button class="spatial-tab ${this.activeTab === 'free-move' ? 'active' : ''}" data-tab="free-move">
-            🎯 Free Move
-          </button>
-        </div>
+      <div class="spatial-main-layout">
 
-        <div class="spatial-tab-content-wrapper">
+        <!-- Left: Room panel -->
+        <div class="spatial-room-section">
+          <div class="control-group spatial-room-panel">
+            <!-- Tab navigation -->
+            <div class="spatial-tabs">
+              <button class="spatial-tab ${this.activeTab === 'speaker-grid' ? 'active' : ''}" data-tab="speaker-grid">
+                🔊 Speaker Grid
+              </button>
+              <button class="spatial-tab ${this.activeTab === 'free-move' ? 'active' : ''}" data-tab="free-move">
+                🎯 Free Move
+              </button>
+            </div>
 
-        <!-- Tab 1: Speaker Grid -->
-        <div class="spatial-tab-content" id="tabSpeakerGrid" style="${this.activeTab === 'speaker-grid' ? '' : 'display:none'}">
-          <div class="room-layout-wrapper">
-            <div class="room-label-top">↑ Front (TV / Screen)</div>
-            <div class="room-layout">
-              <div class="room-border">
-                ${SPEAKERS.filter(s => s.id !== 'sub').map(s => `
-                  <button
-                    class="speaker-btn"
-                    data-speaker="${s.id}"
-                    style="grid-row:${s.gridRow};grid-column:${s.gridCol}"
-                    title="${s.description}"
-                    disabled
-                  >
-                    <span class="speaker-icon">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
-                        <path d="M18.584 5.106a.75.75 0 0 1 1.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 0 1-1.06-1.06 8.25 8.25 0 0 0 0-11.668.75.75 0 0 1 0-1.06Z" />
-                        <path d="M15.932 7.757a.75.75 0 0 1 1.061 0 6 6 0 0 1 0 8.486.75.75 0 0 1-1.06-1.061 4.5 4.5 0 0 0 0-6.364.75.75 0 0 1 0-1.061Z" />
-                      </svg>
-                    </span>
-                    <span class="speaker-short-label">${s.shortLabel}</span>
-                    <span class="speaker-label">${s.label}</span>
-                  </button>
-                `).join('')}
+            <div class="spatial-tab-content-wrapper">
 
-                <div class="listener-dot" style="grid-row:2;grid-column:2" title="You are here">
-                  <span class="listener-icon">👤</span>
-                  <span class="listener-label">You</span>
+            <!-- Tab 1: Speaker Grid -->
+            <div class="spatial-tab-content" id="tabSpeakerGrid" style="${this.activeTab === 'speaker-grid' ? '' : 'display:none'}">
+              <div class="room-layout-wrapper">
+                <div class="room-label-top">↑ Front (TV / Screen)</div>
+                <div class="room-layout">
+                  <div class="room-border">
+                    ${SPEAKERS.filter(s => s.id !== 'sub').map(s => `
+                      <button
+                        class="speaker-btn"
+                        data-speaker="${s.id}"
+                        style="grid-row:${s.gridRow};grid-column:${s.gridCol}"
+                        title="${s.description}"
+                        disabled
+                      >
+                        <span class="speaker-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
+                            <path d="M18.584 5.106a.75.75 0 0 1 1.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 0 1-1.06-1.06 8.25 8.25 0 0 0 0-11.668.75.75 0 0 1 0-1.06Z" />
+                            <path d="M15.932 7.757a.75.75 0 0 1 1.061 0 6 6 0 0 1 0 8.486.75.75 0 0 1-1.06-1.061 4.5 4.5 0 0 0 0-6.364.75.75 0 0 1 0-1.061Z" />
+                          </svg>
+                        </span>
+                        <span class="speaker-short-label">${s.shortLabel}</span>
+                        <span class="speaker-label">${s.label}</span>
+                      </button>
+                    `).join('')}
+
+                    <div class="listener-dot" style="grid-row:2;grid-column:2" title="You are here">
+                      <span class="listener-icon">👤</span>
+                      <span class="listener-label">You</span>
+                    </div>
+                  </div>
                 </div>
+                <div class="room-label-bottom">↓ Behind you</div>
+              </div>
+
+              <div class="sub-row">
+                <button class="speaker-btn sub-btn" data-speaker="sub" disabled>
+                  <span class="speaker-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.757 3.63 8.25 4.51 8.25H6.75Z" />
+                    </svg>
+                  </span>
+                  <span class="speaker-short-label">SUB</span>
+                  <span class="speaker-label">Subwoofer (LFE)</span>
+                </button>
+              </div>
+
+              <div class="free-move-controls">
+                <button class="mute-btn" id="speakerGridMuteBtn" aria-label="Mute or unmute sound">
+                  ${SVG_VOLUME_ON}
+                </button>
+              </div>
+
+              <div class="active-speaker-info" id="activeSpeakerInfo">
+                <span class="active-label">Click a speaker to test it</span>
               </div>
             </div>
-            <div class="room-label-bottom">↓ Behind you</div>
-          </div>
 
-          <div class="sub-row">
-            <button class="speaker-btn sub-btn" data-speaker="sub" disabled>
-              <span class="speaker-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.757 3.63 8.25 4.51 8.25H6.75Z" />
-                </svg>
-              </span>
-              <span class="speaker-short-label">SUB</span>
-              <span class="speaker-label">Subwoofer (LFE)</span>
-            </button>
-          </div>
+            <!-- Tab 2: Free Move -->
+            <div class="spatial-tab-content" id="tabFreeMove" style="${this.activeTab === 'free-move' ? '' : 'display:none'}">
+              <p class="free-move-desc">
+                Move your mouse over the room to position the sound anywhere.
+                The speaker icon follows your cursor for real-time spatial audio.
+              </p>
+              <div class="room-layout-wrapper">
+                <div class="room-label-top">↑ Front (TV / Screen)</div>
+                <div class="room-layout">
+                  <div class="room-border free-move-room" id="freeMoveRoom">
+                    <div class="free-move-tv-label">📺 TV</div>
+                    <div class="free-move-listener" id="freeMoveListener">👤</div>
+                    <div class="free-move-speaker" id="freeMoveSpeaker" style="left:50%;top:50%">🔊</div>
+                  </div>
+                </div>
+                <div class="room-label-bottom">↓ Behind you</div>
+              </div>
 
-          <div class="free-move-controls">
-            <button class="mute-btn" id="speakerGridMuteBtn" aria-label="Mute or unmute sound">
-              ${SVG_VOLUME_ON}
-            </button>
-          </div>
+              <div class="free-move-controls">
+                <div class="toggle-card ${this.autoRotate ? 'is-active' : ''}" id="autoRotateCard">
+                  <div class="toggle-card-header">
+                    <span class="toggle-card-icon">🔄</span>
+                    <span class="toggle-card-label">Auto Rotate</span>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="autoRotateToggle" ${this.autoRotate ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="toggle-card-status">${this.autoRotate ? 'ON' : 'OFF'}</span>
+                </div>
+                <button class="mute-btn" id="freeMoveMuteBtn" aria-label="Mute or unmute sound">
+                  ${SVG_VOLUME_ON}
+                </button>
+              </div>
 
-          <div class="active-speaker-info" id="activeSpeakerInfo">
-            <span class="active-label">Click a speaker to test it</span>
+              <div class="active-speaker-info" id="freeMoveInfo">
+                <span class="active-label" id="freeMoveLabel">Move your mouse over the room</span>
+                <span class="active-coords" id="freeMoveCoords"></span>
+              </div>
+            </div>
+
+            </div><!-- /.spatial-tab-content-wrapper -->
           </div>
         </div>
 
-        <!-- Tab 2: Free Move -->
-        <div class="spatial-tab-content" id="tabFreeMove" style="${this.activeTab === 'free-move' ? '' : 'display:none'}">
-          <p class="free-move-desc">
-            Move your mouse over the room to position the sound anywhere.
-            The speaker icon follows your cursor for real-time spatial audio.
+        <!-- Right: Spatial Audio Settings panel -->
+        <div class="spatial-settings-panel">
+          <h4>🌐 Spatial Audio Settings</h4>
+          <p style="font-size:0.8rem;color:var(--color-text-secondary);margin:0 0 var(--spacing-sm) 0;line-height:1.5;">
+            Adjust the spatial audio parameters below. Changes are applied to the currently playing sound in real time.
           </p>
-          <div class="room-layout-wrapper">
-            <div class="room-label-top">↑ Front (TV / Screen)</div>
-            <div class="room-layout">
-              <div class="room-border free-move-room" id="freeMoveRoom">
-                <div class="free-move-tv-label">📺 TV</div>
-                <div class="free-move-listener" id="freeMoveListener">👤</div>
-                <div class="free-move-speaker" id="freeMoveSpeaker" style="left:50%;top:50%">🔊</div>
-              </div>
-            </div>
-            <div class="room-label-bottom">↓ Behind you</div>
-          </div>
-
-          <div class="free-move-controls">
-            <div class="toggle-card ${this.autoRotate ? 'is-active' : ''}" id="autoRotateCard">
-              <div class="toggle-card-header">
-                <span class="toggle-card-icon">🔄</span>
-                <span class="toggle-card-label">Auto Rotate</span>
-              </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="autoRotateToggle" ${this.autoRotate ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-card-status">${this.autoRotate ? 'ON' : 'OFF'}</span>
-            </div>
-            <button class="mute-btn" id="freeMoveMuteBtn" aria-label="Mute or unmute sound">
-              ${SVG_VOLUME_ON}
-            </button>
-          </div>
-
-          <div class="active-speaker-info" id="freeMoveInfo">
-            <span class="active-label" id="freeMoveLabel">Move your mouse over the room</span>
-            <span class="active-coords" id="freeMoveCoords"></span>
-          </div>
+          <div class="spatial-settings-scroll" id="spatialSettingsContainer"></div>
         </div>
 
-        </div><!-- /.spatial-tab-content-wrapper -->
       </div>
 
       <div class="control-group spatial-coords-panel">
@@ -459,6 +480,93 @@ export class SpatialDemo {
   private updateMuteBtnUI(btn: Element, muted: boolean): void {
     btn.classList.toggle('is-muted', muted);
     btn.innerHTML = muted ? SVG_VOLUME_OFF : SVG_VOLUME_ON;
+  }
+
+  // ── Spatial Audio Settings panel ───────────────────────────────────────
+
+  private getSpatialConfigForMode(mode: AudioMode): SoundPannerConfig {
+    switch (mode) {
+      case 'headphones':
+        return {
+          panningModel: PanningModel.HRTF,
+          distanceModel: DistanceModel.Inverse,
+          refDistance: 1,
+          maxDistance: 10000,
+          rolloffFactor: 1,
+          coneInnerAngle: 360,
+          coneOuterAngle: 360,
+          coneOuterGain: 0,
+        };
+      case 'stereo':
+        return {
+          panningModel: PanningModel.EqualPower,
+          distanceModel: DistanceModel.Linear,
+          refDistance: 1,
+          maxDistance: 10000,
+          rolloffFactor: 0.5,
+          coneInnerAngle: 360,
+          coneOuterAngle: 360,
+          coneOuterGain: 0,
+        };
+      case '3.1':
+        return {
+          panningModel: PanningModel.EqualPower,
+          distanceModel: DistanceModel.Inverse,
+          refDistance: 1,
+          maxDistance: 5000,
+          rolloffFactor: 0.8,
+          coneInnerAngle: 360,
+          coneOuterAngle: 360,
+          coneOuterGain: 0,
+        };
+      case '5.1':
+        return {
+          panningModel: PanningModel.HRTF,
+          distanceModel: DistanceModel.Inverse,
+          refDistance: 1,
+          maxDistance: 10000,
+          rolloffFactor: 1,
+          coneInnerAngle: 360,
+          coneOuterAngle: 360,
+          coneOuterGain: 0,
+        };
+      case '7.1':
+        return {
+          panningModel: PanningModel.HRTF,
+          distanceModel: DistanceModel.Inverse,
+          refDistance: 1,
+          maxDistance: 10000,
+          rolloffFactor: 1,
+          coneInnerAngle: 360,
+          coneOuterAngle: 360,
+          coneOuterGain: 0,
+        };
+    }
+  }
+
+  private initSpatialSettings(): void {
+    const container = document.getElementById('spatialSettingsContainer');
+    if (!container) return;
+
+    this.spatialSettingsInstance = new SpatialSettings(
+      container,
+      this.soundManager,
+      (config: Partial<SoundPannerConfig>) => {
+        // Real-time update of the currently selected sound
+        this.soundManager.updatePannerConfigById(this.selectedSound, config);
+      }
+    );
+
+    // Prefill with current mode defaults
+    this.prefillSpatialSettings();
+  }
+
+  private prefillSpatialSettings(): void {
+    if (!this.spatialSettingsInstance) return;
+    const config = this.getSpatialConfigForMode(this.audioMode);
+    this.spatialSettingsInstance.setValues(config, true);
+    // Apply to current sound
+    this.soundManager.updatePannerConfigById(this.selectedSound, config);
   }
 
   private switchTab(tab: 'speaker-grid' | 'free-move'): void {
@@ -696,6 +804,7 @@ export class SpatialDemo {
       try { this.initChannelIsolation(); } catch { /* multi-channel not supported on this device */ }
     }
     this.updateChannelInfo();
+    this.prefillSpatialSettings();
     document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
     const infoEl = document.getElementById('activeSpeakerInfo');
     if (infoEl) infoEl.innerHTML = '<span class="active-label">Click a speaker to test it</span>';
