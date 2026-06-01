@@ -79,6 +79,8 @@ const AUDIO_MODE_OPTIONS: { value: AudioMode; label: string }[] = [
 
 const SVG_VOLUME_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06C18.01 19.86 21 16.28 21 12c0-4.28-2.99-7.86-7-8.77z"/></svg>`;
 const SVG_VOLUME_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
+const SVG_STOP = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z"/></svg>`;
+const SVG_PLAY = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z"/></svg>`;
 
 export class SpatialDemo {
   private soundManager: SoundManager;
@@ -97,6 +99,7 @@ export class SpatialDemo {
   private isMouseOverRoom = false;
   private freeMoveSoundStarted = false;
   private speakerGridMuted = false;
+  private speakerGridPlaying = false;
   private freeMoveMuted = false;
   private lastSpeakerAngle = 0;
   private equalizer: EqualizerComponent | null = null;
@@ -279,6 +282,9 @@ export class SpatialDemo {
                 <button class="mute-btn" id="speakerGridMuteBtn" aria-label="Mute or unmute sound">
                   ${SVG_VOLUME_ON}
                 </button>
+                <button class="mute-btn" id="speakerGridStopBtn" aria-label="Stop or play sound">
+                  ${SVG_STOP}
+                </button>
               </div>
 
               <div class="active-speaker-info" id="activeSpeakerInfo">
@@ -371,12 +377,15 @@ export class SpatialDemo {
         this.selectedSound = select.value;
         gtag('event', 'spatial_sound_select', { sound_id: this.selectedSound, demo: 'spatial' });
         this.speakerGridMuted = false;
+        this.speakerGridPlaying = false;
         this.freeMoveMuted = false;
         this.freeMoveSoundStarted = false;
         const speakerGridMuteBtn = document.getElementById('speakerGridMuteBtn');
         const freeMoveMuteBtn = document.getElementById('freeMoveMuteBtn');
+        const speakerGridStopBtn = document.getElementById('speakerGridStopBtn');
         if (speakerGridMuteBtn) this.updateMuteBtnUI(speakerGridMuteBtn, false);
         if (freeMoveMuteBtn) this.updateMuteBtnUI(freeMoveMuteBtn, false);
+        if (speakerGridStopBtn) speakerGridStopBtn.innerHTML = SVG_STOP;
         if (this.activeTab === 'free-move' && this.isMouseOverRoom) {
           this.startFreeMoveSound();
         }
@@ -390,6 +399,36 @@ export class SpatialDemo {
         this.speakerGridMuted = !this.speakerGridMuted;
         this.soundManager.toggleMute(this.selectedSound);
         this.updateMuteBtnUI(speakerGridMuteBtn, this.speakerGridMuted);
+      });
+    }
+
+    // Speaker Grid stop/play button
+    const speakerGridStopBtn = document.getElementById('speakerGridStopBtn');
+    if (speakerGridStopBtn) {
+      speakerGridStopBtn.addEventListener('click', () => {
+        if (this.speakerGridPlaying) {
+          // Stop the sound
+          if (this.soundManager.isPlaying(this.selectedSound)) {
+            try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+          }
+          this.speakerGridPlaying = false;
+          speakerGridStopBtn.innerHTML = SVG_PLAY;
+          document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
+          this.activeSpeaker = null;
+        } else {
+          // Play the sound at the last active speaker position (or centered)
+          const speaker = this.activeSpeaker ? SPEAKERS.find(s => s.id === this.activeSpeaker) : null;
+          if (speaker) {
+            this.playSpeaker(speaker.id);
+          } else {
+            this.soundManager.setSpatialPosition(0, 0, 0, this.selectedSound);
+            this.soundManager.play(this.selectedSound);
+            this.speakerGridPlaying = true;
+            speakerGridStopBtn.innerHTML = SVG_STOP;
+            const infoEl = document.getElementById('activeSpeakerInfo');
+            if (infoEl) infoEl.innerHTML = '<span class="active-label">Playing centered</span>';
+          }
+        }
       });
     }
 
@@ -806,9 +845,12 @@ export class SpatialDemo {
     if (mode !== 'headphones' && mode !== 'stereo' && this.activeTab === 'speaker-grid') {
       try { this.initChannelIsolation(); } catch { /* multi-channel not supported on this device */ }
     }
+    this.speakerGridPlaying = false;
     this.updateChannelInfo();
     this.prefillSpatialSettings();
     document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
+    const speakerGridStopBtn = document.getElementById('speakerGridStopBtn');
+    if (speakerGridStopBtn) speakerGridStopBtn.innerHTML = SVG_STOP;
     const infoEl = document.getElementById('activeSpeakerInfo');
     if (infoEl) infoEl.innerHTML = '<span class="active-label">Click a speaker to test it</span>';
   }
@@ -818,12 +860,12 @@ export class SpatialDemo {
     if (!el) return;
 
     if (this.audioMode === 'headphones') {
-      el.textContent = 'HRTF binaural — each speaker simulated in 3D';
+      el.textContent = 'HRTF binaural, each speaker simulated in 3D';
       el.className = 'channel-info';
       return;
     }
     if (this.audioMode === 'stereo') {
-      el.textContent = 'Equal-power stereo panning left/right';
+      el.textContent = 'Equal-power, stereo panning left/right';
       el.className = 'channel-info';
       return;
     }
@@ -931,6 +973,11 @@ export class SpatialDemo {
     if (!isCurrentlyPlaying) {
       this.soundManager.play(this.selectedSound);
     }
+
+    // Update speaker grid stop/play button to show "stop" icon
+    this.speakerGridPlaying = true;
+    const speakerGridStopBtn = document.getElementById('speakerGridStopBtn');
+    if (speakerGridStopBtn) speakerGridStopBtn.innerHTML = SVG_STOP;
 
     this.activeSpeaker = speakerId;
 
