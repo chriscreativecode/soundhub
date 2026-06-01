@@ -69,9 +69,11 @@ const devConfig: UserConfig = {
 // Development configuration for the main demo
 const devMainConfig: UserConfig = {
   ...devConfig,
+  root: path.resolve(__dirname, "src/demo/pages/main"),
+  publicDir: path.resolve(__dirname, "public"),
   server: {
     ...devConfig.server,
-    open: "/src/demo/pages/main/index.html",
+    open: "/index.html",
   },
 };
 
