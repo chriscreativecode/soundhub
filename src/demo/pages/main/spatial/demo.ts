@@ -184,14 +184,18 @@ export class SpatialDemo {
               <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
             `).join('')}
           </select>
-          <label class="sound-selector-label" for="audioModeSelect">Audio system:</label>
-          <select class="audio-mode-select" id="audioModeSelect">
-            ${AUDIO_MODE_OPTIONS.map(opt => `
-              <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
-            `).join('')}
-          </select>
+          <div class="audio-mode-column">
+            <div class="audio-mode-top-row">
+              <label class="sound-selector-label" for="audioModeSelect">Audio system:</label>
+              <select class="audio-mode-select" id="audioModeSelect">
+                ${AUDIO_MODE_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="channel-info" id="channelInfo"></div>
+          </div>
         </div>
-        <div class="channel-info" id="channelInfo"></div>
       </div>
 
       <div class="control-group spatial-room-panel">
@@ -697,11 +701,11 @@ export class SpatialDemo {
     const el = document.getElementById('channelInfo');
     if (!el) return;
     const descriptions: Record<AudioMode, string> = {
-      headphones: 'HRTF binaural — each speaker simulated in 3D',
-      stereo:     'Stereo panning — equal-power left/right',
-      '3.1':      'Direct channel routing — 4 channels (FL, FR, FC, Sub)',
-      '5.1':      'Direct channel routing — 6 channels',
-      '7.1':      'Direct channel routing — 8 channels',
+      headphones: 'HRTF binaural: each speaker simulated in 3D',
+      stereo:     'Stereo panning: equal-power left/right',
+      '3.1':      'Direct channel routing: 4 channels (FL, FR, FC, Sub)',
+      '5.1':      'Direct channel routing: 6 channels',
+      '7.1':      'Direct channel routing: 8 channels',
     };
     el.textContent = descriptions[this.audioMode];
   }

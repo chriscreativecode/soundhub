@@ -513,12 +513,27 @@ input:checked + .toggle-slider:before {
 .active-coords { font-size: 0.8rem; color: var(--color-text-secondary); font-family: monospace; }
 .channel-note { font-size: 0.75rem; color: var(--color-text-secondary); font-family: monospace; }
 
+.audio-mode-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.audio-mode-top-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
 .channel-info {
-  font-size: 0.78rem;
+  display: inline-block;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: var(--color-text-secondary);
-  text-align: center;
-  padding: 4px 0 2px;
-  min-height: 1.2em;
+  white-space: nowrap;
+  margin: 4px 0;
 }
 
 /* Coordinates panel */
