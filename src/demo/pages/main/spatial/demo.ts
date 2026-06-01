@@ -190,8 +190,11 @@ export class SpatialDemo {
           To test individual speakers in isolation, use your audio system's own companion app or a
           streaming service that outputs native Dolby 5.1 / 7.1 (such as Netflix or Disney+).
         </p>
+      </div>
+
+      <div class="control-group">
         <div class="sound-selector-row">
-          <label class="sound-selector-label" for="soundSelect">Test sound:</label>
+          <label class="sound-selector-label" for="soundSelect"><strong>Test sound:</strong></label>
           <select class="sound-select-dropdown" id="soundSelect">
             ${SOUND_OPTIONS.map(s => `
               <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
