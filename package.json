@@ -29,7 +29,14 @@
     "sound-library",
     "lightweight-soundmanager",
     "game-audio",
-    "web-game-audio"
+    "web-game-audio",
+    "html5-audio",
+    "react-audio",
+    "vue-audio",
+    "svelte-audio",
+    "spatial-audio",
+    "3d-audio",
+    "hrtf"
   ],
   "type": "module",
   "main": "./dist/sound-manager-ts.umd.js",
