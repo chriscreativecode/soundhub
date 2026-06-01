@@ -696,14 +696,31 @@ export class SpatialDemo {
   private updateChannelInfo(): void {
     const el = document.getElementById('channelInfo');
     if (!el) return;
-    const descriptions: Record<AudioMode, string> = {
-      headphones: 'HRTF binaural: each speaker simulated in 3D',
-      stereo:     'Stereo panning: equal-power left/right',
-      '3.1':      'Direct channel routing: 4 channels (FL, FR, FC, Sub)',
-      '5.1':      'Direct channel routing: 6 channels',
-      '7.1':      'Direct channel routing: 8 channels',
-    };
-    el.textContent = descriptions[this.audioMode];
+
+    if (this.audioMode === 'headphones') {
+      el.textContent = 'HRTF binaural — each speaker simulated in 3D';
+      el.className = 'channel-info';
+      return;
+    }
+    if (this.audioMode === 'stereo') {
+      el.textContent = 'Equal-power stereo panning — left/right';
+      el.className = 'channel-info';
+      return;
+    }
+
+    const required = MODE_CHANNEL_COUNTS[this.audioMode];
+    const maxCh = this.soundManager.getContext().destination.maxChannelCount;
+
+    if (this.channelMerger) {
+      el.textContent = `✓ Channel routing active — ${required} discrete channels`;
+      el.className = 'channel-info channel-info--ok';
+    } else if (maxCh < required) {
+      el.textContent = `⚠ Device supports ${maxCh} ch (${required} needed) — using spatial fallback`;
+      el.className = 'channel-info channel-info--warn';
+    } else {
+      el.textContent = `Direct channel routing — ${required} channels`;
+      el.className = 'channel-info';
+    }
   }
 
   private initChannelIsolation(): void {
