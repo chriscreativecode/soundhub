@@ -1035,6 +1035,10 @@ body.dark-theme .landing-page .control-group.landing-header {
   background: var(--panel-background);
 }
 
+body.dark-theme .title-container {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 body.dark-theme .feature-chip {
   background: rgba(74, 107, 255, 0.12);
   border-color: rgba(74, 107, 255, 0.25);
