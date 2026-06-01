@@ -47,7 +47,6 @@ body {
 .title-container {
   display: flex;
   padding: 5px 5px 10px 5px;
-  border-bottom: 1px solid var(--color-border);
   align-items: center;
   gap: var(--spacing-sm);
 }
@@ -1036,7 +1035,7 @@ body.dark-theme .landing-page .control-group.landing-header {
 }
 
 body.dark-theme .title-container {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(16 39 23 / 81%);
 }
 
 body.dark-theme .feature-chip {
