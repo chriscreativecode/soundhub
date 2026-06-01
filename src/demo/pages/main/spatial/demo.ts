@@ -184,17 +184,14 @@ export class SpatialDemo {
               <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
             `).join('')}
           </select>
-          <div class="audio-mode-column">
-            <div class="audio-mode-top-row">
-              <label class="sound-selector-label" for="audioModeSelect">Audio system:</label>
-              <select class="audio-mode-select" id="audioModeSelect">
-                ${AUDIO_MODE_OPTIONS.map(opt => `
-                  <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="channel-info" id="channelInfo"></div>
-          </div>
+          <span class="selector-row-divider"></span>
+          <label class="sound-selector-label" for="audioModeSelect">Audio system:</label>
+          <select class="audio-mode-select" id="audioModeSelect">
+            ${AUDIO_MODE_OPTIONS.map(opt => `
+              <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
+            `).join('')}
+          </select>
+          <div class="channel-info" id="channelInfo"></div>
         </div>
       </div>
 
