@@ -1523,20 +1523,24 @@ export class SoundManager implements SoundManagerInterface {
     return `${proxy}${url}`;
   }
   
-  private async loadWithWebAudio(id: string, url: string): Promise<void> {
+  private async loadWithWebAudio(id: string, url: string, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
     const strategies = this.config.fetchStrategy === 'proxy-first' && this.shouldUseProxy(url)
-      ? ['proxy', 'direct'] 
+      ? ['proxy', 'direct']
       : ['direct'];
-  
+
     for (const strategy of strategies) {
       try {
         const fetchUrl = (strategy === 'proxy' || this.config.corsProxy) ? this.getProxyUrl(url) : url;
-        
+
         this.debugLog(`Trying ${strategy} strategy for ${id}`, {
           originalUrl: url,
           fetchUrl: fetchUrl
         });
-        
+
         const response = await this.fetchWithRetry(fetchUrl, {
           mode: 'cors',
           credentials: 'omit',
@@ -1544,15 +1548,19 @@ export class SoundManager implements SoundManagerInterface {
           headers: {
             'Accept': 'audio/mpeg, audio/*'
           }
-        });
-  
+        }, signal);
+
         return await this.processAudioResponse(id, response);
       } catch (error) {
+        if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          throw error;
+        }
+
         this.debugLog(`${strategy} strategy failed for ${id}`, {
           error: error instanceof Error ? error.message : String(error),
           url: url
         });
-        
+
         if (strategy === strategies[strategies.length - 1]) {
           throw new Error(`Failed to load sound ${id}: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -1560,9 +1568,13 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
   
-  private async fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  private async fetchWithRetry(url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
     const { fetchRetries = 2, retryDelay = 0.5, fetchTimeout = 10 } = this.config;
     let lastError: Error | null = null;
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
 
     // Determine credential strategies to try
     const credentialStrategies = this.config.credentialStrategy === 'auto'
@@ -1574,12 +1586,15 @@ export class SoundManager implements SoundManagerInterface {
         const startTime = Date.now();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), fetchTimeout * 1000);
+        const combinedSignal = signal
+          ? AbortSignal.any([signal, controller.signal])
+          : controller.signal;
 
         try {
           const options = {
             ...init,
             credentials: credentials as RequestCredentials,
-            signal: controller.signal
+            signal: combinedSignal
           };
 
           this.debugLog(`Attempt ${attempt + 1} with credentials=${credentials}`);
@@ -1603,11 +1618,15 @@ export class SoundManager implements SoundManagerInterface {
 
         } catch (error) {
           clearTimeout(timeoutId);
+          if (signal?.aborted) throw error;
           lastError = error instanceof Error ? error : new Error(String(error));
           this.debugLog(`Attempt ${attempt + 1} failed: ${lastError.message}`);
         }
 
         if (attempt < fetchRetries) {
+          if (signal?.aborted) {
+            throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+          }
           await new Promise(resolve => setTimeout(resolve, retryDelay * 1000));
         }
       }
@@ -1635,9 +1654,13 @@ export class SoundManager implements SoundManagerInterface {
     this.debugLog(`Sound ${id} loaded successfully`);
   }
 
-  private async loadWithHtml5Audio(id: string, url: string): Promise<void> {
+  private async loadWithHtml5Audio(id: string, url: string, signal?: AbortSignal): Promise<void> {
     if (!this.config.html5AudioFallback) {
       throw new Error('HTML5 Audio fallback is disabled in configuration');
+    }
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
     }
 
     return new Promise((resolve, reject) => {
@@ -1652,6 +1675,13 @@ export class SoundManager implements SoundManagerInterface {
         audio.oncanplaythrough = null;
         audio.onerror = null;
         audio.removeEventListener('error', errorHandler);
+        signal?.removeEventListener('abort', abortHandler);
+      };
+
+      const abortHandler = () => {
+        cleanup();
+        audio.src = '';
+        reject(signal!.reason ?? new DOMException('Aborted', 'AbortError'));
       };
 
       const errorHandler = () => {
@@ -1664,7 +1694,7 @@ export class SoundManager implements SoundManagerInterface {
 
         try {
           // Use the same loading strategy as Web Audio
-          await this.loadWithWebAudio(id, url);
+          await this.loadWithWebAudio(id, url, signal);
           this.debugLog(`Sound ${id} loaded with HTML5 Audio fallback`);
           resolve();
         } catch (error) {
@@ -1674,12 +1704,17 @@ export class SoundManager implements SoundManagerInterface {
 
       audio.onerror = errorHandler;
       audio.addEventListener('error', errorHandler);
+      if (signal) signal.addEventListener('abort', abortHandler, { once: true });
       audio.load();
     });
   }
 
-  public async loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void> {
+  public async loadSounds(soundsToLoad: { id: string; url: string }[], signal?: AbortSignal): Promise<void> {
     if (!soundsToLoad.length) return;
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
 
     try {
       const { maxParallelLoads = 10, webAudioPreferred = true } = this.config;
@@ -1692,6 +1727,10 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       for (const batch of batches) {
+        if (signal?.aborted) {
+          throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+        }
+
         const loadPromises = batch.map(async ({ id, url }) => {
           if (this.sounds.has(id)) {
             this.debugLog(`Sound with id ${id} already exists. Skipping.`);
@@ -1701,16 +1740,19 @@ export class SoundManager implements SoundManagerInterface {
           try {
             if (webAudioPreferred) {
               try {
-                await this.loadWithWebAudio(id, url);
+                await this.loadWithWebAudio(id, url, signal);
                 return;
               } catch (webAudioError) {
+                if (signal?.aborted) throw webAudioError;
                 this.debugLog(`Web Audio load failed for ${id}`, webAudioError);
               }
             }
 
-            await this.loadWithHtml5Audio(id, url);
+            await this.loadWithHtml5Audio(id, url, signal);
           } catch (error) {
-            this.handleError("loading sound", error, id);
+            if (!(error instanceof DOMException && error.name === 'AbortError')) {
+              this.handleError("loading sound", error, id);
+            }
             throw error;
           }
         });
@@ -1719,12 +1761,18 @@ export class SoundManager implements SoundManagerInterface {
         const failedLoads = results.filter(r => r.status === 'rejected');
 
         if (failedLoads.length) {
+          const firstRejected = (failedLoads[0] as PromiseRejectedResult).reason;
+          if (firstRejected instanceof DOMException && firstRejected.name === 'AbortError') {
+            throw firstRejected;
+          }
           const failedIds = batch.filter((_, i) => results[i].status === 'rejected').map(s => s.id);
           throw new Error(`Failed to load sounds: ${failedIds.join(', ')}`);
         }
       }
     } catch (error) {
-      this.handleError("preloading sounds", error);
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        this.handleError("preloading sounds", error);
+      }
       throw error;
     }
   }
@@ -1789,11 +1837,13 @@ export class SoundManager implements SoundManagerInterface {
     });
   }
 
-  public async loadSound(id: string, url: string): Promise<void> {
+  public async loadSound(id: string, url: string, signal?: AbortSignal): Promise<void> {
     try {
-      await this.loadSounds([{ id, url }]);
+      await this.loadSounds([{ id, url }], signal);
     } catch (error) {
-      this.handleError("loading sound", error, id);
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        this.handleError("loading sound", error, id);
+      }
       throw error;
     }
   }

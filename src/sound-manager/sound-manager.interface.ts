@@ -75,9 +75,9 @@ export interface SoundManagerInterface {
 
   // Sound loading and management: Load, update, and manage sounds in the sound manager.
   /* Load multiple sounds from an array of sound configurations. */
-  loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
+  loadSounds(soundsToLoad: { id: string; url: string }[], signal?: AbortSignal): Promise<void>;
   /* Load a single sound by its ID and URL. */
-  loadSound(id: string, url: string): Promise<void>;
+  loadSound(id: string, url: string, signal?: AbortSignal): Promise<void>;
   /* Update the URL of a sound by its ID. */
   updateSoundUrl(id: string, newUrl: string): Promise<void>;
   /* Unload a sound by its ID, freeing up resources. */
