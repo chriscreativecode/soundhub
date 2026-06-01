@@ -177,11 +177,11 @@ export class SpatialDemo {
           <strong>Note:</strong> For best results, use headphones or a proper surround sound system.
           The listener is positioned at the center of the room.
           <br><br>
-          <strong>Speaker isolation limitation:</strong> Browsers can only output discrete per-speaker
-          audio when the operating system exposes the audio device as a true multi-channel PCM output
-          (e.g. a PC with a 5.1 soundcard connected directly to powered speakers or an AV receiver).
+          <strong>Speaker isolation limitation:</strong><br/>Browsers can only output discrete per-speaker
+          audio when the operating system exposes the audio device as a true multi-channel PCM output<br/>
+          (e.g. a PC with a 5.1 soundcard connected directly to powered speakers or an AV receiver).<br/>
           Soundbars connected via TV HDMI ARC, optical, or Bluetooth typically appear as a 2-channel
-          stereo device to the browser — the soundbar then applies its own upmixing to all speakers.
+          stereo device to the browser<br/>the soundbar then applies its own upmixing to all speakers.<br/>
           To test individual speakers in isolation, use your audio system's own companion app or a
           streaming service that outputs native Dolby 5.1 / 7.1 (such as Netflix or Disney+).
         </p>
@@ -711,7 +711,7 @@ export class SpatialDemo {
       return;
     }
     if (this.audioMode === 'stereo') {
-      el.textContent = 'Equal-power stereo panning — left/right';
+      el.textContent = 'Equal-power stereo panning left/right';
       el.className = 'channel-info';
       return;
     }
@@ -720,13 +720,13 @@ export class SpatialDemo {
     const maxCh = this.soundManager.getContext().destination.maxChannelCount;
 
     if (this.channelMerger) {
-      el.textContent = `✓ Channel routing active — ${required} discrete channels`;
+      el.textContent = `✓ Channel routing active ${required} discrete channels`;
       el.className = 'channel-info channel-info--ok';
     } else if (maxCh < required) {
-      el.textContent = `⚠ Device supports ${maxCh} ch (${required} needed) — using spatial fallback`;
+      el.textContent = `⚠ Device supports ${maxCh} ch (${required} needed) using spatial fallback`;
       el.className = 'channel-info channel-info--warn';
     } else {
-      el.textContent = `Direct channel routing — ${required} channels`;
+      el.textContent = `Direct channel routing ${required} channels`;
       el.className = 'channel-info';
     }
   }
