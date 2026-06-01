@@ -131,6 +131,36 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--speaker-color) 30%, transparent);
 }
 
+/* Audio mode selector */
+.audio-mode-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+.audio-mode-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.audio-mode-select {
+  background: var(--color-surface-secondary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 6px 12px;
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  cursor: pointer;
+  min-width: 180px;
+  appearance: auto;
+}
+.audio-mode-select:focus {
+  outline: none;
+  border-color: var(--speaker-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--speaker-color) 30%, transparent);
+}
+
 /* Room layout */
 .spatial-room-panel { padding: var(--spacing-md); }
 
@@ -487,6 +517,15 @@ input:checked + .toggle-slider:before {
 }
 .active-label { font-size: 0.875rem; color: var(--color-text); }
 .active-coords { font-size: 0.8rem; color: var(--color-text-secondary); font-family: monospace; }
+.channel-note { font-size: 0.75rem; color: var(--color-text-secondary); font-family: monospace; }
+
+.channel-info {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 4px 0 2px;
+  min-height: 1.2em;
+}
 
 /* Coordinates panel */
 .spatial-coords-panel { padding: var(--spacing-md); }
@@ -522,6 +561,7 @@ body.dark-theme .theme-icon--moon { opacity: 1; stroke: #ffb74d; }
 body.dark-theme .theme-icon--sun  { opacity: 0; }
 body.dark-theme .room-border { border-color: #404040; background: #1a1a1a; }
 body.dark-theme .sound-select-dropdown { background: #2a2a2a; border-color: #404040; }
+body.dark-theme .audio-mode-select { background: #2a2a2a; border-color: #404040; }
 body.dark-theme .coord-row { background: #1a1a1a; border-color: #404040; }
 body.dark-theme .active-speaker-info { background: #1a1a1a; }
 body.dark-theme .spatial-tab-content-wrapper { background: #1a1e24; border-color: #404040; }
