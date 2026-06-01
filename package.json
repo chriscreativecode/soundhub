@@ -63,8 +63,7 @@
     "build:demo": "vite build --mode demo-main",
     "build:lib": "vite build --mode lib",
     "build:docs": "vite build --mode documentation-dev",
-    "generate-docs": "node scripts/inject-readme.js",
-    "debug:types": "tsc --listFiles --emitDeclarationOnly",
+"debug:types": "tsc --listFiles --emitDeclarationOnly",
     "preview": "vite preview"
   },
   "devDependencies": {
