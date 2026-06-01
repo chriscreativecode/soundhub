@@ -513,18 +513,17 @@ input:checked + .toggle-slider:before {
 .active-coords { font-size: 0.8rem; color: var(--color-text-secondary); font-family: monospace; }
 .channel-note { font-size: 0.75rem; color: var(--color-text-secondary); font-family: monospace; }
 
-.audio-mode-column {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.audio-mode-top-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+.selector-row-divider {
+  display: inline-block;
+  width: 1px;
+  height: 22px;
+  background: var(--color-border);
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 .channel-info {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   background: var(--color-surface-secondary);
   border: 1px solid var(--color-border);
   border-radius: 20px;
@@ -533,7 +532,6 @@ input:checked + .toggle-slider:before {
   font-weight: 500;
   color: var(--color-text-secondary);
   white-space: nowrap;
-  margin: 4px 0;
 }
 
 /* Coordinates panel */
