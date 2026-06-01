@@ -9,7 +9,7 @@
 
 A powerful and lightweight (14KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
-## Live Demo's implementing the sound manager
+## Live Demos & Playgrounds
 
 [Visit the main demo page](https://chriscreativecode.com/sound-manager-ts/demo/ "A demo showcase of my Sound Manager")
 
@@ -109,7 +109,7 @@ Transform your web audio experience with just a few lines of code!
 ## Documentation
 
 - [🎵 sound-manager-ts |  SoundManager for Web Audio API](#-sound-manager-ts---soundmanager-for-web-audio-api)
-  - [Live Demo's implementing the sound manager](#live-demos-implementing-the-sound-manager)
+  - [Live Demos & Playgrounds](#live-demos--playgrounds)
   - [Why Choose This Package?](#why-choose-this-package)
   - [Features](#features)
   - [Note](#note)
