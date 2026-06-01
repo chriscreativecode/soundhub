@@ -1124,7 +1124,7 @@ export interface SoundResetOptions {
 
 ## Demo included
 
-The package includes a comprehensive demo showcasing all features:
+The repository includes a comprehensive demo showcasing all features. To run it locally, clone the repository — npm package users can use the [online demo](https://chriscreativecode.com/sound-manager-ts/demo/) or [Codepen](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd) instead.
 
 - Demo Features
 - Sound loading and preloading
@@ -1146,9 +1146,11 @@ The package includes a comprehensive demo showcasing all features:
 
 ## Running the Demo
 
-1. Install dependencies: `npm install`
-2. Start the demo: npm run dev
-3. Open http://localhost:5173 in your browser
+> **Note:** These instructions are for contributors working with the repository. If you installed the package via npm, use the [online demo](https://chriscreativecode.com/sound-manager-ts/demo/) instead.
+
+1. Clone the repository and install dependencies: `npm install`
+2. Start the demo: `npm run dev`
+3. Open http://localhost:5174 in your browser
 
 Features are automatically adapted based on browser support:
 
