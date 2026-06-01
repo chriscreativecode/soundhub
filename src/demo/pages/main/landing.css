@@ -893,6 +893,11 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   color: #fff;
 }
 
+.lang-badge--api {
+  background: #8b5cf6;
+  color: #fff;
+}
+
 .qs-pre {
   background: #1a1a2e;
   border-radius: 6px;
