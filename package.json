@@ -62,7 +62,7 @@
     "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
     "build:demo": "vite build --mode demo-main",
     "build:lib": "vite build --mode lib",
-    "build:docs": "vite build --mode readme-dev",
+    "build:docs": "vite build --mode readme",
 "debug:types": "tsc --listFiles --emitDeclarationOnly",
     "preview": "vite preview"
   },
