@@ -132,12 +132,6 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 }
 
 /* Audio mode selector */
-.audio-mode-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
 .audio-mode-label {
   font-size: 0.875rem;
   font-weight: 500;

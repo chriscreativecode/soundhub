@@ -184,7 +184,14 @@ export class SpatialDemo {
               <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
             `).join('')}
           </select>
+          <label class="sound-selector-label" for="audioModeSelect">Audio system:</label>
+          <select class="audio-mode-select" id="audioModeSelect">
+            ${AUDIO_MODE_OPTIONS.map(opt => `
+              <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
+            `).join('')}
+          </select>
         </div>
+        <div class="channel-info" id="channelInfo"></div>
       </div>
 
       <div class="control-group spatial-room-panel">
@@ -202,14 +209,6 @@ export class SpatialDemo {
 
         <!-- Tab 1: Speaker Grid -->
         <div class="spatial-tab-content" id="tabSpeakerGrid" style="${this.activeTab === 'speaker-grid' ? '' : 'display:none'}">
-          <div class="audio-mode-row">
-            <label class="audio-mode-label" for="audioModeSelect">Audio system:</label>
-            <select class="audio-mode-select" id="audioModeSelect">
-              ${AUDIO_MODE_OPTIONS.map(opt => `
-                <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
-              `).join('')}
-            </select>
-          </div>
           <div class="room-layout-wrapper">
             <div class="room-label-top">↑ Front (TV / Screen)</div>
             <div class="room-layout">
@@ -260,8 +259,6 @@ export class SpatialDemo {
               ${SVG_VOLUME_ON}
             </button>
           </div>
-
-          <div class="channel-info" id="channelInfo"></div>
 
           <div class="active-speaker-info" id="activeSpeakerInfo">
             <span class="active-label">Click a speaker to test it</span>
@@ -541,12 +538,16 @@ export class SpatialDemo {
     const angleDeg = this.computeSpeakerAngle(relativeX, relativeZ);
     speakerEl.style.setProperty('--speaker-angle', `${angleDeg}deg`);
 
-    // Update spatial position
+    // Update spatial position using mode-appropriate panning
+    const freePannerCfg: SoundPannerConfig = {
+      panningModel: this.audioMode === 'stereo' ? PanningModel.EqualPower : PanningModel.HRTF,
+    };
     this.soundManager.setSpatialPosition(
       Math.round(x * 100) / 100,
       0,
       Math.round(z * 100) / 100,
-      this.selectedSound
+      this.selectedSound,
+      freePannerCfg
     );
 
     // Update info (use textContent instead of innerHTML for performance)
@@ -588,12 +589,15 @@ export class SpatialDemo {
       const angleDeg = this.computeSpeakerAngle(relativeX, relativeZ);
       speakerEl.style.setProperty('--speaker-angle', `${angleDeg}deg`);
 
+      const rotatePannerCfg: SoundPannerConfig = {
+        panningModel: this.audioMode === 'stereo' ? PanningModel.EqualPower : PanningModel.HRTF,
+      };
       this.soundManager.setSpatialPosition(
         Math.round(x * 100) / 100,
         0,
         Math.round(z * 100) / 100,
         this.selectedSound,
-        undefined,
+        rotatePannerCfg,
         true
       );
 
@@ -679,7 +683,7 @@ export class SpatialDemo {
     }
     this.activeSpeaker = null;
     this.teardownChannelIsolation();
-    if (mode !== 'headphones' && mode !== 'stereo') {
+    if (mode !== 'headphones' && mode !== 'stereo' && this.activeTab === 'speaker-grid') {
       this.initChannelIsolation();
     } else {
       this.updateChannelInfo();
