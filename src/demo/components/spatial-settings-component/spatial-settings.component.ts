@@ -80,6 +80,20 @@ export class SpatialSettings {
     });
   }
 
+  /**
+   * Update all displayed values and optionally fire the onChange callback.
+   * This is used by the spatial demo to prefill settings when the audio mode changes.
+   */
+  public setValues(config: Partial<SoundPannerConfig>, triggerOnChange: boolean = true): void {
+    this.initializeValues({
+      ...DEFAULT_PANNER_CONFIG,
+      ...config,
+    });
+    if (triggerOnChange) {
+      this.onChange?.({ ...config });
+    }
+  }
+
   /** Remove all internal event listeners */
   public destroy(): void {
     this.cleanupFns.forEach((fn) => fn());
