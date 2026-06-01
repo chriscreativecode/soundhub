@@ -107,7 +107,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   display: flex;
   flex-direction: row;
   gap: var(--spacing-md);
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .spatial-room-section {
@@ -117,29 +117,70 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 
 /* Spatial settings panel (right side) */
 .spatial-settings-panel {
-  width: 320px;
+  width: 260px;
   flex-shrink: 0;
   padding: var(--spacing-md);
   background: var(--color-surface-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius);
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
 }
 
 .spatial-settings-panel h4 {
-  margin: 0 0 var(--spacing-sm) 0;
-  font-size: 0.95rem;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 0.9rem;
   color: var(--color-text);
+  flex-shrink: 0;
 }
 
 .spatial-settings-panel .spatial-settings-scroll {
-  max-height: 480px;
+  flex: 1;
   overflow-y: auto;
   padding-right: 4px;
+  min-height: 0;
+}
+
+/* Single column layout for spatial settings in this page */
+.spatial-settings-panel .spatial-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  margin-left: 0;
+  flex-wrap: nowrap;
+}
+
+.spatial-settings-panel .spatial-setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spatial-settings-panel .spatial-setting-group label {
+  font-size: 0.78rem;
+  color: var(--color-text);
+}
+
+.spatial-settings-panel .spatial-setting-group select,
+.spatial-settings-panel .spatial-setting-group input {
+  padding: 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8rem;
+}
+
+.spatial-settings-panel .spatial-setting-group input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Scrollbar styling */
 .spatial-settings-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .spatial-settings-scroll::-webkit-scrollbar-track {
   background: transparent;
