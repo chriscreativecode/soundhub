@@ -630,7 +630,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
 });
 
 <span class="hljs-comment">// Control individual sounds</span>
-soundManager.<span class="hljs-title function_">pauseSound</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
+soundManager.<span class="hljs-title function_">pause</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">resume</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">stop</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">seek</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">12</span>); <span class="hljs-comment">// Seek to 12 seconds</span>
@@ -738,11 +738,11 @@ soundManager.<span class="hljs-title function_">toggleMute</span>(<span class="h
 soundManager.<span class="hljs-title function_">toggleGlobalMute</span>();
 
 <span class="hljs-comment">// Spatial audio (if enabled in config)</span>
-soundManager.<span class="hljs-title function_">setSpatialPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, -<span class="hljs-number">1</span>);
+soundManager.<span class="hljs-title function_">setSpatialPosition</span>(<span class="hljs-number">1</span>, <span class="hljs-number">0</span>, -<span class="hljs-number">1</span>, <span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">resetSpatialPosition</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
-soundManager.<span class="hljs-title function_">removeSpatialEffect</span>();
+soundManager.<span class="hljs-title function_">removeSpatialEffect</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
 soundManager.<span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>);
-soundManager.<span class="hljs-title function_">updatePannerConfig</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>,
+soundManager.<span class="hljs-title function_">updatePannerConfigById</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>,
     &lt;<span class="hljs-title class_">SoundPannerConfig</span>&gt;{
         <span class="hljs-attr">panningModel</span>: <span class="hljs-title class_">PanningModel</span>.<span class="hljs-property">HRTF</span>,
         <span class="hljs-attr">distanceModel</span>: <span class="hljs-title class_">DistanceModel</span>.<span class="hljs-property">Inverse</span>,
@@ -789,7 +789,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 
   <span class="hljs-comment">// Volume control</span>
   <span class="hljs-title function_">getVolume</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">number</span>;
-  <span class="hljs-title function_">setSoundVolume</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">volume</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setSoundVolume</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">volume</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">skipDispatchEvent</span>?: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">getSoundVolume</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">number</span>;
   <span class="hljs-title function_">setGlobalVolume</span>(<span class="hljs-attr">volume</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">getGlobalVolume</span>(): <span class="hljs-built_in">number</span>;
@@ -830,24 +830,29 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">getProgressPercentage</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">number</span>;
   <span class="hljs-title function_">startProgressTracking</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">stopProgressTracking</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">setProgressUpdateInterval</span>(<span class="hljs-attr">interval</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Batch operations</span>
   <span class="hljs-title function_">stopAllSounds</span>(): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">pauseAllSounds</span>(): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">resumeAllSounds</span>(): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">reset</span>(<span class="hljs-attr">options</span>?: <span class="hljs-title class_">SoundResetOptions</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">resetSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>?: <span class="hljs-title class_">SoundResetOptions</span>): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Fading</span>
-  <span class="hljs-title function_">fadeIn</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">duration</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">startVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">endVolume</span>?: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
-  <span class="hljs-title function_">fadeOut</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">duration</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">startVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">endVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">stopAfterFade</span>?: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">fadeIn</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">duration</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">startVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">endVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">skipDispatchEvent</span>?: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">fadeOut</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">duration</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">startVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">endVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">stopAfterFade</span>?: <span class="hljs-built_in">boolean</span>, <span class="hljs-attr">skipDispatchEvent</span>?: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">fadeGlobalIn</span>(<span class="hljs-attr">duration</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">startVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">endVolume</span>?: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">fadeGlobalOut</span>(<span class="hljs-attr">duration</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">startVolume</span>?: <span class="hljs-built_in">number</span>, <span class="hljs-attr">endVolume</span>?: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Spatial audio</span>
   <span class="hljs-title function_">isSpatialAudioEnabled</span>(): <span class="hljs-built_in">boolean</span>;
+  <span class="hljs-title function_">isSpatialAudioSupported</span>(): <span class="hljs-built_in">boolean</span>;
   <span class="hljs-title function_">setSpatialPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">soundId</span>?: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>, <span class="hljs-attr">soundPannerConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>, <span class="hljs-attr">skipEvent</span>?: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">getSpatialPosition</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>): { <span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span> } | <span class="hljs-literal">null</span>;
   <span class="hljs-title function_">setMasterSpatialPosition</span>(<span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">config</span>?: <span class="hljs-title class_">SoundPannerConfig</span>, <span class="hljs-attr">skipEvent</span>?: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">getMasterSpatialPosition</span>(): { <span class="hljs-attr">x</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">y</span>: <span class="hljs-built_in">number</span>; <span class="hljs-attr">z</span>: <span class="hljs-built_in">number</span> } | <span class="hljs-literal">null</span>;
+  <span class="hljs-title function_">resetMasterSpatialPosition</span>(): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">resetSpatialPosition</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">removeSpatialEffect</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">isSpatialAudioActive</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">boolean</span>;
@@ -866,7 +871,15 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-comment">// Sprite logic</span>
   <span class="hljs-title function_">setSoundSprite</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">sprite</span>: { [<span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>]: [<span class="hljs-built_in">number</span>, <span class="hljs-built_in">number</span>] }): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">getSpriteConfig</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): { [<span class="hljs-attr">key</span>: <span class="hljs-built_in">string</span>]: [<span class="hljs-built_in">number</span>, <span class="hljs-built_in">number</span>] } | <span class="hljs-literal">undefined</span>;
-  <span class="hljs-title function_">removeSpriteConfig</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span> 
+  <span class="hljs-title function_">removeSpriteSound</span>(<span class="hljs-attr">spriteKey</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">removeSpriteConfig</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
+
+  <span class="hljs-comment">// Sound group management</span>
+  <span class="hljs-title function_">createSoundGroup</span>(<span class="hljs-attr">groupName</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: { <span class="hljs-attr">maxInstances</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-attr">playOptions</span>?: <span class="hljs-title class_">PlayOptions</span> }): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">addToSoundGroup</span>(<span class="hljs-attr">groupName</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">removeFromSoundGroup</span>(<span class="hljs-attr">groupName</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">getGroup</span>(<span class="hljs-attr">groupName</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">SoundGroup</span> | <span class="hljs-literal">undefined</span>;
+  <span class="hljs-title function_">removeSoundGroup</span>(<span class="hljs-attr">groupName</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Context management</span>
   <span class="hljs-title function_">suspendContext</span>(): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
@@ -884,6 +897,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">getSoundIds</span>(): <span class="hljs-built_in">string</span>[];
   <span class="hljs-title function_">updateSoundOptions</span>(<span class="hljs-attr">soundId</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">options</span>: <span class="hljs-title class_">Partial</span>&lt;<span class="hljs-title class_">PlayOptions</span>&gt;): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">setPlaybackRate</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">rate</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">getPlaybackRate</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">number</span>;
   <span class="hljs-title function_">getLastError</span>(): <span class="hljs-title class_">Error</span> | <span class="hljs-literal">null</span>;
   <span class="hljs-title function_">roundValue</span>(<span class="hljs-attr">value</span>: <span class="hljs-built_in">number</span>, <span class="hljs-attr">decimals</span>: <span class="hljs-built_in">number</span>): <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default precision is this.DEFAULT_PRECISION</span>
   <span class="hljs-title function_">destroy</span>(): <span class="hljs-built_in">void</span>;
@@ -891,6 +905,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-comment">// Listeners / Event handling</span>
   <span class="hljs-title function_">addEventListener</span>(<span class="hljs-attr">type</span>: <span class="hljs-title class_">SoundEventsEnum</span>, <span class="hljs-attr">callback</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span></span>) =&gt;</span> <span class="hljs-built_in">void</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">removeEventListener</span>(<span class="hljs-attr">type</span>: <span class="hljs-title class_">SoundEventsEnum</span>, <span class="hljs-attr">callback</span>: <span class="hljs-function">(<span class="hljs-params"><span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span></span>) =&gt;</span> <span class="hljs-built_in">void</span>): <span class="hljs-built_in">void</span>;
+  <span class="hljs-title function_">removeEventListenersForInstance</span>(<span class="hljs-attr">instanceId</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">dispatchEvent</span>(<span class="hljs-attr">event</span>: <span class="hljs-title class_">SoundEvent</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">hasEventListener</span>(<span class="hljs-attr">type</span>: <span class="hljs-title class_">SoundEventsEnum</span>): <span class="hljs-built_in">boolean</span>;
 
@@ -944,8 +959,13 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">progress</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// ratio from 0 to 1</span>
   <span class="hljs-attr">progressInfo</span>?: <span class="hljs-title class_">SoundProgressStateInfo</span>;
   <span class="hljs-attr">resetOptions</span>?: <span class="hljs-title class_">SoundResetOptions</span>;
+  <span class="hljs-attr">bufferSize</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">channels</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">fileSize</span>?: <span class="hljs-built_in">number</span>;
+  <span class="hljs-attr">sampleRate</span>?: <span class="hljs-built_in">number</span>;
   <span class="hljs-attr">sound</span>?: <span class="hljs-title class_">Sound</span>;
   <span class="hljs-attr">soundId</span>?: <span class="hljs-built_in">string</span>;
+  <span class="hljs-attr">state</span>?: <span class="hljs-title class_">SoundStateInfo</span>;
   <span class="hljs-attr">timestamp</span>?: <span class="hljs-built_in">number</span>;
   <span class="hljs-attr">type</span>: <span class="hljs-title class_">SoundEventsEnum</span>;
   <span class="hljs-attr">volume</span>?: <span class="hljs-built_in">number</span>;
@@ -961,6 +981,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-variable constant_">FADE_MASTER_OUT_COMPLETED</span> = <span class="hljs-string">&#x27;fade_master_out_completed&#x27;</span>,
   <span class="hljs-variable constant_">FADE_OUT_COMPLETED</span> = <span class="hljs-string">&#x27;fade_out_completed&#x27;</span>,
   <span class="hljs-variable constant_">GLOBAL_SPATIAL_POSITION_CHANGED</span> = <span class="hljs-string">&#x27;global_spatial_position_changed&#x27;</span>,
+  <span class="hljs-variable constant_">LOADED</span> = <span class="hljs-string">&#x27;loaded&#x27;</span>,
   <span class="hljs-variable constant_">LOOP_COMPLETED</span> = <span class="hljs-string">&#x27;loop_completed&#x27;</span>,
   <span class="hljs-variable constant_">MASTER_PAN_CHANGED</span> = <span class="hljs-string">&#x27;master_pan_changed&#x27;</span>,
   <span class="hljs-variable constant_">MASTER_VOLUME_CHANGED</span> = <span class="hljs-string">&#x27;master_volume_changed&#x27;</span>,
