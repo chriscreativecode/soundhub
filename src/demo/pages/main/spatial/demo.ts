@@ -498,7 +498,7 @@ export class SpatialDemo {
     if (tab === 'free-move') {
       this.teardownChannelIsolation();
     } else if (tab === 'speaker-grid') {
-      this.initChannelIsolation();
+      try { this.initChannelIsolation(); } catch { /* multi-channel not supported on this device */ }
     }
   }
 
@@ -685,10 +685,9 @@ export class SpatialDemo {
     this.activeSpeaker = null;
     this.teardownChannelIsolation();
     if (mode !== 'headphones' && mode !== 'stereo' && this.activeTab === 'speaker-grid') {
-      this.initChannelIsolation();
-    } else {
-      this.updateChannelInfo();
+      try { this.initChannelIsolation(); } catch { /* multi-channel not supported on this device */ }
     }
+    this.updateChannelInfo();
     document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
     const infoEl = document.getElementById('activeSpeakerInfo');
     if (infoEl) infoEl.innerHTML = '<span class="active-label">Click a speaker to test it</span>';
