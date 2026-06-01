@@ -532,6 +532,27 @@ input:checked + .toggle-slider:before {
   font-weight: 500;
   color: var(--color-text-secondary);
   white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.channel-info--ok {
+  background: color-mix(in srgb, #22c55e 12%, var(--color-surface-secondary));
+  border-color: color-mix(in srgb, #22c55e 40%, transparent);
+  color: color-mix(in srgb, #16a34a 80%, var(--color-text));
+}
+.channel-info--warn {
+  background: color-mix(in srgb, #f97316 12%, var(--color-surface-secondary));
+  border-color: color-mix(in srgb, #f97316 40%, transparent);
+  color: color-mix(in srgb, #ea580c 80%, var(--color-text));
+}
+body.dark-theme .channel-info--ok {
+  background: color-mix(in srgb, #22c55e 15%, #1e1e1e);
+  border-color: color-mix(in srgb, #22c55e 35%, transparent);
+  color: #86efac;
+}
+body.dark-theme .channel-info--warn {
+  background: color-mix(in srgb, #f97316 15%, #1e1e1e);
+  border-color: color-mix(in srgb, #f97316 35%, transparent);
+  color: #fdba74;
 }
 
 /* Coordinates panel */
