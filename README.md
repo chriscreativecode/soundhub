@@ -137,8 +137,7 @@ Transform your web audio experience with just a few lines of code!
     - [SoundPanType](#soundpantype)
     - [Spatial Audio](#spatial-audio)
     - [Reset options](#reset-options)
-  - [Demo included](#demo-included)
-  - [Running the Demo](#running-the-demo)
+  - [Demo](#demo)
   - [Licence](#licence)
   - [📋 Version History](#-version-history)
     - [5.5.9](#559)
@@ -1122,11 +1121,16 @@ export interface SoundResetOptions {
 }
 ```
 
-## Demo included
+## Demo
 
-The repository includes a comprehensive demo showcasing all features. To run it locally, clone the repository — npm package users can use the [online demo](https://chriscreativecode.com/sound-manager-ts/demo/) or [Codepen](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd) instead.
+A comprehensive demo showcasing all features is available online:
 
-- Demo Features
+- [Visit the online demo](https://chriscreativecode.com/sound-manager-ts/demo/)
+- [Codepen playground (JavaScript)](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd)
+- [Codepen playground (TypeScript)](https://codepen.io/Chris-Front-end-developer/pen/RNRzyym)
+
+Demo features:
+
 - Sound loading and preloading
   - Individual sound controls
   - Play/Pause/Stop buttons
@@ -1143,21 +1147,6 @@ The repository includes a comprehensive demo showcasing all features. To run it 
 - Real-time status display
 - Event logging
 - Spatial audio controls
-
-## Running the Demo
-
-> **Note:** These instructions are for contributors working with the repository. If you installed the package via npm, use the [online demo](https://chriscreativecode.com/sound-manager-ts/demo/) instead.
-
-1. Clone the repository and install dependencies: `npm install`
-2. Start the demo: `npm run dev`
-3. Open http://localhost:5174 in your browser
-
-Features are automatically adapted based on browser support:
-
-- Falls back gracefully when spatial audio is not supported
-- Handles browser autoplay policies
-- Manages WebAudio context state
-- Provides webkit prefix support for Safari
 
 ## Licence
 
