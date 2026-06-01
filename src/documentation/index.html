@@ -1185,7 +1185,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 }
 </code></pre>
 <h2 id="demo-included" tabindex="-1">Demo included</h2>
-<p>The package includes a comprehensive demo showcasing all features:</p>
+<p>The repository includes a comprehensive demo showcasing all features. To run it locally, clone the repository — npm package users can use the <a href="https://chriscreativecode.com/sound-manager-ts/demo/">online demo</a> or <a href="https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd">Codepen</a> instead.</p>
 <ul>
 <li>Demo Features</li>
 <li>Sound loading and preloading
@@ -1212,10 +1212,13 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <li>Spatial audio controls</li>
 </ul>
 <h2 id="running-the-demo" tabindex="-1">Running the Demo</h2>
+<blockquote>
+<p><strong>Note:</strong> These instructions are for contributors working with the repository. If you installed the package via npm, use the <a href="https://chriscreativecode.com/sound-manager-ts/demo/">online demo</a> instead.</p>
+</blockquote>
 <ol>
-<li>Install dependencies: <code>npm install</code></li>
-<li>Start the demo: npm run dev</li>
-<li>Open <a href="http://localhost:5173">http://localhost:5173</a> in your browser</li>
+<li>Clone the repository and install dependencies: <code>npm install</code></li>
+<li>Start the demo: <code>npm run dev</code></li>
+<li>Open <a href="http://localhost:5174">http://localhost:5174</a> in your browser</li>
 </ol>
 <p>Features are automatically adapted based on browser support:</p>
 <ul>
@@ -1236,10 +1239,10 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <li>🐛 Bug Fix: <code>STARTED</code> and <code>ENDED</code> events now include <code>originalId</code> and <code>instanceId</code> fields, consistent with <code>PROGRESS</code>. Previously, <code>STARTED</code> also used the raw <code>id</code> parameter for <code>soundId</code> instead of the actual instance ID (e.g. <code>piano-C4:3</code>), making it impossible to correlate events across instances when using <code>createNewInstance: true</code>.</li>
 <li>🐛 Bug Fix: <code>fadeIn</code> now respects an explicit <code>endVolume</code> of <code>0</code>. Previously, any end-volume of <code>0</code> was silently overridden to <code>1</code>, making it impossible to fade in to silence.</li>
 <li>🐛 Bug Fix: Progress-tracking duration check now correctly handles non-default <code>playbackRate</code>. The formula was <code>duration * playbackRate</code>, which caused the end-of-segment trigger to fire far too late (or never) at speeds other than 1×. Corrected to <code>(duration + startTime) / playbackRate</code>.</li>
-<li>🐛 Bug Fix: Default <code>rolloffFactor</code> for spatial audio changed from <code>0.2</code> to <code>1</code> (the Web Audio API spec default for the <code>inverse</code> distance model). The previous value caused sounds to remain almost equally loud regardless of distance. <strong>⚠️ Breaking change for spatial audio users</strong> — sounds will attenuate more realistically with distance. Override via <code>pannerNodeConfig: { rolloffFactor: 0.2 }</code> to restore the old behaviour.</li>
+<li>🐛 Bug Fix: Default <code>rolloffFactor</code> for spatial audio changed from <code>0.2</code> to <code>1</code> (the Web Audio API spec default for the <code>inverse</code> distance model). The previous value caused sounds to remain almost equally loud regardless of distance. <strong>⚠️ Breaking change for spatial audio users</strong> sounds will attenuate more realistically with distance. Override via <code>pannerNodeConfig: { rolloffFactor: 0.2 }</code> to restore the old behaviour.</li>
 <li>🔧 Internal: Removed a redundant <code>reconnectAudioNodes</code> call inside <code>play()</code>. The audio graph was already wired by <code>setupAudioSource</code>, so the second connect/disconnect cycle was unnecessary.</li>
 <li>⚡ Performance: <code>setSpatialPosition</code> no longer allocates a temporary configuration object on every call. The <code>mergedConfig</code> object (merged from <code>DEFAULT_PANNER_CONFIG</code>, the manager config, and the per-call config) is now created only once, when the <code>PannerNode</code> is first set up. This eliminates three object spreads and GC pressure when updating spatial position at high frequency (e.g. 60 fps in an animation loop).</li>
-<li>⚡ Performance: <code>isSpatialAudioSupported()</code> now caches its result after the first call. Previously it created and immediately closed a temporary <code>AudioContext</code> on every invocation — causing severe animation jitter when <code>setSpatialPosition</code> was called at 60 fps (e.g. in an auto-rotate loop). The check now runs once and the result is stored in <code>_spatialAudioSupported</code>.</li>
+<li>⚡ Performance: <code>isSpatialAudioSupported()</code> now caches its result after the first call. Previously it created and immediately closed a temporary <code>AudioContext</code> on every invocation causing severe animation jitter when <code>setSpatialPosition</code> was called at 60 fps (e.g. in an auto-rotate loop). The check now runs once and the result is stored in <code>_spatialAudioSupported</code>.</li>
 <li>⚡ Performance: <code>setSpatialPosition</code> no longer spreads the entire <code>playOptions</code> object on every call. The <code>panSpatialPosition</code> property is now updated in place, eliminating per-frame object allocation and GC pressure.</li>
 </ul>
 <h3 id="557" tabindex="-1">5.5.7</h3>
