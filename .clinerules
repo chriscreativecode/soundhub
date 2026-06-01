@@ -25,7 +25,6 @@
 - `npm run build` — full build
 - `npm run build:lib` — library only
 - `npm run clean` — remove `dist/`
-- `npm run generate-docs` — inject README.md into documentation HTML template
 - `npm run preview` — preview production build
 - There are NO tests in this project.
 
