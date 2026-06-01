@@ -485,6 +485,20 @@ try {
     console.error('Error loading sounds:', error);
 }
 
+// Cancel a load when a component unmounts (e.g. React useEffect cleanup)
+const controller = new AbortController();
+
+try {
+    await soundManager.loadSound('background-music', '/assets/sounds/background.mp3', controller.signal);
+} catch (error) {
+    if (error.name !== 'AbortError') {
+        console.error('Error loading sound:', error);
+    }
+}
+
+// In cleanup (e.g. useEffect return function):
+controller.abort();
+
 // Add event listeners
 soundManager.addEventListener(SoundEventsEnum.STARTED, (event) => {
     console.log(`Sound ${event.soundId} started playing at ${event.timestamp}`);
@@ -688,8 +702,8 @@ export interface SoundManagerInterface {
   toggleMute(id: string): void;
 
   // Sound loading and management
-  loadSounds(soundsToLoad: { id: string; url: string }[]): Promise<void>;
-  loadSound(id: string, url: string): Promise<void>;
+  loadSounds(soundsToLoad: { id: string; url: string }[], signal?: AbortSignal): Promise<void>;
+  loadSound(id: string, url: string, signal?: AbortSignal): Promise<void>;
   updateSoundUrl(id: string, newUrl: string): Promise<void>;
   unloadSound(id: string): void
   removeSound(id: string): void
@@ -1143,6 +1157,19 @@ The demo includes 5 interactive pages:
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.6.0
+
+- ✨ Added optional `signal?: AbortSignal` parameter to `loadSound` and `loadSounds`. Pass an `AbortController`'s signal to cancel in-flight loads — useful when a component unmounts before a pending load completes. Prevents uncaught promise rejections; `AbortError` propagates as-is without triggering error logging or `ERROR` events.
+
+```typescript
+const controller = new AbortController();
+soundManager.loadSound('bg', '/audio/bg.mp3', controller.signal)
+  .catch(err => { if (err.name !== 'AbortError') throw err; });
+
+// Cancel on cleanup:
+controller.abort();
+```
 
 ### 5.5.9
 

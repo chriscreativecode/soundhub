@@ -595,6 +595,20 @@ soundManager.<span class="hljs-title function_">addEventListener</span>(<span cl
     <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;Error loading sounds:&#x27;</span>, error);
 }
 
+<span class="hljs-comment">// Cancel a load when a component unmounts (e.g. React useEffect cleanup)</span>
+<span class="hljs-keyword">const</span> controller = <span class="hljs-keyword">new</span> <span class="hljs-title class_">AbortController</span>();
+
+<span class="hljs-keyword">try</span> {
+    <span class="hljs-keyword">await</span> soundManager.<span class="hljs-title function_">loadSound</span>(<span class="hljs-string">&#x27;background-music&#x27;</span>, <span class="hljs-string">&#x27;/assets/sounds/background.mp3&#x27;</span>, controller.<span class="hljs-property">signal</span>);
+} <span class="hljs-keyword">catch</span> (error) {
+    <span class="hljs-keyword">if</span> (error.<span class="hljs-property">name</span> !== <span class="hljs-string">&#x27;AbortError&#x27;</span>) {
+        <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&#x27;Error loading sound:&#x27;</span>, error);
+    }
+}
+
+<span class="hljs-comment">// In cleanup (e.g. useEffect return function):</span>
+controller.<span class="hljs-title function_">abort</span>();
+
 <span class="hljs-comment">// Add event listeners</span>
 soundManager.<span class="hljs-title function_">addEventListener</span>(<span class="hljs-title class_">SoundEventsEnum</span>.<span class="hljs-property">STARTED</span>, <span class="hljs-function">(<span class="hljs-params">event</span>) =&gt;</span> {
     <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Sound <span class="hljs-subst">${event.soundId}</span> started playing at <span class="hljs-subst">${event.timestamp}</span>`</span>);
@@ -793,8 +807,8 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">toggleMute</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>;
 
   <span class="hljs-comment">// Sound loading and management</span>
-  <span class="hljs-title function_">loadSounds</span>(<span class="hljs-attr">soundsToLoad</span>: { <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>; <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span> }[]): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
-  <span class="hljs-title function_">loadSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
+  <span class="hljs-title function_">loadSounds</span>(<span class="hljs-attr">soundsToLoad</span>: { <span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>; <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span> }[], <span class="hljs-attr">signal</span>?: <span class="hljs-title class_">AbortSignal</span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
+  <span class="hljs-title function_">loadSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">url</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">signal</span>?: <span class="hljs-title class_">AbortSignal</span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
   <span class="hljs-title function_">updateSoundUrl</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>, <span class="hljs-attr">newUrl</span>: <span class="hljs-built_in">string</span>): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
   <span class="hljs-title function_">unloadSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>
   <span class="hljs-title function_">removeSound</span>(<span class="hljs-attr">id</span>: <span class="hljs-built_in">string</span>): <span class="hljs-built_in">void</span>
@@ -1202,6 +1216,17 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="-version-history" tabindex="-1">📋 Version History</h2>
+<h3 id="560" tabindex="-1">5.6.0</h3>
+<ul>
+<li>✨ Added optional <code>signal?: AbortSignal</code> parameter to <code>loadSound</code> and <code>loadSounds</code>. Pass an <code>AbortController</code>’s signal to cancel in-flight loads — useful when a component unmounts before a pending load completes. Prevents uncaught promise rejections; <code>AbortError</code> propagates as-is without triggering error logging or <code>ERROR</code> events.</li>
+</ul>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> controller = <span class="hljs-keyword">new</span> <span class="hljs-title class_">AbortController</span>();
+soundManager.<span class="hljs-title function_">loadSound</span>(<span class="hljs-string">&#x27;bg&#x27;</span>, <span class="hljs-string">&#x27;/audio/bg.mp3&#x27;</span>, controller.<span class="hljs-property">signal</span>)
+  .<span class="hljs-title function_">catch</span>(<span class="hljs-function"><span class="hljs-params">err</span> =&gt;</span> { <span class="hljs-keyword">if</span> (err.<span class="hljs-property">name</span> !== <span class="hljs-string">&#x27;AbortError&#x27;</span>) <span class="hljs-keyword">throw</span> err; });
+
+<span class="hljs-comment">// Cancel on cleanup:</span>
+controller.<span class="hljs-title function_">abort</span>();
+</code></pre>
 <h3 id="559" tabindex="-1">5.5.9</h3>
 <ul>
 <li>📝 Updated README heading to include the package name and added a donate button.</li>
@@ -1844,7 +1869,7 @@ This is particularly useful for creating smoother transitions and avoiding abrup
           "name": "Sound Manager TS",
           "applicationCategory": "DeveloperApplication",
           "operatingSystem": "Any",
-          "softwareVersion": "5.5.7"
+          "softwareVersion": "5.6.0"
         }
       }
     </script>
