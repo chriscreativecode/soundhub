@@ -4,7 +4,7 @@ import "./demo.css";
 declare function gtag(...args: any[]): void;
 
 // @ts-ignore
-import helicopterNew from "../../../../sounds/helicopter-new.mp3";
+import helicopterNew from "../../../../sounds/helicopter.mp3";
 // @ts-ignore
 import ambientSoundEffect from "../../../../sounds/ambient-sound-effect.mp3";
 // @ts-ignore
@@ -22,6 +22,7 @@ import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-config';
 import { SoundPanType } from '../../../../sound-manager/sound-pan-type.enum';
 import { LocalStorageManagerManager } from '../../../services/local-storage-manager';
+import { PanningModel, SoundPannerConfig } from '../../../../sound-manager/sound-panner-config';
 
 interface SpeakerDef {
   id: string;
@@ -56,6 +57,25 @@ const SOUND_OPTIONS = [
   { id: 'rain',                 label: '🌧️ Rain',            url: rain },
 ];
 
+type AudioMode = 'headphones' | 'stereo' | '3.1' | '5.1' | '7.1';
+
+// Standard ITU channel layout per surround mode
+const CHANNEL_MAPS: Record<string, Record<string, number>> = {
+  '3.1': { fl: 0, fr: 1, fc: 2, sub: 3, l: 0, r: 1, rl: 0, rr: 1, rc: 2 },
+  '5.1': { fl: 0, fr: 1, fc: 2, sub: 3, rl: 4, rr: 5, l: 4, r: 5, rc: 4 },
+  '7.1': { fl: 0, fr: 1, fc: 2, sub: 3, rl: 4, rr: 5, l: 6, r: 7, rc: 4 },
+};
+
+const MODE_CHANNEL_COUNTS: Record<string, number> = { '3.1': 4, '5.1': 6, '7.1': 8 };
+
+const AUDIO_MODE_OPTIONS: { value: AudioMode; label: string }[] = [
+  { value: 'headphones', label: '🎧 Headphones' },
+  { value: 'stereo',     label: '🔊 Stereo / 2.1' },
+  { value: '3.1',        label: '📺 3.1 Soundbar' },
+  { value: '5.1',        label: '🎵 5.1 Surround' },
+  { value: '7.1',        label: '🎵 7.1 Surround' },
+];
+
 const SVG_VOLUME_ON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06C18.01 19.86 21 16.28 21 12c0-4.28-2.99-7.86-7-8.77z"/></svg>`;
 const SVG_VOLUME_OFF = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
 
@@ -80,6 +100,11 @@ export class SpatialDemo {
   private lastSpeakerAngle = 0;
   private equalizer: EqualizerComponent | null = null;
 
+  // Channel isolation mode (Speaker Grid tab only)
+  private audioMode: AudioMode = 'headphones';
+  private channelMerger: ChannelMergerNode | null = null;
+  private activeChannelIndex: number | null = null;
+
   constructor() {
     const config: SoundManagerConfig = {
       autoMuteOnHidden: false,
@@ -97,6 +122,7 @@ export class SpatialDemo {
       trackProgress: false,
     };
     this.soundManager = new SoundManager(config);
+    this.audioMode = this.detectDefaultMode();
     this.initAudioController();
     this.initEqualizer();
     this.initTheme();
@@ -176,6 +202,14 @@ export class SpatialDemo {
 
         <!-- Tab 1: Speaker Grid -->
         <div class="spatial-tab-content" id="tabSpeakerGrid" style="${this.activeTab === 'speaker-grid' ? '' : 'display:none'}">
+          <div class="audio-mode-row">
+            <label class="audio-mode-label" for="audioModeSelect">Audio system:</label>
+            <select class="audio-mode-select" id="audioModeSelect">
+              ${AUDIO_MODE_OPTIONS.map(opt => `
+                <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
+              `).join('')}
+            </select>
+          </div>
           <div class="room-layout-wrapper">
             <div class="room-label-top">↑ Front (TV / Screen)</div>
             <div class="room-layout">
@@ -226,6 +260,8 @@ export class SpatialDemo {
               ${SVG_VOLUME_ON}
             </button>
           </div>
+
+          <div class="channel-info" id="channelInfo"></div>
 
           <div class="active-speaker-info" id="activeSpeakerInfo">
             <span class="active-label">Click a speaker to test it</span>
@@ -325,6 +361,12 @@ export class SpatialDemo {
         this.soundManager.toggleMute(this.selectedSound);
         this.updateMuteBtnUI(speakerGridMuteBtn, this.speakerGridMuted);
       });
+    }
+
+    // Audio mode selector
+    const audioModeSelect = document.getElementById('audioModeSelect') as HTMLSelectElement;
+    if (audioModeSelect) {
+      audioModeSelect.addEventListener('change', () => this.setAudioMode(audioModeSelect.value as AudioMode));
     }
 
     // Tab switching
@@ -453,6 +495,12 @@ export class SpatialDemo {
         try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
       }
       this.freeMoveSoundStarted = false;
+    }
+
+    if (tab === 'free-move') {
+      this.teardownChannelIsolation();
+    } else if (tab === 'speaker-grid') {
+      this.initChannelIsolation();
     }
   }
 
@@ -613,6 +661,75 @@ export class SpatialDemo {
     }
   }
 
+  // ── Audio mode & channel isolation (Speaker Grid tab) ──────────────────
+
+  private detectDefaultMode(): AudioMode {
+    const max = this.soundManager.getContext().destination.maxChannelCount;
+    if (max >= 8) return '7.1';
+    if (max >= 6) return '5.1';
+    if (max >= 4) return '3.1';
+    return 'headphones';
+  }
+
+  private setAudioMode(mode: AudioMode): void {
+    if (this.audioMode === mode) return;
+    this.audioMode = mode;
+    if (this.soundManager.isPlaying(this.selectedSound)) {
+      try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
+    }
+    this.activeSpeaker = null;
+    this.teardownChannelIsolation();
+    if (mode !== 'headphones' && mode !== 'stereo') {
+      this.initChannelIsolation();
+    } else {
+      this.updateChannelInfo();
+    }
+    document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
+    const infoEl = document.getElementById('activeSpeakerInfo');
+    if (infoEl) infoEl.innerHTML = '<span class="active-label">Click a speaker to test it</span>';
+  }
+
+  private updateChannelInfo(): void {
+    const el = document.getElementById('channelInfo');
+    if (!el) return;
+    const descriptions: Record<AudioMode, string> = {
+      headphones: 'HRTF binaural — each speaker simulated in 3D',
+      stereo:     'Stereo panning — equal-power left/right',
+      '3.1':      'Direct channel routing — 4 channels (FL, FR, FC, Sub)',
+      '5.1':      'Direct channel routing — 6 channels',
+      '7.1':      'Direct channel routing — 8 channels',
+    };
+    el.textContent = descriptions[this.audioMode];
+  }
+
+  private initChannelIsolation(): void {
+    if (this.channelMerger) return;
+    if (this.audioMode === 'headphones' || this.audioMode === 'stereo') return;
+    const channelCount = MODE_CHANNEL_COUNTS[this.audioMode];
+    const ctx = this.soundManager.getContext();
+    const masterOut = this.soundManager.getMasterOutput();
+    ctx.destination.channelCount = channelCount;
+    ctx.destination.channelCountMode = 'explicit';
+    ctx.destination.channelInterpretation = 'discrete';
+    this.channelMerger = ctx.createChannelMerger(channelCount);
+    this.channelMerger.connect(ctx.destination);
+    try { masterOut.disconnect(ctx.destination); } catch { /* already disconnected */ }
+    this.updateChannelInfo();
+  }
+
+  private teardownChannelIsolation(): void {
+    if (!this.channelMerger) return;
+    const ctx = this.soundManager.getContext();
+    const masterOut = this.soundManager.getMasterOutput();
+    try { masterOut.disconnect(this.channelMerger); } catch { /* ignore */ }
+    masterOut.connect(ctx.destination);
+    ctx.destination.channelCountMode = 'max';
+    try { this.channelMerger.disconnect(); } catch { /* ignore */ }
+    this.channelMerger = null;
+    this.activeChannelIndex = null;
+    this.updateChannelInfo();
+  }
+
   // ── Sound loading & Speaker Grid ────────────────────────────────────────
 
   private async loadSounds(): Promise<void> {
@@ -626,13 +743,49 @@ export class SpatialDemo {
       btn.disabled = false;
       btn.addEventListener('click', () => this.playSpeaker(btn.dataset.speaker!));
     });
+
+    this.initChannelIsolation();
+    this.updateChannelInfo();
   }
 
   private playSpeaker(speakerId: string): void {
     const speaker = SPEAKERS.find(s => s.id === speakerId)!;
     const isCurrentlyPlaying = this.soundManager.isPlaying(this.selectedSound);
 
-    this.soundManager.setSpatialPosition(speaker.x, speaker.y, speaker.z, this.selectedSound);
+    if (this.channelMerger) {
+      const channelMap = CHANNEL_MAPS[this.audioMode] ?? {};
+      const rawChannel = channelMap[speakerId];
+      const channelIndex = rawChannel ?? 0;
+      // Neutralize HRTF so the signal reaching the channel merger is centered
+      this.soundManager.setSpatialPosition(0, 0, 0, this.selectedSound);
+      const masterOut = this.soundManager.getMasterOutput();
+      if (this.activeChannelIndex !== null && this.activeChannelIndex !== channelIndex) {
+        try { masterOut.disconnect(this.channelMerger, 0, this.activeChannelIndex); } catch { /* ignore */ }
+      }
+      if (this.activeChannelIndex !== channelIndex) {
+        masterOut.connect(this.channelMerger, 0, channelIndex);
+        this.activeChannelIndex = channelIndex;
+      }
+      const infoEl = document.getElementById('activeSpeakerInfo');
+      if (infoEl) {
+        infoEl.innerHTML = `
+          <span class="active-label">Playing from: <strong>${speaker.label}</strong> <span class="channel-note">ch ${channelIndex}</span></span>
+          <span class="active-coords">Position: (${speaker.x}, ${speaker.y}, ${speaker.z})</span>
+        `;
+      }
+    } else {
+      const pannerCfg: SoundPannerConfig = {
+        panningModel: this.audioMode === 'stereo' ? PanningModel.EqualPower : PanningModel.HRTF,
+      };
+      this.soundManager.setSpatialPosition(speaker.x, speaker.y, speaker.z, this.selectedSound, pannerCfg);
+      const infoEl = document.getElementById('activeSpeakerInfo');
+      if (infoEl) {
+        infoEl.innerHTML = `
+          <span class="active-label">Playing from: <strong>${speaker.label}</strong></span>
+          <span class="active-coords">Position: (${speaker.x}, ${speaker.y}, ${speaker.z})</span>
+        `;
+      }
+    }
 
     if (!isCurrentlyPlaying) {
       this.soundManager.play(this.selectedSound);
@@ -642,14 +795,6 @@ export class SpatialDemo {
 
     document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll<HTMLButtonElement>(`[data-speaker="${speakerId}"]`).forEach(b => b.classList.add('active'));
-
-    const infoEl = document.getElementById('activeSpeakerInfo');
-    if (infoEl) {
-      infoEl.innerHTML = `
-        <span class="active-label">Playing from: <strong>${speaker.label}</strong></span>
-        <span class="active-coords">Position: (${speaker.x}, ${speaker.y}, ${speaker.z})</span>
-      `;
-    }
 
     document.querySelectorAll('.coord-row').forEach(row => row.classList.remove('active'));
     document.querySelector(`.coord-row[data-speaker="${speakerId}"]`)?.classList.add('active');
