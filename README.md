@@ -1183,6 +1183,11 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
 
+### 5.7.1
+
+- 📖 Added a dedicated [Bug Report](https://chriscreativecode.com/sound-manager-ts/docs/report-bug) section to the README for submitting issues and feedback.
+- 🔧 Added `repository`, `bugs`, and `homepage` metadata fields to `package.json` to improve npm package quality scoring.
+
 ### 5.7.0
 
 - 📖 Updated README API reference to correctly reflect the current methods, signatures, and parameters of the SoundManager.
