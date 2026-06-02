@@ -1173,6 +1173,10 @@ The demo includes 5 interactive pages:
 - **Sound Groups** - Manage groups of sounds with maxInstances limits and collective controls
 - **Sound Sprites** - Split a single audio file into named regions for precise game audio playback
 
+## 🐛 Bug Report
+
+Found a bug or unexpected behavior? Please use the [Bug Report](https://chriscreativecode.com/sound-manager-ts/docs/report-bug) page to submit an issue. Your feedback helps improve the library for everyone.
+
 ## Licence
 
 This project is developed by Chris Schardijn. It is free to use in your project.
