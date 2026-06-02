@@ -7,6 +7,14 @@
     "email": "chriscreativecode@gmail.com",
     "url": "https://www.chriscreativecode.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://bitbucket.org/chriscrossweb/sound-manager-typescript"
+  },
+  "bugs": {
+    "url": "https://chriscreativecode.com/sound-manager-ts/docs/report-bug"
+  },
+  "homepage": "https://chriscreativecode.com/sound-manager-ts/",
   "description": "Lightweight TypeScript soundmanager for Web Audio API. Seamless audio control in web apps and games with full type safety and modern API",
   "keywords": [
     "audio",
