@@ -148,6 +148,7 @@ body {
 
 .docs-link { color: var(--color-primary); }
 .npm-link  { color: #cb3837; }
+.bug-link  { color: #e53e3e; }
 
 .landing-quote-mark {
   display: block;
