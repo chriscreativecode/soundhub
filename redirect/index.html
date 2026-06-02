@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sound Manager TS</title>
+
+    <!-- Fallback for browsers without JavaScript: redirect after 3 seconds -->
+    <meta http-equiv="refresh" content="3;url=./demo/" />
+
+    <!-- Google Tag Manager -->
+    <script>
+      (function (w, d, s, l, i) {
+        w[l] = w[l] || [];
+        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s),
+          dl = l != 'dataLayer' ? '&l=' + l : '';
+        j.async = true;
+        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+        f.parentNode.insertBefore(j, f);
+      })(window, document, 'script', 'dataLayer', 'GTM-M7NLNPXW');
+    </script>
+    <!-- End Google Tag Manager -->
+
+    <style>
+      body {
+        font-family: sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background: #0f0f11;
+        color: #ccc;
+      }
+      a {
+        color: #7c9ef5;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+      <iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-M7NLNPXW"
+        height="0"
+        width="0"
+        style="display: none; visibility: hidden"
+      ></iframe>
+    </noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <p>Redirecting&hellip; <a href="./demo/">Click here if not redirected.</a></p>
+
+    <script>
+      // GTM fires a GA4 pageview (including document.referrer) as soon as it loads.
+      // GA4 uses sendBeacon internally, so the hit is sent even after navigation starts.
+      // We wait 500ms as a courtesy window before redirecting.
+      setTimeout(function () {
+        window.location.replace('./demo/');
+      }, 500);
+    </script>
+  </body>
+</html>
