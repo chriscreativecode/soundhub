@@ -291,7 +291,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   -->
   
   <!-- Option 1: UMD Version (Works everywhere) -->
-  <script src="https://unpkg.com/sound-manager-ts@5.7.1/dist/sound-manager-ts.umd.js"></script>
+  <script src="https://unpkg.com/sound-manager-ts@5.7.2/dist/sound-manager-ts.umd.js"></script>
   
   <!-- 
     Alternative UMD options:
@@ -302,7 +302,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
   <!--
   <script type="module">
-    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.7.1/dist/sound-manager-ts.es.js';
+    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.7.2/dist/sound-manager-ts.es.js';
     // Your ESM code here
   </script>
   -->
@@ -1182,6 +1182,11 @@ Found a bug or unexpected behavior? Please use the [Bug Report](https://soundman
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.7.2
+
+- 🔧 Migrated all demo and documentation URLs to new subdomains.
+- 🔧 Auto-copy `.htaccess` into `dist/deploy` on build.
 
 ### 5.7.1
 
