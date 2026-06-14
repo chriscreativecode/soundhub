@@ -12,9 +12,9 @@
     "url": "https://bitbucket.org/chriscrossweb/sound-manager-typescript"
   },
   "bugs": {
-    "url": "https://chriscreativecode.com/sound-manager-ts/docs/report-bug"
+    "url": "https://soundmanager-docs.chriscreativecode.com/report-bug"
   },
-  "homepage": "https://chriscreativecode.com/sound-manager-ts/",
+  "homepage": "https://soundmanager.chriscreativecode.com/",
   "description": "Lightweight TypeScript soundmanager for Web Audio API. Seamless audio control in web apps and games with full type safety and modern API",
   "keywords": [
     "audio",
@@ -71,6 +71,7 @@
     "build:demo": "vite build --mode demo-main",
     "build:lib": "vite build --mode lib",
     "build:docs": "vite build --mode readme",
+    "build:deploy": "npm run build:demo && npm run build:docs && node scripts/prepare-deploy.js",
 "debug:types": "tsc --listFiles --emitDeclarationOnly",
     "preview": "vite preview"
   },

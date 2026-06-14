@@ -5,13 +5,13 @@
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/sound-manager-ts)](https://bundlephobia.com/result?p=sound-manager-ts)
 [![npm downloads](https://img.shields.io/npm/dt/sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 [![Donate ❤](https://img.shields.io/badge/Donate-%E2%9D%A4-ff69b4)](https://www.paypal.com/donate/?hosted_button_id=M94NZXNHS8DT2)
-[![API Reference](https://img.shields.io/badge/API-Reference-blue)](https://chriscreativecode.com/sound-manager-ts/docs/)
+[![API Reference](https://img.shields.io/badge/API-Reference-blue)](https://soundmanager-docs.chriscreativecode.com/)
 
 A powerful and lightweight (14KB gzipped) sound management system I crafted to make Web Audio API accessible and enjoyable. Perfect for web applications, games, and interactive experiences that demand precise audio control without the complexity. No more wrestling with time calculations or audio states - everything is handled for you. Simply listen to sound events or use getSoundState('soundId') to access comprehensive audio data, ready to integrate with your UI.
 
 ## Live Demos & Playgrounds
 
-[Visit the main demo page](https://chriscreativecode.com/sound-manager-ts/demo/ "A demo showcase of my Sound Manager")
+[Visit the main demo page](https://soundmanager.chriscreativecode.com/ "A demo showcase of my Sound Manager")
 
 [Codepen.io (Demo / Playground) JavScript](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd "A demo in codepen.io (JavaScript)")
 
@@ -1161,7 +1161,7 @@ export interface SoundResetOptions {
 
 A comprehensive demo showcasing all features is available online:
 
-- [Visit the online demo](https://chriscreativecode.com/sound-manager-ts/demo/)
+- [Visit the online demo](https://soundmanager.chriscreativecode.com/)
 - [Codepen playground (JavaScript)](https://codepen.io/Chris-Front-end-developer/pen/gbOBqPd)
 - [Codepen playground (TypeScript)](https://codepen.io/Chris-Front-end-developer/pen/RNRzyym)
 
@@ -1175,7 +1175,7 @@ The demo includes 5 interactive pages:
 
 ## 🐛 Bug Report
 
-Found a bug or unexpected behavior? Please use the [Bug Report](https://chriscreativecode.com/sound-manager-ts/docs/report-bug) page to submit an issue. Your feedback helps improve the library for everyone.
+Found a bug or unexpected behavior? Please use the [Bug Report](https://soundmanager-docs.chriscreativecode.com/report-bug) page to submit an issue. Your feedback helps improve the library for everyone.
 
 ## Licence
 
@@ -1185,7 +1185,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 ### 5.7.1
 
-- 📖 Added a dedicated [Bug Report](https://chriscreativecode.com/sound-manager-ts/docs/report-bug) section to the README for submitting issues and feedback.
+- 📖 Added a dedicated [Bug Report](https://soundmanager-docs.chriscreativecode.com/report-bug) section to the README for submitting issues and feedback.
 - 🔧 Added `repository`, `bugs`, and `homepage` metadata fields to `package.json` to improve npm package quality scoring.
 
 ### 5.7.0

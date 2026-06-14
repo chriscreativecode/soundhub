@@ -1,32 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://chriscreativecode.com/</loc>
+    <loc>https://soundmanager.chriscreativecode.com/</loc>
     <priority>1.0</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://chriscreativecode.com/sound-manager-ts/documentation/</loc>
+    <loc>https://soundmanager.chriscreativecode.com/readme/</loc>
     <priority>0.8</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://chriscreativecode.com/sound-manager-ts/demo/</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://chriscreativecode.com/sound-manager-ts/demo/general/</loc>
+    <loc>https://soundmanager.chriscreativecode.com/general/</loc>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://chriscreativecode.com/sound-manager-ts/demo/multichannel/</loc>
+    <loc>https://soundmanager.chriscreativecode.com/multichannel/</loc>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://chriscreativecode.com/sound-manager-ts/demo/spatial/</loc>
+    <loc>https://soundmanager.chriscreativecode.com/spatial/</loc>
+    <priority>0.6</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://soundmanager.chriscreativecode.com/groups/</loc>
+    <priority>0.6</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://soundmanager.chriscreativecode.com/sprite/</loc>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>

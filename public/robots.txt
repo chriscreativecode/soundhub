@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-Sitemap: https://chriscreativecode.com/sitemap.xml
+Sitemap: https://soundmanager.chriscreativecode.com/sitemap.xml
 
 # Optional: If you have any private areas you want to block
 Disallow: /private/
