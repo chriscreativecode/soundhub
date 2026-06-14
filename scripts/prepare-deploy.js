@@ -1,4 +1,4 @@
-import { cpSync, rmSync, mkdirSync } from 'fs';
+import { cpSync, rmSync, mkdirSync, copyFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -20,6 +20,10 @@ cpSync(demoDir, deployDir, { recursive: true });
 // Copy readme build to deploy/readme/
 cpSync(readmeDir, join(deployDir, 'readme'), { recursive: true });
 
+// Copy .htaccess into deploy root
+copyFileSync(join(root, 'deploy', 'htaccess-soundmanager.txt'), join(deployDir, '.htaccess'));
+
 console.log('Deploy folder prepared:');
 console.log('  dist/demo/   → dist/deploy/         (upload to public_html/)');
 console.log('  dist/readme/ → dist/deploy/readme/  (upload to public_html/readme/)');
+console.log('  deploy/htaccess-soundmanager.txt → dist/deploy/.htaccess');
