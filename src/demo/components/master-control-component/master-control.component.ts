@@ -294,6 +294,10 @@ export class MasterControl {
       case SoundEventsEnum.RESET:
         if (!event.resetOptions?.keepPanning) {
           this.updateMasterPan(0);
+        }
+        // The master grid follows keepSpatial, not keepPanning: they are separate
+        // reset options and were being conflated here.
+        if (!event.resetOptions?.keepSpatial) {
           this.spatialGrid.updatePosition(50, 0, 50);
         }
         break;

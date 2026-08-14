@@ -565,8 +565,18 @@ export class SoundControl {
           this.spatialGrid.updatePosition(50, 0, 50, true, true);
         }
         break;
-      case SoundEventsEnum.SPATIAL_POSITION_CHANGED:
       case SoundEventsEnum.RESET:
+        // reset() and resetSound() clear the spatial position in the library, but
+        // the grid marker has to follow or it keeps showing the old position.
+        // visuallyOnly, because the position itself has already been reset.
+        if (!event.resetOptions?.keepSpatial) {
+          this.spatialGrid.updatePosition(50, 0, 50, true, true);
+        }
+        break;
+      case SoundEventsEnum.SPATIAL_POSITION_RESET:
+        this.spatialGrid.updatePosition(50, 0, 50, true, true);
+        break;
+      case SoundEventsEnum.SPATIAL_POSITION_CHANGED:
       case SoundEventsEnum.LOOP_COMPLETED:
       case SoundEventsEnum.SPRITE_SET:
       case SoundEventsEnum.UPDATED_URL:
@@ -575,7 +585,6 @@ export class SoundControl {
       case SoundEventsEnum.FADE_MASTER_IN_COMPLETED:
       case SoundEventsEnum.FADE_MASTER_OUT_COMPLETED:
       case SoundEventsEnum.GLOBAL_SPATIAL_POSITION_CHANGED:
-      case SoundEventsEnum.SPATIAL_POSITION_RESET:
         break;
       default:
         break;
