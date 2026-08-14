@@ -291,7 +291,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   -->
   
   <!-- Option 1: UMD Version (Works everywhere) -->
-  <script src="https://unpkg.com/sound-manager-ts@5.8.0/dist/sound-manager-ts.umd.js"></script>
+  <script src="https://unpkg.com/sound-manager-ts@5.8.1/dist/sound-manager-ts.umd.js"></script>
   
   <!-- 
     Alternative UMD options:
@@ -302,7 +302,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
   <!--
   <script type="module">
-    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.8.0/dist/sound-manager-ts.es.js';
+    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.8.1/dist/sound-manager-ts.es.js';
     // Your ESM code here
   </script>
   -->
@@ -1260,6 +1260,13 @@ Found a bug or unexpected behavior? Please use the [Bug Report](https://soundman
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.8.1
+
+- 🔧 The console banner printed on startup still linked to the old pre-subdomain demo URL. It now points at [soundmanager.chriscreativecode.com](https://soundmanager.chriscreativecode.com/).
+- 🔧 Fixed the Documentation link in the header of the general demo, which pointed at the same old location.
+
+No functional changes. If you are on 5.8.0 there is no need to upgrade unless the banner URL bothers you.
 
 ### 5.8.0
 
