@@ -30,6 +30,10 @@ export interface SoundManagerConfig {
   
   // -----End Loading Configuration-------------------------------------------------------------
 
+  masterLimiter?: boolean; // Insert a limiter just before the output so many simultaneous sounds cannot clip (default: false).
+  // Off by default so existing projects keep their exact sound. Turn it on when you mix
+  // several sounds at once, for example a piano keyboard or a busy game scene.
+
   debug?: boolean; // Enable debug logging
   defaultDuration?: number; // Default duration for new sounds, default is undefined (full length of the sound)
   defaultPan?: number; // The default pan value = 0, in the center. Posiible values are (-1 to 1)
@@ -74,6 +78,8 @@ export const DEFAULT_CONFIG: SoundManagerConfig = {
   credentialStrategy: 'auto',
   
   // -----End Loading Configuration-------------------------------------------------------------
+
+  masterLimiter: false, // Opt-in, so upgrading never changes how existing projects sound
 
   debug: false,
   defaultDuration: undefined,

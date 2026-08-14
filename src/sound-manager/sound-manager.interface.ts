@@ -119,6 +119,14 @@ export interface SoundManagerInterface {
   /* Get the master output audio node for external connections (e.g. AnalyserNode). */
   getMasterOutput(): AudioNode;
 
+  // Master limiter: prevents clipping when many sounds play at the same time.
+  /* Enable or disable the master limiter at runtime. */
+  setMasterLimiter(enabled: boolean): void;
+  /* Whether the master limiter is currently active. */
+  isMasterLimiterEnabled(): boolean;
+  /* The live limiter node for fine-tuning, or null when disabled. */
+  getMasterLimiterNode(): DynamicsCompressorNode | null;
+
   // State checks: Check the current state of a sound, such as playing, paused, or stopped.
   /* Check if a sound is currently playing by its ID. */
   isPlaying(id: string): boolean;
