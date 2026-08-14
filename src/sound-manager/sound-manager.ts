@@ -2096,7 +2096,13 @@ export class SoundManager implements SoundManagerInterface {
       sound.groupId = groupName;
     }
     if (sound && group.playOptions) {
-      sound.playOptions = { ...group.playOptions, ...sound.playOptions };
+      // Group options have to win here. createSoundNode already fills playOptions
+      // with config-derived defaults for startTime, loop, maxLoops, playbackRate,
+      // pan, volume and trackProgress, so spreading the sound last meant those
+      // defaults always beat the group and createSoundGroup({ playOptions })
+      // had no effect. Per-call options passed to play() still take precedence,
+      // since play() merges them on top of this.
+      sound.playOptions = { ...sound.playOptions, ...group.playOptions };
     }
 
     group.sounds.add(soundId);
