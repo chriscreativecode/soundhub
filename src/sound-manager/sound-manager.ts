@@ -47,6 +47,9 @@ export class SoundManager implements SoundManagerInterface {
     touchend: (this: Document, ev: TouchEvent) => void;
     click: (this: Document, ev: MouseEvent) => void;
   } | null = null;
+  private visibilityHandler: (() => void) | null = null;
+  private contextResumeHandler: (() => void) | null = null;
+  private static readonly RESUME_EVENTS = ["click", "touchstart", "keydown"] as const;
 
   private VERSION = "5.7.2";
 
@@ -123,7 +126,11 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private setupVisibilityHandling(): void {
-    document.addEventListener("visibilitychange", () => {
+    // Keep the reference so destroy() can detach it. An anonymous listener would
+    // keep this SoundManager (and its AudioContext) alive on `document` forever.
+    this.removeVisibilityHandling();
+
+    this.visibilityHandler = () => {
       if (document.hidden) {
         this.debugLog("Page hidden, auto-muting sounds");
         this.muteAllSounds();
@@ -131,7 +138,15 @@ export class SoundManager implements SoundManagerInterface {
         this.debugLog("Page visible, auto-resuming sounds");
         this.unmuteAllSounds();
       }
-    });
+    };
+
+    document.addEventListener("visibilitychange", this.visibilityHandler);
+  }
+
+  private removeVisibilityHandling(): void {
+    if (!this.visibilityHandler) return;
+    document.removeEventListener("visibilitychange", this.visibilityHandler);
+    this.visibilityHandler = null;
   }
 
   private initializeSpatialAudio(): void {
@@ -246,27 +261,43 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   private setupContextResumeHandlers(): void {
-    const resumeContext = async () => {
-      if (this.context.state === "suspended") {
-        try {
-          await this.context.resume();
-          this.debugLog("AudioContext resumed after user interaction");
+    this.removeContextResumeHandlers();
 
-          // Remove the event listeners once we've successfully resumed
-          ["click", "touchstart", "keydown"].forEach((eventType) => {
-            document.removeEventListener(eventType, resumeContext);
-          });
-        } catch (error) {
+    // Deliberately not registered with { once: true }: a resume() that rejects
+    // would consume the listener and leave the context suspended forever. We
+    // detach explicitly once the context is actually running.
+    const resumeContext = () => {
+      if (this.context.state !== "suspended") {
+        this.removeContextResumeHandlers();
+        return;
+      }
+
+      this.context.resume().then(
+        () => {
+          this.debugLog("AudioContext resumed after user interaction");
+          this.removeContextResumeHandlers();
+        },
+        (error) => {
           this.debugLog("Failed to resume AudioContext:", error);
         }
-      }
+      );
     };
 
-    ["click", "touchstart", "keydown"].forEach((eventType) => {
-      document.addEventListener(eventType, resumeContext, { once: true });
+    this.contextResumeHandler = resumeContext;
+    SoundManager.RESUME_EVENTS.forEach((eventType) => {
+      document.addEventListener(eventType, resumeContext);
     });
 
     this.debugLog("Context resume handlers set up, waiting for user interaction");
+  }
+
+  private removeContextResumeHandlers(): void {
+    if (!this.contextResumeHandler) return;
+    const handler = this.contextResumeHandler;
+    SoundManager.RESUME_EVENTS.forEach((eventType) => {
+      document.removeEventListener(eventType, handler);
+    });
+    this.contextResumeHandler = null;
   }
 
   private setupAudioSource(sound: Sound): AudioBufferSourceNode {
@@ -476,16 +507,40 @@ export class SoundManager implements SoundManagerInterface {
 
   }
 
+  /**
+   * Tears down every loaded sound and its audio nodes. The master chain is left
+   * intact on purpose so the manager stays usable afterwards (reset() relies on
+   * that); destroy() is what dismantles the master nodes.
+   */
   private cleanup(): void {
-    // Clean up all sounds
-    this.sounds.forEach((_sound, id) => {
+    // Tear the sounds down while the map is still populated. This used to run
+    // after sounds.clear(), which made the node disconnects dead code and leaked
+    // every gain/panner node still attached to the master chain.
+    this.sounds.forEach((sound, id) => {
       this.cleanupSound(id);
+
+      if (sound.source) {
+        try {
+          sound.source.onended = null;
+          sound.source.stop();
+        } catch (e) {
+          // Ignore errors if the source was never started or already stopped
+        }
+        sound.source.disconnect();
+        sound.source = null;
+      }
+      if (sound.pannerNode) {
+        sound.pannerNode.disconnect();
+        sound.pannerNode = null;
+      }
+      if (sound.stereoPanner) {
+        sound.stereoPanner.disconnect();
+        sound.stereoPanner = null;
+      }
+      sound.gainNode.disconnect();
     });
 
-    // Clear the sounds map
-    this.sounds.clear();
-
-    // Stop and disconnect all active sources
+    // Stop and disconnect any source that outlived its sound entry
     this.activeSources.forEach((source) => {
       if (source) {
         try {
@@ -497,28 +552,12 @@ export class SoundManager implements SoundManagerInterface {
         }
       }
     });
+
     this.activeSources.clear();
-    this.cleanupGlobalPan();
-
-    // Clean up other audio nodes
-    this.sounds.forEach((sound) => {
-      if (sound.pannerNode) {
-        sound.pannerNode.disconnect();
-      }
-      if (sound.stereoPanner) {
-        sound.stereoPanner.disconnect();
-      }
-      if (sound.source) {
-        sound.source.stop();
-        sound.source.disconnect();
-        sound.source.onended = null;
-      }
-      sound.gainNode.disconnect();
-    });
-
     this.sounds.clear();
-    this.masterStereoPanner.disconnect();
-    this.masterGainNode.disconnect();
+    this.instanceCounters.clear();
+    this.ticker.clear();
+    this.cleanupGlobalPan();
   }
 
   private handleError(operation: string, error: unknown, id?: string): void {
@@ -2966,8 +3005,9 @@ export class SoundManager implements SoundManagerInterface {
       this.sounds.forEach((_, id) => {
         this.resetSound(id, options);
       });
+      // cleanup() clears the map and leaves the master chain intact, so the
+      // manager stays usable and new sounds can be loaded afterwards.
       this.cleanup();
-      this.sounds.clear();
     } else {
       // Reset each sound individually
       this.sounds.forEach((_, id) => {
@@ -3178,6 +3218,21 @@ export class SoundManager implements SoundManagerInterface {
   public destroy(): void {
     try {
       this.cleanup();
+
+      // Detach everything we attached to `document`, otherwise this instance and
+      // its AudioContext stay reachable for the lifetime of the page.
+      this.removeVisibilityHandling();
+      this.removeContextResumeHandlers();
+      this.removeUnlockListeners();
+
+      this.eventListeners.forEach((listeners) => listeners.clear());
+      this.soundGroups.clear();
+      this.activeFadeCallbacks.clear();
+
+      // Unlike cleanup(), destroy() does dismantle the master chain
+      this.masterStereoPanner.disconnect();
+      this.masterGainNode.disconnect();
+
       this.context.close();
       this.debugLog("SoundManager destroyed");
     } catch (error) {
