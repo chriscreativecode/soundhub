@@ -26,6 +26,7 @@ export class SoundManager implements SoundManagerInterface {
   private masterGainNode!: GainNode;
   private masterStereoPanner!: StereoPannerNode;
   private masterPannerNode!: PannerNode | null;
+  private masterLimiterNode: DynamicsCompressorNode | null = null;
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
   private previousGlobalPan: number = 0;
@@ -93,8 +94,9 @@ export class SoundManager implements SoundManagerInterface {
       this.masterGainNode = this.context.createGain();
       this.masterStereoPanner = this.context.createStereoPanner();
       this.masterPannerNode = null;
+      this.masterLimiterNode = this.config.masterLimiter ? this.createMasterLimiter() : null;
 
-      // Connect in chain: masterGainNode -> masterStereoPanner -> destination
+      // Connect in chain: masterGainNode -> masterStereoPanner -> [limiter] -> destination
       this.rewireMasterChain();
 
       this.masterStereoPanner.pan.value = this.config.defaultPan ?? 0;
@@ -681,15 +683,36 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   /**
-   * (Re)builds the master output chain. The stereo panner always stays the last
-   * node before the destination, so enabling or clearing master spatial audio can
-   * never drop it from the graph and silently disable setGlobalPan().
+   * Builds the opt-in master limiter. A DynamicsCompressorNode configured with a
+   * hard knee and a high ratio behaves as a limiter: everything below the
+   * threshold passes through untouched, peaks above it are held back instead of
+   * being hard-clipped by the destination.
+   */
+  private createMasterLimiter(): DynamicsCompressorNode {
+    const limiter = this.context.createDynamicsCompressor();
+    const now = this.context.currentTime;
+
+    limiter.threshold.setValueAtTime(-3, now); // dBFS, leaves a little headroom
+    limiter.knee.setValueAtTime(0, now);       // Hard knee, so it limits rather than compresses
+    limiter.ratio.setValueAtTime(20, now);     // Effectively a brick wall
+    limiter.attack.setValueAtTime(0.003, now); // Fast enough to catch note transients
+    limiter.release.setValueAtTime(0.25, now);
+
+    return limiter;
+  }
+
+  /**
+   * (Re)builds the master output chain. The stereo panner always stays in the
+   * graph, so enabling or clearing master spatial audio can never drop it and
+   * silently disable setGlobalPan(). The limiter, when enabled, always sits last
+   * so it catches everything, master panning included.
    *
-   * masterGainNode -> [masterPannerNode] -> masterStereoPanner -> destination
+   * masterGainNode -> [masterPannerNode] -> masterStereoPanner -> [limiter] -> destination
    */
   private rewireMasterChain(): void {
     this.masterGainNode.disconnect();
     this.masterStereoPanner.disconnect();
+    this.masterLimiterNode?.disconnect();
 
     if (this.masterPannerNode) {
       this.masterPannerNode.disconnect();
@@ -699,7 +722,48 @@ export class SoundManager implements SoundManagerInterface {
       this.masterGainNode.connect(this.masterStereoPanner);
     }
 
-    this.masterStereoPanner.connect(this.context.destination);
+    if (this.masterLimiterNode) {
+      this.masterStereoPanner.connect(this.masterLimiterNode);
+      this.masterLimiterNode.connect(this.context.destination);
+    } else {
+      this.masterStereoPanner.connect(this.context.destination);
+    }
+  }
+
+  /**
+   * Turns the master limiter on or off at runtime. Safe to call while sounds are
+   * playing; only the output chain is rewired, playback is not interrupted.
+   */
+  public setMasterLimiter(enabled: boolean): void {
+    try {
+      if (enabled === !!this.masterLimiterNode) return;
+
+      if (enabled) {
+        this.masterLimiterNode = this.createMasterLimiter();
+      } else {
+        this.masterLimiterNode?.disconnect();
+        this.masterLimiterNode = null;
+      }
+
+      this.config.masterLimiter = enabled;
+      this.rewireMasterChain();
+      this.debugLog(`Master limiter ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      this.handleError("toggling master limiter", error);
+    }
+  }
+
+  public isMasterLimiterEnabled(): boolean {
+    return this.masterLimiterNode !== null;
+  }
+
+  /**
+   * The live limiter node, or null when disabled. Exposed so you can fine-tune
+   * threshold, ratio, attack and release, or read `reduction` to show how much
+   * gain reduction is being applied.
+   */
+  public getMasterLimiterNode(): DynamicsCompressorNode | null {
+    return this.masterLimiterNode;
   }
 
   private reconnectAudioNodes(id: string): void {
@@ -3437,6 +3501,8 @@ export class SoundManager implements SoundManagerInterface {
       this.activeFadeCallbacks.clear();
 
       // Unlike cleanup(), destroy() does dismantle the master chain
+      this.masterLimiterNode?.disconnect();
+      this.masterLimiterNode = null;
       this.masterStereoPanner.disconnect();
       this.masterGainNode.disconnect();
 
