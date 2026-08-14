@@ -479,12 +479,37 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  /**
+   * Returns a loaded sound or throws. It used to log and return undefined behind
+   * a non-null assertion, which turned every unknown id into a TypeError on the
+   * next property access. Callers either sit inside a try/catch that reports the
+   * failure, or guard with hasSound()/getSound().
+   */
   private getValidatedSound(id: string): Sound {
     const sound = this.sounds.get(id);
     if (!sound?.buffer) {
-      this.handleError("validating sound", "Sound not found or not loaded properly", id);
+      const error = new Error(`Sound not found or not loaded properly: ${id}`);
+      this.handleError("validating sound", error, id);
+      throw error;
     }
-    return sound!;
+    return sound;
+  }
+
+  private createEmptySoundState(): SoundStateInfo {
+    return {
+      progress: 0,
+      startTime: 0,
+      currentTime: 0,
+      elapsedTime: 0,
+      adjustedElapsedTime: 0,
+      duration: 0,
+      rawDuration: 0,
+      state: SoundState.Stopped,
+      volume: this.config.defaultVolume ?? 1,
+      playbackRate: this.config.defaultPlaybackRate ?? 1,
+      pan: 0,
+      panSpatialPosition: { x: 0, y: 0, z: 0 },
+    };
   }
 
   private setValidatedVolume(volume: number): number {
@@ -686,10 +711,8 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     try {
+      // Throws for an unknown or unloaded id, handled by the catch below
       const originalSound = this.getValidatedSound(id);
-      if (!originalSound) {
-        this.debugLog(`Sound ${id} not found`);
-      }
 
       let mergedPlayOptions = { ...originalSound.playOptions, ...options };
       const createNewInstance = mergedPlayOptions.createNewInstance ?? this.config.createNewInstance ?? false;
@@ -922,9 +945,10 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public resume(id: string, skipDispatchEvent: boolean = false): void {
-    let sound = this.getValidatedSound(id);
-    this.play(id, sound?.playOptions);
     try {
+      const sound = this.getValidatedSound(id);
+      this.play(id, sound?.playOptions);
+
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.RESUMED,
@@ -1080,7 +1104,12 @@ export class SoundManager implements SoundManagerInterface {
   // Fade managment ----------------------------------------------------------------------------------------------------------------
 
   public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
-    const sound = this.getValidatedSound(id);
+    let sound: Sound;
+    try {
+      sound = this.getValidatedSound(id);
+    } catch {
+      return; // getValidatedSound already reported the failure
+    }
 
     // Remember this before the flags are reset below, otherwise the
     // "continue from the current volume" branch further down is unreachable.
@@ -1156,7 +1185,12 @@ export class SoundManager implements SoundManagerInterface {
     stopAfterFade: boolean = false,
     skipDispatchEvent: boolean = false
   ): void {
-    const sound = this.getValidatedSound(id);
+    let sound: Sound;
+    try {
+      sound = this.getValidatedSound(id);
+    } catch {
+      return; // getValidatedSound already reported the failure
+    }
 
     this.cancelFadeAnimation(id);
 
@@ -1531,11 +1565,15 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public toggleMute(id: string): void {
-    const sound = this.getValidatedSound(id);
-    if ((sound?.volume ?? sound?.originalVolume ?? sound.playOptions?.volume ?? 1) > 0) {
-      this.mute(id);
-    } else {
-      this.unmute(id);
+    try {
+      const sound = this.getValidatedSound(id);
+      if ((sound?.volume ?? sound?.originalVolume ?? sound.playOptions?.volume ?? 1) > 0) {
+        this.mute(id);
+      } else {
+        this.unmute(id);
+      }
+    } catch (error) {
+      this.handleError("toggling mute", error, id);
     }
   }
 
@@ -2353,8 +2391,12 @@ export class SoundManager implements SoundManagerInterface {
   // State checks-------------------------------------------------------------------------------------------------------------------
 
   public isPlaying(id: string): boolean {
-    const sound = this.getValidatedSound(id);
-    return sound.state === SoundState.Playing;
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.state === SoundState.Playing;
+    } catch {
+      return false;
+    }
   }
 
   public isPaused(id: string): boolean {
@@ -2376,9 +2418,13 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public getSoundState(id: string): SoundStateInfo {
-    const sound = this.getValidatedSound(id);
-    if (!sound) {
-      this.debugLog('sound not found in getSoundState', sound);
+    let sound: Sound;
+    try {
+      sound = this.getValidatedSound(id);
+    } catch {
+      // Unknown or unloaded id: report a neutral, stopped state rather than
+      // throwing out of a getter that UI code polls every frame.
+      return this.createEmptySoundState();
     }
 
     const playbackRate = sound.playOptions?.playbackRate ?? 1;
@@ -2606,16 +2652,21 @@ export class SoundManager implements SoundManagerInterface {
       this.resetGlobalPan();
       return;
     }
-    const sound = this.getValidatedSound(id);
-    this.setPan(id, 0, true);
 
-    this.dispatchEvent({
-      type: SoundEventsEnum.PAN_RESET,
-      soundId: id,
-      timestamp: this.context.currentTime,
-      isMaster: false,
-      sound
-    });
+    try {
+      const sound = this.getValidatedSound(id);
+      this.setPan(id, 0, true);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.PAN_RESET,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        isMaster: false,
+        sound
+      });
+    } catch (error) {
+      this.handleError("resetting pan", error, id);
+    }
   }
 
   public removePan(id: string): void {
@@ -3089,8 +3140,12 @@ export class SoundManager implements SoundManagerInterface {
   }
 
   public getPlaybackRate(id: string): number {
-    const sound = this.getValidatedSound(id);
-    return sound?.source?.playbackRate?.value ?? sound?.playOptions?.playbackRate ?? this.config.defaultPlaybackRate ?? 1;
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.source?.playbackRate?.value ?? sound?.playOptions?.playbackRate ?? this.config.defaultPlaybackRate ?? 1;
+    } catch {
+      return this.config.defaultPlaybackRate ?? 1;
+    }
   }
 
   // End playback control-------------------------------------------------------------------------------------------------------------------
