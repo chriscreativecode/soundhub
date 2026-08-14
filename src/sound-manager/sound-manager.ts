@@ -56,29 +56,34 @@ export class SoundManager implements SoundManagerInterface {
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
+
+    // Normalise a copy. Writing the sanitised values back into the caller's
+    // object mutated an argument they may reuse for another SoundManager.
+    const userConfig: SoundManagerConfig = { ...config };
+
     this.config = {
       debug: false,
-      ...config,
+      ...userConfig,
     };
     Object.values(SoundEventsEnum).forEach((type) => {
       this.eventListeners.set(type as SoundEventsEnum, new Set());
     });
 
-    if (config.defaultVolume !== undefined) {
-      config.defaultVolume = this.setValidatedVolume(config.defaultVolume);
+    if (userConfig.defaultVolume !== undefined) {
+      userConfig.defaultVolume = this.setValidatedVolume(userConfig.defaultVolume);
     }
-    if (config.fadeInDuration !== undefined && config.fadeInDuration < 0) {
-      config.fadeInDuration = 0;
+    if (userConfig.fadeInDuration !== undefined && userConfig.fadeInDuration < 0) {
+      userConfig.fadeInDuration = 0;
     }
-    if (config.fadeOutDuration !== undefined && config.fadeOutDuration < 0) {
-      config.fadeOutDuration = 0;
+    if (userConfig.fadeOutDuration !== undefined && userConfig.fadeOutDuration < 0) {
+      userConfig.fadeOutDuration = 0;
     }
-    if (config.spatialAudio && !this.isSpatialAudioSupported()) {
+    if (userConfig.spatialAudio && !this.isSpatialAudioSupported()) {
       this.debugLog("Spatial audio requested but not supported, disabling feature");
-      config.spatialAudio = false;
+      userConfig.spatialAudio = false;
     }
 
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = { ...DEFAULT_CONFIG, ...userConfig };
 
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -2058,8 +2063,16 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    this.stop(id, false);
+    this.stop(id, true);
     this.cleanupSound(id);
+
+    // Actually release the sound. Keeping the entry meant the decoded AudioBuffer
+    // stayed alive, isSoundLoaded() kept reporting true, and loadSounds() skipped
+    // the id on any later reload.
+    this.sounds.delete(id);
+    if (sound.groupId) {
+      this.soundGroups.get(sound.groupId)?.sounds.delete(id);
+    }
     this.resetCounterForSound(id);
 
     this.dispatchEvent({
@@ -2076,8 +2089,7 @@ export class SoundManager implements SoundManagerInterface {
     try {
       const sound = this.sounds.get(id);
       if (!sound) return;
-      this.unloadSound(id);
-      this.sounds.delete(id);
+      this.unloadSound(id); // Also removes it from the sounds map
       this.debugLog(`Removed sound ${id}`);
     } catch (error) {
       this.handleError("removing sound", error, id);
@@ -2692,16 +2704,15 @@ export class SoundManager implements SoundManagerInterface {
       this.previousGlobalPan = this.masterStereoPanner.pan.value;
 
       // Reset spatial position for all sounds using spatial audio
-      this.sounds.forEach((sound, id) => {
+      this.sounds.forEach((_sound, id) => {
         if (this.isSpatialAudioActive(id)) {
           this.removeSpatialEffect(id);
         }
-        // If the sound has its own stereoPanner, update its pan value
-        if (sound.stereoPanner) {
-          sound.stereoPanner.pan.setValueAtTime(value, this.context.currentTime);
-          sound.pan = value; // Update the sound's pan property
-        }
       });
+
+      // Per-sound stereo panners are deliberately left alone. Writing the master
+      // value into each of them applied the pan twice (once per sound, once on
+      // the master node) and destroyed the individual pan settings.
 
       // Clamp pan value between -1 and 1
       const pannedValue = Math.max(-1, Math.min(1, value));
@@ -2770,12 +2781,25 @@ export class SoundManager implements SoundManagerInterface {
       if (!("PannerNode" in window)) {
         return (this._spatialAudioSupported = false);
       }
-      const tempContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      // Probe our own listener, falling back to AudioListener.prototype. This
+      // used to construct a throwaway AudioContext on every first call, and
+      // close() is async so it lingered. Browsers cap the number of live
+      // contexts (Chrome allows about six), so several SoundManager instances
+      // could exhaust the budget.
+      const listener: object | undefined = this.context
+        ? this.context.listener
+        : (window as any).AudioListener?.prototype;
+
+      if (!listener) {
+        return (this._spatialAudioSupported = false);
+      }
+
       const hasRequiredProperties =
-        "positionX" in tempContext.listener &&
-        "positionY" in tempContext.listener &&
-        "positionZ" in tempContext.listener;
-      tempContext.close();
+        "positionX" in listener &&
+        "positionY" in listener &&
+        "positionZ" in listener;
+
       return (this._spatialAudioSupported = hasRequiredProperties);
     } catch (error) {
       this.debugLog("Spatial audio support check failed:", error);
@@ -3103,15 +3127,20 @@ export class SoundManager implements SoundManagerInterface {
     try {
       const sound = this.getValidatedSound(id);
       const source = sound.source;
+
+      // Capture the position under the OLD rate before overwriting it. startTime
+      // is an origin expressed in the previous rate, so reading the position back
+      // afterwards mixed the new rate with an old baseline and made the sound
+      // jump on every rate change.
+      const previousRate = sound.playOptions?.playbackRate ?? 1;
+      const rawPosition = sound.state === SoundState.Playing && sound.startTime !== undefined
+        ? (this.context.currentTime - sound.startTime) * previousRate
+        : (sound.pausedAt ?? 0);
+
       sound.playOptions = {
         ...sound.playOptions,
         playbackRate: rate,
       };
-
-      if (!sound) {
-        this.debugLog(`Sound ${id} not found for playback rate change`);
-        return;
-      }
 
       if (!source) {
         this.debugLog(`No active source found for sound ${id}, playback rate not set`);
@@ -3119,8 +3148,7 @@ export class SoundManager implements SoundManagerInterface {
       }
 
       // Update the playback rate
-      const playbackRate = sound.playOptions.playbackRate ?? rate ?? 1;
-      source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
+      source.playbackRate.setValueAtTime(rate, this.context.currentTime);
 
       if (!skipDispatchEvent) {
         // Dispatch event
@@ -3131,7 +3159,12 @@ export class SoundManager implements SoundManagerInterface {
           playbackRate: rate,
           sound
         });
-        this.seek(id, this.getSoundState(id).currentTime);
+
+        if (sound.state === SoundState.Playing) {
+          // seek() converts UI time back to raw time using the new rate, so feed
+          // it the captured raw position expressed in the new rate.
+          this.seek(id, rawPosition / rate);
+        }
       }
       this.debugLog(`Playback rate set for sound ${id}: ${rate}`);
     } catch (error) {
@@ -3430,19 +3463,41 @@ export class SoundManager implements SoundManagerInterface {
     this.eventListeners.get(type)!.add({ callback, filter });
   }
 
+  /**
+   * Compares two listener filters. JSON.stringify cannot be used here: a RegExp
+   * serialises to "{}", so filters with different instancePattern values looked
+   * identical and removing one listener removed the others too.
+   */
+  private filtersMatch(
+    a?: { originalId?: string; instanceId?: string; instancePattern?: RegExp },
+    b?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
+  ): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+
+    if (a.originalId !== b.originalId) return false;
+    if (a.instanceId !== b.instanceId) return false;
+
+    const patternA = a.instancePattern;
+    const patternB = b.instancePattern;
+    if (!patternA !== !patternB) return false;
+    if (patternA && patternB) {
+      return patternA.source === patternB.source && patternA.flags === patternB.flags;
+    }
+
+    return true;
+  }
+
   public removeEventListener(
     type: SoundEventsEnum,
     callback: (event: SoundEvent) => void,
-    filter?: { originalId?: string; instancePattern?: RegExp }
+    filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
   ): void {
     const listeners = this.eventListeners.get(type);
     if (!listeners) return;
 
     listeners.forEach((listener) => {
-      if (
-        listener.callback === callback &&
-        JSON.stringify(listener.filter) === JSON.stringify(filter)
-      ) {
+      if (listener.callback === callback && this.filtersMatch(listener.filter, filter)) {
         listeners.delete(listener);
       }
     });
