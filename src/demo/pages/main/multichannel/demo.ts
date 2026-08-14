@@ -22,6 +22,7 @@ import {
 } from './piano-data';
 import { AdsrEnvelope, SynthEngine } from './synth-engine';
 import { PerformanceRecorder, RecorderState } from './performance-recorder';
+import { SavedTake, TakeLibrary } from './take-library';
 
 type SoundEngineType = 'piano' | 'synthesizer';
 
@@ -134,6 +135,19 @@ export class PianoDemo {
   private recClearButton: HTMLButtonElement | null = null;
   private recStatus: HTMLElement | null = null;
   private recProgress: HTMLElement | null = null;
+  private takeSaveForm: HTMLFormElement | null = null;
+  private takeNameInput: HTMLInputElement | null = null;
+  private takeSaveButton: HTMLButtonElement | null = null;
+  private takeListEl: HTMLElement | null = null;
+
+  /** Set while the recorder holds a take that came out of storage. */
+  private loadedTakeId: string | null = null;
+  /** Delete needs a second click within a few seconds, so one slip costs nothing. */
+  private takePendingDelete: string | null = null;
+  private takeDeleteTimer = 0;
+  /** Replaces the status line for a moment after saving or deleting. */
+  private takeFlash = '';
+  private takeFlashTimer = 0;
   private envelopePath: SVGPathElement | null = null;
   private instrument: HTMLElement | null = null;
   private feltWindow: HTMLElement | null = null;
@@ -445,6 +459,14 @@ export class PianoDemo {
           </div>
           <p class="bay-note rec-status" id="recStatus"></p>
           <div class="rec-track" aria-hidden="true"><div class="rec-track-fill" id="recProgress"></div></div>
+
+          <form class="take-save" id="takeSaveForm">
+            <input type="text" class="field-input" id="takeName" name="takeName"
+              placeholder="Name this take" maxlength="40" autocomplete="off"
+              aria-label="Name for this take" disabled>
+            <button type="submit" class="ghost-button" id="takeSaveButton" disabled>${this.icon('save')} Save</button>
+          </form>
+          <ul class="take-list" id="takeList"></ul>
         </section>
       </div>
     `;
@@ -483,6 +505,10 @@ export class PianoDemo {
     this.recClearButton = $<HTMLButtonElement>('#recClearButton');
     this.recStatus = $('#recStatus');
     this.recProgress = $('#recProgress');
+    this.takeSaveForm = $<HTMLFormElement>('#takeSaveForm');
+    this.takeNameInput = $<HTMLInputElement>('#takeName');
+    this.takeSaveButton = $<HTMLButtonElement>('#takeSaveButton');
+    this.takeListEl = $('#takeList');
 
     if (this.volumeInput) autoRangeProgress(this.volumeInput);
   }
@@ -682,8 +708,17 @@ export class PianoDemo {
 
     this.recordButton?.addEventListener('click', () => {
       const state = this.recorder.getState();
-      if (state === 'armed' || state === 'recording') this.recorder.stopRecording();
-      else this.recorder.arm();
+      if (state === 'armed' || state === 'recording') {
+        this.recorder.stopRecording();
+        // A fresh take is unsaved, and the name box is ready to go
+        if (this.takeNameInput && this.recorder.hasRecording()) {
+          this.takeNameInput.value = TakeLibrary.suggestName();
+        }
+      } else {
+        this.recorder.arm();
+        this.loadedTakeId = null;
+      }
+      this.renderRecorderState();
       this.recordButton?.blur();
     });
     this.recPlayButton?.addEventListener('click', () => {
@@ -698,7 +733,23 @@ export class PianoDemo {
     });
     this.recClearButton?.addEventListener('click', () => {
       this.recorder.clear();
+      this.loadedTakeId = null;
       this.renderRecorderState();
+    });
+
+    this.takeSaveForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.saveCurrentTake();
+    });
+    this.takeNameInput?.addEventListener('input', () => this.renderTakeSaveRow());
+
+    // One listener for the whole list, so rebuilding it never leaks handlers
+    this.takeListEl?.addEventListener('click', (e) => {
+      const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-take-action]');
+      const id = button?.closest<HTMLElement>('[data-take-id]')?.dataset.takeId;
+      if (!button || !id) return;
+      if (button.dataset.takeAction === 'play') this.playTake(id);
+      else this.requestTakeDelete(id);
     });
 
     this.soundManager.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
@@ -1056,20 +1107,166 @@ export class PianoDemo {
     if (this.recProgress && state !== 'playing') this.recProgress.style.transform = 'scaleX(0)';
 
     if (this.recStatus) {
-      if (state === 'armed') {
+      const loaded = this.loadedTakeId ? TakeLibrary.get(this.loadedTakeId) : undefined;
+      if (this.takeFlash) {
+        this.recStatus.textContent = this.takeFlash;
+      } else if (state === 'armed') {
         this.recStatus.textContent = 'Armed. The clock starts on your first note.';
       } else if (state === 'recording') {
         this.recStatus.textContent = 'Recording your notes.';
       } else if (state === 'playing') {
-        this.recStatus.textContent = `Playing back ${this.recorder.getEventCount()} events.`;
+        this.recStatus.textContent = loaded
+          ? `Playing ${loaded.name}.`
+          : `Playing back ${this.recorder.getEventCount()} events.`;
       } else if (has) {
         const seconds = (this.recorder.getDuration() / 1000).toFixed(1);
-        this.recStatus.textContent = `${this.recorder.getEventCount()} events, ${seconds}s. Switch engine and play it back on the other one.`;
+        this.recStatus.textContent = loaded
+          ? `${loaded.name} is loaded: ${this.recorder.getEventCount()} events, ${seconds}s.`
+          : `${this.recorder.getEventCount()} events, ${seconds}s. Name it below to keep it, or switch engine and play it back on the other one.`;
       } else {
         this.recStatus.textContent = 'Nothing recorded yet.';
       }
       this.recStatus.classList.toggle('is-live', recording);
     }
+
+    this.renderTakeSaveRow();
+    this.renderTakeList();
+  }
+
+  // ── Saved takes ──────────────────────────────────────────────────────────
+
+  private renderTakeSaveRow(): void {
+    const recording = this.recorder.getState() === 'armed' || this.recorder.getState() === 'recording';
+    // A take that came out of storage is already saved, so only a fresh one
+    // can be named
+    const savable = this.recorder.hasRecording() && !recording && this.loadedTakeId === null;
+    const full = TakeLibrary.list().length >= TakeLibrary.MAX_TAKES;
+
+    if (this.takeNameInput) {
+      this.takeNameInput.disabled = !savable;
+      this.takeNameInput.placeholder = full && savable
+        ? `Storage holds ${TakeLibrary.MAX_TAKES} takes, delete one first`
+        : 'Name this take';
+    }
+    if (this.takeSaveButton) this.takeSaveButton.disabled = !savable || full;
+  }
+
+  private renderTakeList(): void {
+    if (!this.takeListEl) return;
+    const takes = TakeLibrary.list();
+
+    if (takes.length === 0) {
+      this.takeListEl.innerHTML =
+        '<li class="take-empty">Saved takes appear here. They stay in this browser, nowhere else.</li>';
+      return;
+    }
+
+    const playingId = this.recorder.getState() === 'playing' ? this.loadedTakeId : null;
+    this.takeListEl.innerHTML = takes.map(take => {
+      const pending = this.takePendingDelete === take.id;
+      const isPlaying = playingId === take.id;
+      return `
+        <li class="take${this.loadedTakeId === take.id ? ' is-loaded' : ''}" data-take-id="${take.id}">
+          <button type="button" class="take-play" data-take-action="play"
+            aria-label="${isPlaying ? 'Stop' : 'Play'} ${this.escapeHtml(take.name)}">
+            ${this.icon(isPlaying ? 'stop' : 'play')}
+          </button>
+          <span class="take-body">
+            <span class="take-name">${this.escapeHtml(take.name)}</span>
+            <span class="take-meta">${this.describeTake(take)}</span>
+          </span>
+          <button type="button" class="take-delete${pending ? ' is-confirming' : ''}" data-take-action="delete"
+            aria-label="${pending ? `Confirm deleting ${this.escapeHtml(take.name)}` : `Delete ${this.escapeHtml(take.name)}`}">
+            ${pending ? 'Sure?' : this.icon('trash')}
+          </button>
+        </li>`;
+    }).join('');
+  }
+
+  private describeTake(take: SavedTake): string {
+    const notes = take.events.filter(e => e.type === 'on').length;
+    const seconds = (take.durationMs / 1000).toFixed(1);
+    const when = new Date(take.createdAt).toLocaleDateString(undefined, {
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
+    return `${notes} ${notes === 1 ? 'note' : 'notes'} &middot; ${seconds}s &middot; ${when}`;
+  }
+
+  private saveCurrentTake(): void {
+    if (!this.takeNameInput) return;
+
+    const result = TakeLibrary.save(
+      this.takeNameInput.value,
+      this.recorder.getEvents(),
+      this.recorder.getDuration()
+    );
+
+    if (!result.ok) {
+      this.flashTakeMessage(result.reason === 'full'
+        ? `Storage already holds ${TakeLibrary.MAX_TAKES} takes. Delete one to make room.`
+        : result.reason === 'empty'
+          ? 'There is nothing recorded to save.'
+          : 'This browser would not store the take. Private browsing blocks it.');
+      return;
+    }
+
+    // The recorder keeps the same events, it is just no longer unsaved
+    this.loadedTakeId = result.take.id;
+    this.takeNameInput.value = '';
+    this.flashTakeMessage(`Saved as ${result.take.name}.`);
+    gtag('event', 'piano_take_saved', { demo: 'multichannel' });
+  }
+
+  private playTake(id: string): void {
+    const take = TakeLibrary.get(id);
+    if (!take) {
+      this.renderRecorderState();
+      return;
+    }
+
+    if (this.loadedTakeId === id && this.recorder.getState() === 'playing') {
+      this.recorder.stopPlayback();
+      return;
+    }
+
+    this.recorder.loadEvents(take.events);
+    this.loadedTakeId = id;
+    this.recorder.play();
+    this.renderRecorderState();
+  }
+
+  /** First click arms the delete, a second one within four seconds performs it. */
+  private requestTakeDelete(id: string): void {
+    window.clearTimeout(this.takeDeleteTimer);
+
+    if (this.takePendingDelete !== id) {
+      this.takePendingDelete = id;
+      this.takeDeleteTimer = window.setTimeout(() => {
+        this.takePendingDelete = null;
+        this.renderTakeList();
+      }, 4000);
+      this.renderTakeList();
+      return;
+    }
+
+    const take = TakeLibrary.get(id);
+    this.takePendingDelete = null;
+    TakeLibrary.remove(id);
+    if (this.loadedTakeId === id) {
+      this.recorder.stopPlayback();
+      this.loadedTakeId = null;
+    }
+    this.flashTakeMessage(take ? `Deleted ${take.name}.` : 'Take deleted.');
+  }
+
+  private flashTakeMessage(message: string): void {
+    window.clearTimeout(this.takeFlashTimer);
+    this.takeFlash = message;
+    this.renderRecorderState();
+    this.takeFlashTimer = window.setTimeout(() => {
+      this.takeFlash = '';
+      this.renderRecorderState();
+    }, 3200);
   }
 
   // ── Engine lab panel ─────────────────────────────────────────────────────
@@ -1517,13 +1714,14 @@ osc.connect(manager.getMasterInput()); // master volume, mute, pan, limiter`;
 
   // ── Icons ────────────────────────────────────────────────────────────────
 
-  private icon(name: 'play' | 'stop' | 'record' | 'loop' | 'trash'): string {
+  private icon(name: 'play' | 'stop' | 'record' | 'loop' | 'trash' | 'save'): string {
     const paths: Record<string, string> = {
       play: '<path d="M5 3.5 19 12 5 20.5Z" fill="currentColor" stroke="none"/>',
       stop: '<rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor" stroke="none"/>',
       record: '<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/>',
       loop: '<path d="M4 9h13a3 3 0 0 1 3 3v0a3 3 0 0 1-3 3H4m0-6 3-3M4 9l3 3"/>',
       trash: '<path d="M4 7h16M9.5 7V5h5v2m-8 0 1 12h7l1-12"/>',
+      save: '<path d="M5 4h11l3 3v13H5Zm3 0v5h7V4m-7 16v-6h8v6"/>',
     };
     return `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
   }
