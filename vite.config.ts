@@ -108,7 +108,10 @@ const demoMainConfig: UserConfig = {
         sprite: path.resolve(__dirname, "src/demo/pages/main/sprite/index.html"),
       },
       output: {
-        entryFileNames: "assets/[name].js",
+        // Entry files need the content hash too. Without it general.js kept the
+        // same URL across builds, so a returning visitor with a cached copy went
+        // on running the previous build's code.
+        entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
       },

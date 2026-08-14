@@ -34,16 +34,44 @@
     AddOutputFilterByType BROTLI text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml image/svg+xml font/woff font/woff2
 </IfModule>
 
-# Cache static assets for 1 year (fingerprinted by Vite)
+# Caching
+#
+# Rules are matched on the FILENAME, not the MIME type. Caching by type is what
+# broke this before: "ExpiresByType application/javascript 1 year" also applied
+# to the entry bundles, which at the time carried no content hash, so returning
+# visitors kept running a year-old general.js after every deploy.
+#
+# The blocks below are ordered from broad to specific. Apache applies them in
+# document order and a later "Header set" replaces an earlier one, so the
+# fingerprint rule wins over the default, and HTML wins over everything.
+<IfModule mod_headers.c>
+
+    # 1. Default for files that keep their name across builds (favicons, logo,
+    #    robots.txt, sitemap.xml, the manifest). Short, so an update is picked
+    #    up the same day without hammering the server.
+    <FilesMatch "\.(ico|png|jpe?g|svg|webp|gif|txt|xml|json|webmanifest|woff2?)$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+
+    # 2. Fingerprinted build output: the filename carries a content hash, so any
+    #    change produces a new URL. These can never go stale and are safe to keep
+    #    forever.
+    <FilesMatch "-[A-Za-z0-9_-]{8,}\.(js|css|mp3|wav|ogg|png|jpe?g|svg|webp|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # 3. HTML is the entry point that names the hashed files above. If it goes
+    #    stale the browser keeps requesting the previous build's assets, so it
+    #    must be revalidated on every visit. A 304 makes that cheap.
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+
+</IfModule>
+
+# mod_expires would emit its own Expires header alongside the rules above and
+# the two can disagree. Cache-Control takes precedence in every modern browser,
+# so make sure no stale Expires header is left behind.
 <IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType image/webp "access plus 1 year"
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/svg+xml "access plus 1 year"
-    ExpiresByType font/woff "access plus 1 year"
-    ExpiresByType font/woff2 "access plus 1 year"
-    ExpiresByType text/css "access plus 1 year"
-    ExpiresByType application/javascript "access plus 1 year"
-    ExpiresByType application/json "access plus 1 year"
+    ExpiresActive Off
 </IfModule>
