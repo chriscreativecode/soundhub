@@ -782,6 +782,7 @@ export interface SoundManagerInterface {
   resumeContext(): Promise<void>;
   getContext(): AudioContext;
   getMasterOutput(): AudioNode; // Returns the master output node for external connections (e.g. AnalyserNode)
+  getMasterInput(): AudioNode; // Entry point of the master chain, to route your own audio sources through it
 
   // Master limiter
   setMasterLimiter(enabled: boolean): void; // Turn the limiter on or off while sounds keep playing
@@ -1198,6 +1199,31 @@ The defaults are tuned as a brick-wall limiter rather than a compressor: thresho
 knee 0, ratio 20, attack 3 ms, release 250 ms. Anything below the threshold passes through
 untouched, so quiet material is unaffected.
 
+### Routing your own audio through the limiter
+
+The limiter only sees audio that goes through the master chain. If you also generate sound
+yourself, with an oscillator, a `MediaElementSource` or an `AudioWorklet`, connect it to
+`getMasterInput()` instead of `context.destination`:
+
+```typescript
+const context = soundManager.getContext();
+
+const osc = context.createOscillator();
+const gain = context.createGain();
+
+osc.connect(gain);
+gain.connect(soundManager.getMasterInput()); // not context.destination
+
+osc.start();
+```
+
+Your source now shares master volume, mute, panning and the limiter with every loaded
+sound, so the whole mix is balanced and protected together.
+
+Use `getMasterOutput()` when you only want to *observe* the signal instead, for example to
+drive an `AnalyserNode`. It sits at the end of the chain, so it already includes anything
+connected to the input.
+
 ### Reset options
 ```typescript
 export interface SoundResetOptions {
@@ -1241,6 +1267,7 @@ This project is developed by Chris Schardijn. It is free to use in your project.
 
 - ✨ Added `masterLimiter` config option. When several sounds play at once their waveforms sum past full scale and the audio output hard-clips them, which you hear as crackle. The limiter holds those peaks back instead. It is **off by default**, so upgrading does not change how existing projects sound. See [Master Limiter](#master-limiter).
 - ✨ Added `setMasterLimiter()`, `isMasterLimiterEnabled()` and `getMasterLimiterNode()` so the limiter can be toggled at runtime and fine-tuned.
+- ✨ Added `getMasterInput()`, the entry point of the master chain. Connect your own audio sources (an oscillator, a `MediaElementSource`, an `AudioWorklet`) to it instead of `context.destination` and they share master volume, mute, panning and the limiter with every loaded sound. `getMasterOutput()` remains the read-only tap at the end of the chain.
 
 **Bug fixes**
 

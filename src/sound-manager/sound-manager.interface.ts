@@ -118,6 +118,8 @@ export interface SoundManagerInterface {
   getContext(): AudioContext;
   /* Get the master output audio node for external connections (e.g. AnalyserNode). */
   getMasterOutput(): AudioNode;
+  /* Get the entry point of the master chain, to route your own audio sources through master volume, mute, panning and the limiter. */
+  getMasterInput(): AudioNode;
 
   // Master limiter: prevents clipping when many sounds play at the same time.
   /* Enable or disable the master limiter at runtime. */

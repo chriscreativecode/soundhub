@@ -127,8 +127,17 @@ interface SynthAnimState {
 class SynthEngine {
   private ctx: AudioContext;
   private masterGain: GainNode;
+  private outputGain: GainNode;
   private activeVoices = new Map<string, ActiveSynthVoice>();
   private volume = 1;
+
+  /**
+   * A sawtooth at full amplitude peaks at 0 dBFS, while the sampled piano notes
+   * peak around -21 dBFS. Without this trim the synthesizer came out roughly ten
+   * times louder than the piano. Kept separate from masterGain so the volume
+   * slider still spans its full range on top of it.
+   */
+  private static readonly OUTPUT_TRIM = 0.12;
 
   // ADSR in seconds
   private attack = 0.02;
@@ -137,11 +146,23 @@ class SynthEngine {
   private release = 0.4;
   private waveform: OscillatorType = 'sawtooth';
 
-  constructor(ctx: AudioContext) {
+  /**
+   * @param destination Entry point of the SoundManager master chain. The synth used
+   *   to connect straight to ctx.destination, which bypassed master volume, mute,
+   *   panning and the limiter, so it was the one source on this page that could
+   *   still clip and that the master controls did not affect.
+   */
+  constructor(ctx: AudioContext, destination: AudioNode) {
     this.ctx = ctx;
+
     this.masterGain = ctx.createGain();
     this.masterGain.gain.value = this.volume;
-    this.masterGain.connect(ctx.destination);
+
+    this.outputGain = ctx.createGain();
+    this.outputGain.gain.value = SynthEngine.OUTPUT_TRIM;
+
+    this.masterGain.connect(this.outputGain);
+    this.outputGain.connect(destination);
   }
 
   setVolume(vol: number): void {
@@ -209,13 +230,10 @@ class SynthEngine {
     });
   }
 
-  connectTo(node: AudioNode): void {
-    this.masterGain.connect(node);
-  }
-
   destroy(): void {
     this.stopAll();
     this.masterGain.disconnect();
+    this.outputGain.disconnect();
   }
 }
 
@@ -258,7 +276,12 @@ export class PianoDemo {
       masterLimiter: true,
     };
     this.soundManager = new SoundManager(config);
-    this.synthEngine = new SynthEngine(this.soundManager.getContext());
+    // Route the synth through the master chain so it shares the limiter, master
+    // volume, mute and panning with the sampled piano
+    this.synthEngine = new SynthEngine(
+      this.soundManager.getContext(),
+      this.soundManager.getMasterInput()
+    );
     this.initAudioController();
     this.initEqualizer();
     this.initTheme();
@@ -277,8 +300,10 @@ export class PianoDemo {
     if (controllerEl) {
       const audioCtx = this.soundManager.getContext();
       const analyser = audioCtx.createAnalyser();
+      // The synth now runs through the master chain too, so tapping the master
+      // output alone covers both engines. Tapping the synth separately would
+      // count it twice in the visualisation.
       this.soundManager.getMasterOutput().connect(analyser);
-      this.synthEngine.connectTo(analyser);
       this.equalizer = new EqualizerComponent(controllerEl, analyser);
     }
   }

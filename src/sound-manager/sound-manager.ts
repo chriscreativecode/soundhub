@@ -2461,6 +2461,19 @@ export class SoundManager implements SoundManagerInterface {
     return this.masterStereoPanner;
   }
 
+  /**
+   * Entry point of the master chain, for audio you generate yourself
+   * (oscillators, a MediaElementSource, a worklet). Connecting here routes that
+   * audio through master volume, mute, panning and the limiter, exactly like a
+   * loaded sound.
+   *
+   * Use getMasterOutput() instead when you only want to observe the signal, for
+   * example with an AnalyserNode.
+   */
+  public getMasterInput(): AudioNode {
+    return this.masterGainNode;
+  }
+
   // End Context -----------------------------------------------------------------------------------------------------------------------------------
 
 

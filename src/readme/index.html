@@ -887,6 +887,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">resumeContext</span>(): <span class="hljs-title class_">Promise</span>&lt;<span class="hljs-built_in">void</span>&gt;;
   <span class="hljs-title function_">getContext</span>(): <span class="hljs-title class_">AudioContext</span>;
   <span class="hljs-title function_">getMasterOutput</span>(): <span class="hljs-title class_">AudioNode</span>; <span class="hljs-comment">// Returns the master output node for external connections (e.g. AnalyserNode)</span>
+  <span class="hljs-title function_">getMasterInput</span>(): <span class="hljs-title class_">AudioNode</span>; <span class="hljs-comment">// Entry point of the master chain, to route your own audio sources through it</span>
 
   <span class="hljs-comment">// Master limiter</span>
   <span class="hljs-title function_">setMasterLimiter</span>(<span class="hljs-attr">enabled</span>: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>; <span class="hljs-comment">// Turn the limiter on or off while sounds keep playing</span>
@@ -1249,6 +1250,25 @@ tune it or read how much gain reduction is being applied:</p>
 <p>The defaults are tuned as a brick-wall limiter rather than a compressor: threshold -3 dBFS,
 knee 0, ratio 20, attack 3 ms, release 250 ms. Anything below the threshold passes through
 untouched, so quiet material is unaffected.</p>
+<h3 id="routing-your-own-audio-through-the-limiter" tabindex="-1">Routing your own audio through the limiter</h3>
+<p>The limiter only sees audio that goes through the master chain. If you also generate sound
+yourself, with an oscillator, a <code>MediaElementSource</code> or an <code>AudioWorklet</code>, connect it to
+<code>getMasterInput()</code> instead of <code>context.destination</code>:</p>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> context = soundManager.<span class="hljs-title function_">getContext</span>();
+
+<span class="hljs-keyword">const</span> osc = context.<span class="hljs-title function_">createOscillator</span>();
+<span class="hljs-keyword">const</span> gain = context.<span class="hljs-title function_">createGain</span>();
+
+osc.<span class="hljs-title function_">connect</span>(gain);
+gain.<span class="hljs-title function_">connect</span>(soundManager.<span class="hljs-title function_">getMasterInput</span>()); <span class="hljs-comment">// not context.destination</span>
+
+osc.<span class="hljs-title function_">start</span>();
+</code></pre>
+<p>Your source now shares master volume, mute, panning and the limiter with every loaded
+sound, so the whole mix is balanced and protected together.</p>
+<p>Use <code>getMasterOutput()</code> when you only want to <em>observe</em> the signal instead, for example to
+drive an <code>AnalyserNode</code>. It sits at the end of the chain, so it already includes anything
+connected to the input.</p>
 <h3 id="reset-options" tabindex="-1">Reset options</h3>
 <pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundResetOptions</span> {
   <span class="hljs-attr">keepVolumes</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Keep current volume settings</span>
@@ -1283,6 +1303,7 @@ untouched, so quiet material is unaffected.</p>
 <ul>
 <li>✨ Added <code>masterLimiter</code> config option. When several sounds play at once their waveforms sum past full scale and the audio output hard-clips them, which you hear as crackle. The limiter holds those peaks back instead. It is <strong>off by default</strong>, so upgrading does not change how existing projects sound. See <a href="#master-limiter">Master Limiter</a>.</li>
 <li>✨ Added <code>setMasterLimiter()</code>, <code>isMasterLimiterEnabled()</code> and <code>getMasterLimiterNode()</code> so the limiter can be toggled at runtime and fine-tuned.</li>
+<li>✨ Added <code>getMasterInput()</code>, the entry point of the master chain. Connect your own audio sources (an oscillator, a <code>MediaElementSource</code>, an <code>AudioWorklet</code>) to it instead of <code>context.destination</code> and they share master volume, mute, panning and the limiter with every loaded sound. <code>getMasterOutput()</code> remains the read-only tap at the end of the chain.</li>
 </ul>
 <p><strong>Bug fixes</strong></p>
 <ul>
