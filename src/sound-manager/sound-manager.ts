@@ -3626,7 +3626,7 @@ export class SoundManager implements SoundManagerInterface {
       `%cSound Manager TS\n` +
       `%cversion ${this.VERSION}\n` +
       `© Chris Schardijn\n` +
-      `%cVisit demo: https://chriscreativecode.com/sound-manager-ts/demo/\n` +
+      `%cVisit demo: https://soundmanager.chriscreativecode.com/\n` +
       `%cNPM package: https://www.npmjs.com/package/sound-manager-ts\n\n` +
       `%c▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n` +
       `█                                               █\n` +
