@@ -404,7 +404,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
   --&gt;</span>
   
   <span class="hljs-comment">&lt;!-- Option 1: UMD Version (Works everywhere) --&gt;</span>
-  <span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;https://unpkg.com/sound-manager-ts@5.7.2/dist/sound-manager-ts.umd.js&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;https://unpkg.com/sound-manager-ts@5.8.0/dist/sound-manager-ts.umd.js&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
   
   <span class="hljs-comment">&lt;!-- 
     Alternative UMD options:
@@ -415,7 +415,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
   <span class="hljs-comment">&lt;!-- Option 2: ESM Version (Modern browsers/bundlers) --&gt;</span>
   <span class="hljs-comment">&lt;!--
   &lt;script type=&quot;module&quot;&gt;
-    import { SoundManager } from &#x27;https://unpkg.com/sound-manager-ts@5.7.2/dist/sound-manager-ts.es.js&#x27;;
+    import { SoundManager } from &#x27;https://unpkg.com/sound-manager-ts@5.8.0/dist/sound-manager-ts.es.js&#x27;;
     // Your ESM code here
   &lt;/script&gt;
   --&gt;</span>
@@ -567,6 +567,7 @@ soundManager.<span class="hljs-title function_">play</span>(<span class="hljs-st
   <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default fade-out duration in seconds</span>
   <span class="hljs-attr">loopSounds</span>?: <span class="hljs-built_in">boolean</span> <span class="hljs-comment">// Loop all sounds by default</span>
   <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span> <span class="hljs-comment">// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)</span>
+  <span class="hljs-attr">masterLimiter</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Prevent clipping when many sounds play at once (default: false)</span>
   <span class="hljs-attr">pannerNodeConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>; <span class="hljs-comment">// Panner settings for 3D sound</span>
   <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable spatial audio features</span>
   <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. </span>
@@ -887,6 +888,11 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-title function_">getContext</span>(): <span class="hljs-title class_">AudioContext</span>;
   <span class="hljs-title function_">getMasterOutput</span>(): <span class="hljs-title class_">AudioNode</span>; <span class="hljs-comment">// Returns the master output node for external connections (e.g. AnalyserNode)</span>
 
+  <span class="hljs-comment">// Master limiter</span>
+  <span class="hljs-title function_">setMasterLimiter</span>(<span class="hljs-attr">enabled</span>: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>; <span class="hljs-comment">// Turn the limiter on or off while sounds keep playing</span>
+  <span class="hljs-title function_">isMasterLimiterEnabled</span>(): <span class="hljs-built_in">boolean</span>;
+  <span class="hljs-title function_">getMasterLimiterNode</span>(): <span class="hljs-title class_">DynamicsCompressorNode</span> | <span class="hljs-literal">null</span>; <span class="hljs-comment">// The live node, for fine-tuning or reading `reduction`</span>
+
   <span class="hljs-comment">// Utilities</span>
   <span class="hljs-title function_">setDebugMode</span>(<span class="hljs-attr">debug</span>: <span class="hljs-built_in">boolean</span>): <span class="hljs-built_in">void</span>;
   <span class="hljs-title function_">getConfig</span>(): <span class="hljs-title class_">Readonly</span>&lt;<span class="hljs-title class_">SoundManagerConfig</span>&gt;;
@@ -1059,6 +1065,7 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">fadeOutDuration</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// Default fade-out duration in seconds</span>
   <span class="hljs-attr">loopSounds</span>?: <span class="hljs-built_in">boolean</span> <span class="hljs-comment">// Loop all sounds by default</span>
   <span class="hljs-attr">maxLoops</span>?: <span class="hljs-built_in">number</span> <span class="hljs-comment">// if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)</span>
+  <span class="hljs-attr">masterLimiter</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Prevent clipping when many sounds play at once (default: false)</span>
   <span class="hljs-attr">pannerNodeConfig</span>?: <span class="hljs-title class_">SoundPannerConfig</span>; <span class="hljs-comment">// Panner settings for 3D sound</span>
   <span class="hljs-attr">spatialAudio</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Enable spatial audio features</span>
   <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. </span>
@@ -1210,6 +1217,38 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">coneOuterGain</span>?: <span class="hljs-built_in">number</span>;
 }
 </code></pre>
+<h3 id="master-limiter" tabindex="-1">Master Limiter</h3>
+<p>When several sounds play at the same time their waveforms add up. Five samples at full
+volume sum to roughly five times full scale, and the Web Audio destination hard-clips
+everything above that ceiling. You hear it as crackle or distortion, most noticeably on
+sounds with a sharp attack such as piano notes or drum hits.</p>
+<p>The master limiter holds those peaks back instead of letting them clip. It sits last in
+the master chain, after volume and panning, so it catches everything on the way out.</p>
+<p>It is <strong>off by default</strong>, so upgrading never changes how an existing project sounds.
+Turn it on when you mix several sounds at once:</p>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> soundManager = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SoundManager</span>({
+  <span class="hljs-attr">createNewInstance</span>: <span class="hljs-literal">true</span>,
+  <span class="hljs-attr">masterLimiter</span>: <span class="hljs-literal">true</span>, <span class="hljs-comment">// prevents clipping when notes overlap</span>
+});
+</code></pre>
+<p>You can also toggle it at runtime, for example behind a checkbox, without interrupting
+playback:</p>
+<pre><code class="language-typescript">soundManager.<span class="hljs-title function_">setMasterLimiter</span>(<span class="hljs-literal">true</span>);
+soundManager.<span class="hljs-title function_">isMasterLimiterEnabled</span>(); <span class="hljs-comment">// true</span>
+</code></pre>
+<p>Need different behaviour? The underlying <code>DynamicsCompressorNode</code> is exposed, so you can
+tune it or read how much gain reduction is being applied:</p>
+<pre><code class="language-typescript"><span class="hljs-keyword">const</span> limiter = soundManager.<span class="hljs-title function_">getMasterLimiterNode</span>();
+<span class="hljs-keyword">if</span> (limiter) {
+  limiter.<span class="hljs-property">threshold</span>.<span class="hljs-property">value</span> = -<span class="hljs-number">6</span>; <span class="hljs-comment">// start limiting earlier</span>
+  limiter.<span class="hljs-property">release</span>.<span class="hljs-property">value</span> = <span class="hljs-number">0.4</span>;  <span class="hljs-comment">// let it recover more slowly</span>
+
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(limiter.<span class="hljs-property">reduction</span>); <span class="hljs-comment">// current gain reduction in dB</span>
+}
+</code></pre>
+<p>The defaults are tuned as a brick-wall limiter rather than a compressor: threshold -3 dBFS,
+knee 0, ratio 20, attack 3 ms, release 250 ms. Anything below the threshold passes through
+untouched, so quiet material is unaffected.</p>
 <h3 id="reset-options" tabindex="-1">Reset options</h3>
 <pre><code class="language-typescript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">SoundResetOptions</span> {
   <span class="hljs-attr">keepVolumes</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Keep current volume settings</span>
@@ -1239,6 +1278,42 @@ soundManager.<span class="hljs-title function_">destroy</span>();
 <h2 id="licence" tabindex="-1">Licence</h2>
 <p>This project is developed by Chris Schardijn. It is free to use in your project.</p>
 <h2 id="-version-history" tabindex="-1">📋 Version History</h2>
+<h3 id="580" tabindex="-1">5.8.0</h3>
+<p><strong>New feature</strong></p>
+<ul>
+<li>✨ Added <code>masterLimiter</code> config option. When several sounds play at once their waveforms sum past full scale and the audio output hard-clips them, which you hear as crackle. The limiter holds those peaks back instead. It is <strong>off by default</strong>, so upgrading does not change how existing projects sound. See <a href="#master-limiter">Master Limiter</a>.</li>
+<li>✨ Added <code>setMasterLimiter()</code>, <code>isMasterLimiterEnabled()</code> and <code>getMasterLimiterNode()</code> so the limiter can be toggled at runtime and fine-tuned.</li>
+</ul>
+<p><strong>Bug fixes</strong></p>
+<ul>
+<li>🐛 <code>updateSoundUrl()</code> never loaded the new URL. It cleaned up the sound but left it registered, and loading skips ids that already exist, so the call did nothing while still reporting success.</li>
+<li>🐛 Stopping one instance reset the instance counter for the whole sound, so the next <code>play()</code> reused an id that was still in use and overwrote a live instance, leaving its audio playing but unreachable.</li>
+<li>🐛 Using master spatial audio permanently removed the master stereo panner from the audio graph, after which <code>setGlobalPan()</code> was silently inaudible.</li>
+<li>🐛 <code>reset({ unloadSounds: true })</code> disconnected the master output and left the manager mute and unusable.</li>
+<li>🐛 The internal ticker kept an empty <code>requestAnimationFrame</code> loop running for the lifetime of the page once a fade or progress callback removed itself.</li>
+<li>🐛 <code>fadeOut(..., stopAfterFade)</code> did not stop the sound unless <code>endVolume</code> was passed explicitly as <code>0</code>.</li>
+<li>🐛 <code>stopAllSounds()</code> skipped paused sounds, leaving them paused.</li>
+<li>🐛 <code>setSpatialPosition()</code> rewired the source on every position update, retriggering <code>onended</code> and stacking duplicate connections for moving sources.</li>
+<li>🐛 Sprite ranges past the end of the buffer produced silence or noise; sprite offsets are now clamped. <code>setSoundSprite()</code> also stores its config, so <code>getSpriteConfig()</code> works.</li>
+<li>🐛 <code>removeSpriteSound()</code> matched on a substring, removing unrelated sprites, and did nothing when given a full sprite id.</li>
+<li>🐛 <code>createSoundGroup({ playOptions })</code> had no effect, because per-sound defaults always overrode the group settings.</li>
+<li>🐛 Unknown or unloaded sound ids threw a raw <code>TypeError</code> from several public methods instead of being reported.</li>
+<li>🐛 <code>setGlobalPan()</code> applied the pan twice and destroyed the individual pan setting of every sound.</li>
+<li>🐛 Changing the playback rate during playback made the sound jump to the wrong position.</li>
+<li>🐛 <code>unloadSound()</code> kept the decoded audio in memory and left <code>isSoundLoaded()</code> reporting <code>true</code>.</li>
+<li>🐛 <code>destroy()</code> left <code>visibilitychange</code>, context-resume and audio-unlock listeners attached to <code>document</code>, keeping the manager and its <code>AudioContext</code> alive.</li>
+<li>🐛 <code>removeEventListener()</code> could not tell listeners apart by <code>instancePattern</code> and removed too many.</li>
+<li>🐛 A configured <code>corsProxy</code> overrode <code>fetchStrategy</code>, so <code>direct-only</code> still went through the proxy and <code>proxy-first</code> never fell back to direct.</li>
+<li>🐛 The HTML5 audio fallback simply repeated the Web Audio request that had just failed, so it could never succeed where the first attempt did not.</li>
+<li>🐛 Audio served as <code>application/octet-stream</code> (common on S3 and many CDNs) or <code>video/*</code> (m4a/mp4) was rejected before it could be decoded.</li>
+<li>🐛 The constructor modified the config object passed to it, affecting callers that reuse it.</li>
+<li>🐛 The spatial support check created a throwaway <code>AudioContext</code> on every first call, which could exhaust the browser’s limit across several instances.</li>
+</ul>
+<p><strong>Other</strong></p>
+<ul>
+<li>🔧 Removed a stray <code>console.log</code> that ran on every <code>fadeIn()</code>.</li>
+<li>🔧 Corrected the spatial rolloff settings in the general demo, where the sound dropped away far too sharply while dragging the position marker.</li>
+</ul>
 <h3 id="572" tabindex="-1">5.7.2</h3>
 <ul>
 <li>🔧 Migrated all demo and documentation URLs to new subdomains.</li>
@@ -1907,7 +1982,7 @@ This is particularly useful for creating smoother transitions and avoiding abrup
           "name": "Sound Manager TS",
           "applicationCategory": "DeveloperApplication",
           "operatingSystem": "Any",
-          "softwareVersion": "5.7.2"
+          "softwareVersion": "5.8.0"
         }
       }
     </script>
