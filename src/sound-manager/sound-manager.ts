@@ -50,6 +50,7 @@ export class SoundManager implements SoundManagerInterface {
   private visibilityHandler: (() => void) | null = null;
   private contextResumeHandler: (() => void) | null = null;
   private static readonly RESUME_EVENTS = ["click", "touchstart", "keydown"] as const;
+  private static readonly GLOBAL_FADE_ID = "fade_global";
 
   private VERSION = "5.7.2";
 
@@ -1068,7 +1069,11 @@ export class SoundManager implements SoundManagerInterface {
 
   public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
     const sound = this.getValidatedSound(id);
-    console.log('fade in', id);
+
+    // Remember this before the flags are reset below, otherwise the
+    // "continue from the current volume" branch further down is unreachable.
+    const wasFadingOut = sound.isFadingOut === true;
+
     // Cancel any ongoing fade animation
     this.cancelFadeAnimation(id);
 
@@ -1095,7 +1100,7 @@ export class SoundManager implements SoundManagerInterface {
     if (startVolume !== undefined) {
       // If startVolume is explicitly provided, use it
       effectiveStartVolume = startVolume;
-    } else if (sound.isFadingOut) {
+    } else if (wasFadingOut) {
       // If we're coming from a fadeOut, use the current volume
       effectiveStartVolume = currentVolume;
     } else if (currentVolume >= targetEndVolume) {
@@ -1167,7 +1172,10 @@ export class SoundManager implements SoundManagerInterface {
           sound,
         });
       }
-      if (endVolume === 0 && stopAfterFade) {
+      // Check the resolved target, not the raw parameter: fadeOut(id, 2) fades to
+      // 0 via fadeOutEndVolume, but `endVolume` is undefined so stopAfterFade
+      // used to be ignored.
+      if (targetEndVolume === 0 && stopAfterFade) {
         this.stop(id);
       }
     });
@@ -1274,7 +1282,9 @@ export class SoundManager implements SoundManagerInterface {
       const fadeDuration = duration;
       const endTime = startTime + fadeDuration;
 
-      const fadeId = 'fade_global_in';
+      // Shared id with fadeGlobalOut: registering it replaces any master fade
+      // already running, instead of leaving two loops fighting over master gain.
+      const fadeId = SoundManager.GLOBAL_FADE_ID;
       const updateGlobalFade = () => {
         const currentTime = this.context.currentTime;
 
@@ -1330,7 +1340,8 @@ export class SoundManager implements SoundManagerInterface {
       const fadeDuration = duration;
       const endTime = startTime + fadeDuration;
 
-      const fadeId = 'fade_global_out';
+      // Shared id with fadeGlobalIn, see the note there
+      const fadeId = SoundManager.GLOBAL_FADE_ID;
       const updateGlobalFade = () => {
         const currentTime = this.context.currentTime;
 
