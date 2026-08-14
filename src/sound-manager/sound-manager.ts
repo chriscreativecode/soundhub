@@ -1856,8 +1856,12 @@ export class SoundManager implements SoundManagerInterface {
         return;
       }
 
-      // Clean up the existing sound
+      // Stop and tear down the existing sound. The entry has to leave the map as
+      // well: loadSounds() skips ids that are already registered, so leaving it in
+      // place would silently keep the old buffer and never fetch newUrl.
+      this.stop(id, true);
       this.cleanupSound(id);
+      this.sounds.delete(id);
 
       // Load the new sound
       await this.loadSound(id, newUrl);
@@ -1866,7 +1870,7 @@ export class SoundManager implements SoundManagerInterface {
         type: SoundEventsEnum.UPDATED_URL,
         soundId: id,
         timestamp: this.context.currentTime,
-        sound
+        sound: this.sounds.get(id) ?? sound
       });
 
       this.debugLog(`Sound ${id} URL updated to ${newUrl}`);
