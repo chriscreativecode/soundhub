@@ -592,10 +592,16 @@ export class SoundManager implements SoundManagerInterface {
     // Get or initialize the counter for the base ID
     let counter = this.instanceCounters.get(baseId) || 0;
 
-    // Increment the counter and store it
-    this.instanceCounters.set(baseId, counter + 1);
+    // Never hand out an id that is still registered: a reset counter would
+    // otherwise overwrite a live instance in the sounds map, orphaning its
+    // still-playing source.
+    do {
+      counter++;
+    } while (this.sounds.has(`${baseId}:${counter}`));
 
-    return counter + 1;
+    this.instanceCounters.set(baseId, counter);
+
+    return counter;
   }
 
   private resetCounterForSound(id: string): void {
@@ -894,8 +900,6 @@ export class SoundManager implements SoundManagerInterface {
       sound.currentTime = 0;
 
       this.removeEventListenersForInstance(id);
-
-      this.resetCounterForSound(id);
 
       if (!skipDispatchEvent) {
         this.dispatchEvent({
