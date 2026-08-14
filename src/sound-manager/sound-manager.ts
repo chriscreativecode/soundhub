@@ -83,10 +83,10 @@ export class SoundManager implements SoundManagerInterface {
       // Create and connect nodes in the correct order
       this.masterGainNode = this.context.createGain();
       this.masterStereoPanner = this.context.createStereoPanner();
+      this.masterPannerNode = null;
 
       // Connect in chain: masterGainNode -> masterStereoPanner -> destination
-      this.masterStereoPanner.connect(this.context.destination);
-      this.masterGainNode.connect(this.masterStereoPanner);
+      this.rewireMasterChain();
 
       this.masterStereoPanner.pan.value = this.config.defaultPan ?? 0;
       this.previousGlobalPan = this.config.defaultPan ?? 0;
@@ -608,6 +608,28 @@ export class SoundManager implements SoundManagerInterface {
     const baseId = id.split(':')[0];
     this.instanceCounters.delete(baseId);
     this.debugLog(`Counter reset for sound ${baseId}`);
+  }
+
+  /**
+   * (Re)builds the master output chain. The stereo panner always stays the last
+   * node before the destination, so enabling or clearing master spatial audio can
+   * never drop it from the graph and silently disable setGlobalPan().
+   *
+   * masterGainNode -> [masterPannerNode] -> masterStereoPanner -> destination
+   */
+  private rewireMasterChain(): void {
+    this.masterGainNode.disconnect();
+    this.masterStereoPanner.disconnect();
+
+    if (this.masterPannerNode) {
+      this.masterPannerNode.disconnect();
+      this.masterGainNode.connect(this.masterPannerNode);
+      this.masterPannerNode.connect(this.masterStereoPanner);
+    } else {
+      this.masterGainNode.connect(this.masterStereoPanner);
+    }
+
+    this.masterStereoPanner.connect(this.context.destination);
   }
 
   private reconnectAudioNodes(id: string): void {
@@ -2518,9 +2540,8 @@ export class SoundManager implements SoundManagerInterface {
   public cleanupGlobalPan(): void {
     if (this.masterPannerNode) {
       this.masterPannerNode.disconnect();
-      this.masterGainNode.disconnect();
-      this.masterGainNode.connect(this.context.destination);
       this.masterPannerNode = null;
+      this.rewireMasterChain();
     }
   }
 
@@ -2682,10 +2703,8 @@ export class SoundManager implements SoundManagerInterface {
       // Create or update master panner node
       if (!this.masterPannerNode) {
         this.masterPannerNode = this.context.createPanner();
-        // Disconnect and reconnect the nodes in the chain
-        this.masterGainNode.disconnect();
-        this.masterPannerNode.connect(this.context.destination);
-        this.masterGainNode.connect(this.masterPannerNode);
+        // Splice it into the master chain, keeping the stereo panner in place
+        this.rewireMasterChain();
       }
 
       // Update master panner position
@@ -2844,10 +2863,10 @@ export class SoundManager implements SoundManagerInterface {
         this.masterPannerNode.refDistance = DEFAULT_PANNER_CONFIG.refDistance ?? 1;
         this.masterPannerNode.rolloffFactor = DEFAULT_PANNER_CONFIG.rolloffFactor ?? 0.2;
 
-        // Optionally, disconnect and remove the masterPannerNode
-        this.masterGainNode.disconnect(); // Disconnect from the masterPannerNode
-        this.masterGainNode.connect(this.context.destination); // Reconnect directly to the destination
+        // Take the panner back out of the chain, keeping the stereo panner intact
+        this.masterPannerNode.disconnect();
         this.masterPannerNode = null; // Clear the masterPannerNode reference
+        this.rewireMasterChain();
       }
 
       // Dispatch an event to notify listeners of the reset
