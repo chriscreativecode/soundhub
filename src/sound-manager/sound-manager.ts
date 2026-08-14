@@ -1604,13 +1604,26 @@ export class SoundManager implements SoundManagerInterface {
       throw signal.reason ?? new DOMException('Aborted', 'AbortError');
     }
 
-    const strategies = this.config.fetchStrategy === 'proxy-first' && this.shouldUseProxy(url)
-      ? ['proxy', 'direct']
-      : ['direct'];
+    const canProxy = this.shouldUseProxy(url);
+    const configuredStrategy = this.config.fetchStrategy ?? 'direct-first';
+
+    let strategies: ('direct' | 'proxy')[];
+    if (configuredStrategy === 'direct-only') {
+      strategies = ['direct'];
+    } else if (configuredStrategy === 'proxy-first') {
+      strategies = canProxy ? ['proxy', 'direct'] : ['direct'];
+    } else {
+      strategies = canProxy ? ['direct', 'proxy'] : ['direct'];
+    }
+
+    let lastError: unknown = null;
 
     for (const strategy of strategies) {
       try {
-        const fetchUrl = (strategy === 'proxy' || this.config.corsProxy) ? this.getProxyUrl(url) : url;
+        // Only the proxy attempt rewrites the URL. A configured corsProxy used to
+        // hijack every strategy, which made direct-only and the direct fallback
+        // of proxy-first go through the proxy anyway.
+        const fetchUrl = strategy === 'proxy' ? this.getProxyUrl(url) : url;
 
         this.debugLog(`Trying ${strategy} strategy for ${id}`, {
           originalUrl: url,
@@ -1632,16 +1645,17 @@ export class SoundManager implements SoundManagerInterface {
           throw error;
         }
 
+        lastError = error;
         this.debugLog(`${strategy} strategy failed for ${id}`, {
           error: error instanceof Error ? error.message : String(error),
           url: url
         });
-
-        if (strategy === strategies[strategies.length - 1]) {
-          throw new Error(`Failed to load sound ${id}: ${error instanceof Error ? error.message : String(error)}`);
-        }
       }
     }
+
+    throw new Error(
+      `Failed to load sound ${id}: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+    );
   }
   
   private async fetchWithRetry(url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
@@ -1711,10 +1725,29 @@ export class SoundManager implements SoundManagerInterface {
     throw lastError || new Error('Failed after all retries');
   }
 
-  private async processAudioResponse(id: string, response: Response): Promise<void> {
-    // Verify content type is audio
+  /**
+   * Content types that plausibly carry audio. Being strict about `audio/*` here
+   * rejected perfectly valid files: S3 and several CDNs serve audio as
+   * application/octet-stream, and m4a/mp4 audio commonly arrives as video/*.
+   * decodeAudioData is the real gate; this check only catches obvious mistakes
+   * such as an HTML error page returned with status 200.
+   */
+  private isPlausibleAudioContentType(contentType: string | null): boolean {
+    if (!contentType) return true; // No header at all, let the decoder decide
+
+    const type = contentType.split(';')[0].trim().toLowerCase();
+
+    return type.startsWith('audio/')
+      || type.startsWith('video/')
+      || type === 'application/ogg'
+      || type === 'application/octet-stream'
+      || type === 'binary/octet-stream';
+  }
+
+  private async processAudioResponse(id: string, response: Response, enforceContentType: boolean = true): Promise<void> {
+    // Verify content type is plausibly audio
     const contentType = response.headers.get('content-type');
-    if (!contentType?.includes('audio/')) {
+    if (enforceContentType && !this.isPlausibleAudioContentType(contentType)) {
       throw new Error(`Invalid content type: ${contentType}`);
     }
 
@@ -1739,18 +1772,17 @@ export class SoundManager implements SoundManagerInterface {
       throw signal.reason ?? new DOMException('Aborted', 'AbortError');
     }
 
-    return new Promise((resolve, reject) => {
+    // Step 1: let the browser's own media pipeline prove it can play this URL.
+    await new Promise<void>((resolve, reject) => {
       const audio = new Audio();
       audio.crossOrigin = this.config.crossOrigin === "use-credentials"
         ? "use-credentials"
         : "anonymous";
       audio.preload = "auto";
-      audio.src = url;
 
       const cleanup = () => {
         audio.oncanplaythrough = null;
         audio.onerror = null;
-        audio.removeEventListener('error', errorHandler);
         signal?.removeEventListener('abort', abortHandler);
       };
 
@@ -1760,29 +1792,43 @@ export class SoundManager implements SoundManagerInterface {
         reject(signal!.reason ?? new DOMException('Aborted', 'AbortError'));
       };
 
+      // Registered once. It used to be attached via both onerror and
+      // addEventListener, so cleanup ran twice on every failure.
       const errorHandler = () => {
         cleanup();
-        reject(new Error(`HTML5 Audio load error: ${audio.error ? audio.error.message : 'unknown'}`));
+        const message = audio.error ? audio.error.message : 'unknown';
+        audio.src = '';
+        reject(new Error(`HTML5 Audio load error: ${message}`));
       };
 
-      audio.oncanplaythrough = async () => {
+      audio.oncanplaythrough = () => {
         cleanup();
-
-        try {
-          // Use the same loading strategy as Web Audio
-          await this.loadWithWebAudio(id, url, signal);
-          this.debugLog(`Sound ${id} loaded with HTML5 Audio fallback`);
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
+        resolve();
       };
 
       audio.onerror = errorHandler;
-      audio.addEventListener('error', errorHandler);
       if (signal) signal.addEventListener('abort', abortHandler, { once: true });
+
+      audio.src = url;
       audio.load();
     });
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
+    // Step 2: pull the bytes in for the Web Audio graph. This does its own fetch
+    // rather than calling loadWithWebAudio again, which would only replay the
+    // strategy loop that already failed. Content type is not enforced: the media
+    // element above already established that the file is playable.
+    const response = await this.fetchWithRetry(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      cache: this.config.audioCache ? 'default' : 'no-cache'
+    }, signal);
+
+    await this.processAudioResponse(id, response, false);
+    this.debugLog(`Sound ${id} loaded with HTML5 Audio fallback`);
   }
 
   public async loadSounds(soundsToLoad: { id: string; url: string }[], signal?: AbortSignal): Promise<void> {
