@@ -6,6 +6,7 @@ import { SoundManagerConfig } from "../../../../sound-manager/sound-manager-conf
 import { AudioControllerComponent } from "../../../components/audio-controller-component/audio-controller.component";
 import { MasterControl } from "../../../components/master-control-component/master-control.component";
 import { SoundControl } from "../../../components/sound-control-component/sound-control.component";
+import { SoundLoaderComponent } from "../../../components/sound-loader-component/sound-loader.component";
 import { WaveVisualizerComponent } from "../../../components/wave-visualizer-component/wave-visualizer.component";
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 // @ts-ignore
@@ -135,20 +136,44 @@ export class SoundManagerDemo {
   }
 
   private async loadDemoSounds(): Promise<void> {
+    // The manifest resolves the URLs first, so the loader can show the real
+    // number of channels rather than guessing.
+    const soundsToLoad = await resolveSoundManifest();
+
+    const loaderContainer = document.getElementById("soundLoaderContainer") as HTMLElement;
+    const loader = new SoundLoaderComponent(loaderContainer, soundsToLoad.length);
+
+    // The library reports each sound the moment it finishes decoding, so the
+    // progress shown is the real thing rather than a timed animation.
+    const onLoaded = (event: SoundEvent) => {
+      if (event.soundId) loader.markLoaded(event.soundId);
+    };
+    const onError = () => loader.markFailed();
+
+    this.soundManager.addEventListener(SoundEventsEnum.LOADED, onLoaded);
+    this.soundManager.addEventListener(SoundEventsEnum.ERROR, onError);
+
     try {
-      const soundsToLoad = await resolveSoundManifest();
-
       await this.soundManager.loadSounds(soundsToLoad);
-
-      const masterControlContainer = document.getElementById("masterControlContainer") as HTMLElement;
-      const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
-      soundControlsContainer.classList.add("show");
-      this.createMasterControl(masterControlContainer);
-      this.initializeVisualizer();
-      this.createSoundControls(soundsToLoad);
     } catch (error) {
       console.error("Error loading sounds:", error);
+    } finally {
+      this.soundManager.removeEventListener(SoundEventsEnum.LOADED, onLoaded);
+      this.soundManager.removeEventListener(SoundEventsEnum.ERROR, onError);
     }
+
+    // Build the controls for whatever actually loaded, so one bad file does not
+    // leave the page stuck on the loader.
+    const loaded = soundsToLoad.filter(({ id }) => this.soundManager.isSoundLoaded(id));
+
+    await loader.complete();
+
+    const masterControlContainer = document.getElementById("masterControlContainer") as HTMLElement;
+    const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
+    soundControlsContainer.classList.add("show");
+    this.createMasterControl(masterControlContainer);
+    this.initializeVisualizer();
+    this.createSoundControls(loaded);
   }
 
   private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
