@@ -67,7 +67,7 @@
     "dev:main": "cross-env BROWSER=chrome vite --mode demo-main",
     "dev:docs": "vite --mode readme-dev",
     "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs",
+    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs && node scripts/prepare-deploy.js",
     "build:demo": "vite build --mode demo-main",
     "build:lib": "vite build --mode lib",
     "build:docs": "vite build --mode readme",
