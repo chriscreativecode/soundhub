@@ -291,7 +291,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   -->
   
   <!-- Option 1: UMD Version (Works everywhere) -->
-  <script src="https://unpkg.com/sound-manager-ts@5.7.2/dist/sound-manager-ts.umd.js"></script>
+  <script src="https://unpkg.com/sound-manager-ts@5.8.0/dist/sound-manager-ts.umd.js"></script>
   
   <!-- 
     Alternative UMD options:
@@ -302,7 +302,7 @@ If you prefer to include Sound Manager directly as a library file in your projec
   <!-- Option 2: ESM Version (Modern browsers/bundlers) -->
   <!--
   <script type="module">
-    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.7.2/dist/sound-manager-ts.es.js';
+    import { SoundManager } from 'https://unpkg.com/sound-manager-ts@5.8.0/dist/sound-manager-ts.es.js';
     // Your ESM code here
   </script>
   -->
@@ -457,6 +457,7 @@ export interface SoundManagerConfig {
   fadeOutDuration?: number; // Default fade-out duration in seconds
   loopSounds?: boolean // Loop all sounds by default
   maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  masterLimiter?: boolean; // Prevent clipping when many sounds play at once (default: false)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
   spatialAudio?: boolean; // Enable spatial audio features
   trackProgress?: boolean; // Track progress of the sound playback. 
@@ -782,6 +783,11 @@ export interface SoundManagerInterface {
   getContext(): AudioContext;
   getMasterOutput(): AudioNode; // Returns the master output node for external connections (e.g. AnalyserNode)
 
+  // Master limiter
+  setMasterLimiter(enabled: boolean): void; // Turn the limiter on or off while sounds keep playing
+  isMasterLimiterEnabled(): boolean;
+  getMasterLimiterNode(): DynamicsCompressorNode | null; // The live node, for fine-tuning or reading `reduction`
+
   // Utilities
   setDebugMode(debug: boolean): void;
   getConfig(): Readonly<SoundManagerConfig>;
@@ -973,6 +979,7 @@ export interface SoundManagerConfig {
   fadeOutDuration?: number; // Default fade-out duration in seconds
   loopSounds?: boolean // Loop all sounds by default
   maxLoops?: number // if loopSounds is true and maxLoops is set, the sound will loop maxLoops times  (-1 is for infinite)
+  masterLimiter?: boolean; // Prevent clipping when many sounds play at once (default: false)
   pannerNodeConfig?: SoundPannerConfig; // Panner settings for 3D sound
   spatialAudio?: boolean; // Enable spatial audio features
   trackProgress?: boolean; // Track progress of the sound playback. 
@@ -1146,6 +1153,51 @@ export interface SoundPannerConfig {
 }
 ```
 
+### Master Limiter
+
+When several sounds play at the same time their waveforms add up. Five samples at full
+volume sum to roughly five times full scale, and the Web Audio destination hard-clips
+everything above that ceiling. You hear it as crackle or distortion, most noticeably on
+sounds with a sharp attack such as piano notes or drum hits.
+
+The master limiter holds those peaks back instead of letting them clip. It sits last in
+the master chain, after volume and panning, so it catches everything on the way out.
+
+It is **off by default**, so upgrading never changes how an existing project sounds.
+Turn it on when you mix several sounds at once:
+
+```typescript
+const soundManager = new SoundManager({
+  createNewInstance: true,
+  masterLimiter: true, // prevents clipping when notes overlap
+});
+```
+
+You can also toggle it at runtime, for example behind a checkbox, without interrupting
+playback:
+
+```typescript
+soundManager.setMasterLimiter(true);
+soundManager.isMasterLimiterEnabled(); // true
+```
+
+Need different behaviour? The underlying `DynamicsCompressorNode` is exposed, so you can
+tune it or read how much gain reduction is being applied:
+
+```typescript
+const limiter = soundManager.getMasterLimiterNode();
+if (limiter) {
+  limiter.threshold.value = -6; // start limiting earlier
+  limiter.release.value = 0.4;  // let it recover more slowly
+
+  console.log(limiter.reduction); // current gain reduction in dB
+}
+```
+
+The defaults are tuned as a brick-wall limiter rather than a compressor: threshold -3 dBFS,
+knee 0, ratio 20, attack 3 ms, release 250 ms. Anything below the threshold passes through
+untouched, so quiet material is unaffected.
+
 ### Reset options
 ```typescript
 export interface SoundResetOptions {
@@ -1182,6 +1234,43 @@ Found a bug or unexpected behavior? Please use the [Bug Report](https://soundman
 This project is developed by Chris Schardijn. It is free to use in your project.
 
 ## 📋 Version History
+
+### 5.8.0
+
+**New feature**
+
+- ✨ Added `masterLimiter` config option. When several sounds play at once their waveforms sum past full scale and the audio output hard-clips them, which you hear as crackle. The limiter holds those peaks back instead. It is **off by default**, so upgrading does not change how existing projects sound. See [Master Limiter](#master-limiter).
+- ✨ Added `setMasterLimiter()`, `isMasterLimiterEnabled()` and `getMasterLimiterNode()` so the limiter can be toggled at runtime and fine-tuned.
+
+**Bug fixes**
+
+- 🐛 `updateSoundUrl()` never loaded the new URL. It cleaned up the sound but left it registered, and loading skips ids that already exist, so the call did nothing while still reporting success.
+- 🐛 Stopping one instance reset the instance counter for the whole sound, so the next `play()` reused an id that was still in use and overwrote a live instance, leaving its audio playing but unreachable.
+- 🐛 Using master spatial audio permanently removed the master stereo panner from the audio graph, after which `setGlobalPan()` was silently inaudible.
+- 🐛 `reset({ unloadSounds: true })` disconnected the master output and left the manager mute and unusable.
+- 🐛 The internal ticker kept an empty `requestAnimationFrame` loop running for the lifetime of the page once a fade or progress callback removed itself.
+- 🐛 `fadeOut(..., stopAfterFade)` did not stop the sound unless `endVolume` was passed explicitly as `0`.
+- 🐛 `stopAllSounds()` skipped paused sounds, leaving them paused.
+- 🐛 `setSpatialPosition()` rewired the source on every position update, retriggering `onended` and stacking duplicate connections for moving sources.
+- 🐛 Sprite ranges past the end of the buffer produced silence or noise; sprite offsets are now clamped. `setSoundSprite()` also stores its config, so `getSpriteConfig()` works.
+- 🐛 `removeSpriteSound()` matched on a substring, removing unrelated sprites, and did nothing when given a full sprite id.
+- 🐛 `createSoundGroup({ playOptions })` had no effect, because per-sound defaults always overrode the group settings.
+- 🐛 Unknown or unloaded sound ids threw a raw `TypeError` from several public methods instead of being reported.
+- 🐛 `setGlobalPan()` applied the pan twice and destroyed the individual pan setting of every sound.
+- 🐛 Changing the playback rate during playback made the sound jump to the wrong position.
+- 🐛 `unloadSound()` kept the decoded audio in memory and left `isSoundLoaded()` reporting `true`.
+- 🐛 `destroy()` left `visibilitychange`, context-resume and audio-unlock listeners attached to `document`, keeping the manager and its `AudioContext` alive.
+- 🐛 `removeEventListener()` could not tell listeners apart by `instancePattern` and removed too many.
+- 🐛 A configured `corsProxy` overrode `fetchStrategy`, so `direct-only` still went through the proxy and `proxy-first` never fell back to direct.
+- 🐛 The HTML5 audio fallback simply repeated the Web Audio request that had just failed, so it could never succeed where the first attempt did not.
+- 🐛 Audio served as `application/octet-stream` (common on S3 and many CDNs) or `video/*` (m4a/mp4) was rejected before it could be decoded.
+- 🐛 The constructor modified the config object passed to it, affecting callers that reuse it.
+- 🐛 The spatial support check created a throwaway `AudioContext` on every first call, which could exhaust the browser's limit across several instances.
+
+**Other**
+
+- 🔧 Removed a stray `console.log` that ran on every `fadeIn()`.
+- 🔧 Corrected the spatial rolloff settings in the general demo, where the sound dropped away far too sharply while dragging the position marker.
 
 ### 5.7.2
 
