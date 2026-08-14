@@ -15,11 +15,24 @@ import { SoundManagerConfig } from '../../../../sound-manager/sound-manager-conf
 import { SoundEventsEnum } from '../../../../sound-manager/sound-events.enum';
 import { LocalStorageManagerManager } from '../../../services/local-storage-manager';
 
-import { CHORDS, KEY_TO_NOTE, MELODIES, Melody, NOTE_BY_ID, NOTES, NoteDefinition } from './piano-data';
+import {
+  BLACK_KEY_RATIO, CHORDS, DEFAULT_BASE_OCTAVE, HIGHEST_BASE_OCTAVE, KEY_BINDINGS,
+  KEY_WINDOW_SEMITONES, LOWEST_BASE_OCTAVE, LOWEST_OCTAVE, MELODIES, Melody,
+  NOTE_BY_ID, NOTES, NoteDefinition, WHITE_KEY_COUNT,
+} from './piano-data';
 import { AdsrEnvelope, SynthEngine } from './synth-engine';
 import { PerformanceRecorder, RecorderState } from './performance-recorder';
 
 type SoundEngineType = 'piano' | 'synthesizer';
+
+/**
+ * Notes loaded before the page becomes playable. The rest arrives in the
+ * background: 61 samples is 1.6 MB, and waiting for the outer octaves before
+ * letting anyone touch a key would cost seconds for notes most visitors never
+ * reach first.
+ */
+const CORE_OCTAVE_LOW = 3;
+const CORE_OCTAVE_HIGH = 5;
 
 /** How long a sample takes to damp when the sustain pedal is up. */
 const DAMPER_SECONDS = 0.22;
@@ -74,6 +87,15 @@ export class PianoDemo {
   private readonly heldKeyboardKeys = new Set<string>();
   private readonly pointerNotes = new Set<string>();
 
+  /** First octave the computer keyboard is mapped onto. */
+  private baseOctave = DEFAULT_BASE_OCTAVE;
+  /** Rebuilt whenever the octave shifts. */
+  private keyToNote = new Map<string, NoteDefinition>();
+  /** False until the middle octaves are in, which is when the board becomes playable. */
+  private coreLoaded = false;
+  /** False until the outer octaves have finished loading. */
+  private allSamplesLoaded = false;
+
   /** Live SoundManager instances: instance id to the animation it drives. */
   private readonly sampleInstances = new Map<string, { noteId: string; animId: string }>();
   /** Newest live instance per note, so a key-up can damp the right one. */
@@ -113,6 +135,14 @@ export class PianoDemo {
   private recStatus: HTMLElement | null = null;
   private recProgress: HTMLElement | null = null;
   private envelopePath: SVGPathElement | null = null;
+  private instrument: HTMLElement | null = null;
+  private feltWindow: HTMLElement | null = null;
+  private octaveValueEl: HTMLElement | null = null;
+  private octaveDownButton: HTMLButtonElement | null = null;
+  private octaveUpButton: HTMLButtonElement | null = null;
+  private loadRibbon: HTMLElement | null = null;
+  private loadCountEl: HTMLElement | null = null;
+  private loadBarFill: HTMLElement | null = null;
 
   constructor() {
     const config: SoundManagerConfig = {
@@ -200,39 +230,86 @@ export class PianoDemo {
     };
   }
 
+  /**
+   * The console is on screen before a single sample has arrived, and the
+   * keyboard doubles as the progress bar: every key lights up the moment its own
+   * file is decoded. Nothing here is a guess, it polls `isSoundLoaded()`.
+   */
   private async init(): Promise<void> {
     const container = document.getElementById('pianoConsole')!;
-    container.innerHTML = this.loadingMarkup();
-
-    await this.soundManager.loadSounds(NOTES.map(n => ({ id: n.id, url: n.url })));
+    const core = NOTES.filter(n => n.octave >= CORE_OCTAVE_LOW && n.octave <= CORE_OCTAVE_HIGH);
+    const rest = NOTES.filter(n => n.octave < CORE_OCTAVE_LOW || n.octave > CORE_OCTAVE_HIGH);
 
     container.classList.remove('is-loading');
     container.innerHTML = this.consoleMarkup();
     this.cacheElements(container);
     this.buildKeyboard(container.querySelector<HTMLElement>('#pianoKeyboard')!);
     this.bindEvents(container);
+    this.applyKeyWindow();
     this.renderEngineLab();
     this.buildInfoPanel();
     this.renderRecorderState();
     this.renderMelodyBlurb();
     this.startMeterLoop();
+    this.renderMelodyButton();
+    this.renderSampleAvailability();
+
+    const watch = window.setInterval(() => this.renderSampleAvailability(), 110);
+
+    // The three middle octaves come first, so the board is playable long before
+    // the outer ones have downloaded
+    await this.soundManager.loadSounds(core.map(n => ({ id: n.id, url: n.url })));
+    this.coreLoaded = true;
+    this.renderMelodyButton();
+    this.renderEngineLab();
+
+    await this.soundManager
+      .loadSounds(rest.map(n => ({ id: n.id, url: n.url })))
+      .catch(() => { /* a missing sample leaves its key dimmed, nothing more */ });
+
+    this.allSamplesLoaded = true;
+    window.clearInterval(watch);
+    this.renderSampleAvailability();
+    this.renderEngineLab();
   }
 
-  private loadingMarkup(): string {
-    const bars = Array.from({ length: 14 }, (_, i) =>
-      `<span class="skeleton-key" style="--i:${i}"></span>`).join('');
-    return `
-      <div class="console-loading" role="status" aria-live="polite">
-        <p class="console-loading-text"><span class="spinner" aria-hidden="true"></span> Loading 24 piano samples</p>
-        <div class="skeleton-keys" aria-hidden="true">${bars}</div>
-      </div>
-    `;
+  /**
+   * Lights up every key whose sample has landed since the last pass and keeps
+   * the ribbon in the case in step with it.
+   */
+  private renderSampleAvailability(): void {
+    let ready = 0;
+
+    NOTES.forEach(note => {
+      const el = this.keyElements.get(note.id);
+      const isReady = this.soundManager.isSoundLoaded(note.id);
+      if (isReady) ready += 1;
+      if (!el) return;
+
+      const wasPending = el.classList.contains('is-pending');
+      el.classList.toggle('is-pending', !isReady);
+
+      // One short flash the first time a key becomes playable
+      if (wasPending && isReady) {
+        el.classList.add('is-arriving');
+        window.setTimeout(() => el.classList.remove('is-arriving'), 520);
+      }
+    });
+
+    const done = ready >= NOTES.length;
+    this.loadRibbon?.classList.toggle('is-done', done);
+    if (this.loadRibbon) this.loadRibbon.hidden = done;
+    if (this.loadCountEl) this.loadCountEl.textContent = String(ready);
+    if (this.loadBarFill) {
+      this.loadBarFill.style.transform = `scaleX(${(ready / NOTES.length).toFixed(3)})`;
+    }
   }
 
   // ── Markup ───────────────────────────────────────────────────────────────
 
   private consoleMarkup(): string {
-    const voiceDots = Array.from({ length: 16 }, () => '<i></i>').join('');
+    // Fuer Elise alone peaks past twenty voices, so the strip needs the room
+    const voiceDots = Array.from({ length: 24 }, () => '<i></i>').join('');
     const pads = CHORDS.map(chord => `
       <button type="button" class="pad" data-chord="${chord.id}">
         <span class="pad-label">${chord.label}</span>
@@ -248,6 +325,15 @@ export class PianoDemo {
           <div class="segmented" role="radiogroup" aria-labelledby="engineLabel">
             <button type="button" class="segmented-option is-active" role="radio" aria-checked="true" data-engine="piano">Piano</button>
             <button type="button" class="segmented-option" role="radio" aria-checked="false" data-engine="synthesizer">Synth</button>
+          </div>
+        </div>
+
+        <div class="deck-group">
+          <span class="deck-label" id="octaveLabel">Octave</span>
+          <div class="stepper" role="group" aria-labelledby="octaveLabel">
+            <button type="button" class="stepper-button" id="octaveDown" aria-label="Move the computer keyboard one octave down">&minus;</button>
+            <span class="stepper-value" id="octaveValue" aria-live="polite">C4</span>
+            <button type="button" class="stepper-button" id="octaveUp" aria-label="Move the computer keyboard one octave up">+</button>
           </div>
         </div>
 
@@ -305,28 +391,40 @@ export class PianoDemo {
         </div>
       </div>
 
-      <div class="instrument">
-        <div class="piano-stage" id="pianoStage">
-          <div class="case-plate" aria-hidden="true">
-            <span class="case-brand">Sound Manager TS</span>
-            <span class="case-engine" id="caseEngine">Sampled piano</span>
-          </div>
+      <div class="instrument-frame">
+        <!-- Outside the scroller, so the fallboard stays put while the keys slide -->
+        <div class="case-plate" aria-hidden="true">
+          <span class="case-brand">Sound Manager TS</span>
+          <span class="case-engine" id="caseEngine">Sampled piano</span>
+        </div>
+        <div class="load-ribbon" id="loadRibbon" role="status" aria-live="polite">
+          <p class="load-ribbon-count">
+            <span class="load-ribbon-number" id="loadCount">0</span>
+            <span class="load-ribbon-of">of ${NOTES.length} notes ready</span>
+          </p>
+          <div class="load-bar"><span class="load-bar-fill" id="loadBarFill"></span></div>
+          <p class="load-ribbon-note">A key lights up the moment its own sample lands. The synth engine plays right now.</p>
+        </div>
+        <div class="instrument" id="instrument">
+        <div class="piano-stage" id="pianoStage" style="--white-count:${WHITE_KEY_COUNT};--black-ratio:${BLACK_KEY_RATIO}">
           <div class="keybed">
-            <div class="piano-felt" aria-hidden="true"></div>
-            <div class="piano-keyboard" id="pianoKeyboard" role="group" aria-label="Two octave piano keyboard"></div>
+            <div class="piano-felt" aria-hidden="true"><span class="felt-window" id="feltWindow"></span></div>
+            <div class="piano-keyboard" id="pianoKeyboard" role="group" aria-label="Five octave piano keyboard, C2 to C7"></div>
           </div>
+        </div>
         </div>
       </div>
       <p class="instrument-hint">
-        <span class="hint-narrow">Swipe the keyboard sideways to reach the second octave. </span>
-        Play with your computer keyboard: the letter on each key is the one to press.
-        The lower letter row is octave 4, the row above it holds its black keys, and the pattern repeats for octave 5.
+        <span class="hint-narrow">Swipe the keyboard sideways to reach the other octaves. </span>
+        The lit stretch of keys is where your computer keyboard is pointing: the lower letter row walks up one
+        octave, the row above it holds its black keys, and the pattern repeats an octave higher. Move that window
+        with the octave buttons or the arrow keys. Every one of the 61 keys stays playable with the mouse.
       </p>
 
       <div class="console-bottom">
         <section class="bay bay--pads">
           <h2 class="bay-title">Chord pads</h2>
-          <p class="bay-note">One tap starts three or four instances in the same tick.</p>
+          <p class="bay-note">A bass note plus the chord above it, so one tap starts four or five instances in the same tick.</p>
           <div class="pad-grid">${pads}</div>
         </section>
 
@@ -356,6 +454,14 @@ export class PianoDemo {
     const $ = <T extends HTMLElement>(sel: string): T | null => root.querySelector<T>(sel);
 
     this.stage = $('#pianoStage');
+    this.instrument = $('#instrument');
+    this.feltWindow = $('#feltWindow');
+    this.octaveValueEl = $('#octaveValue');
+    this.octaveDownButton = $<HTMLButtonElement>('#octaveDown');
+    this.octaveUpButton = $<HTMLButtonElement>('#octaveUp');
+    this.loadRibbon = $('#loadRibbon');
+    this.loadCountEl = $('#loadCount');
+    this.loadBarFill = $('#loadBarFill');
     this.voiceCountEl = $('#voiceCount');
     this.voiceDots = Array.from(root.querySelectorAll<HTMLElement>('#voiceDots i'));
     this.voicePeakEl = $('#voicePeak');
@@ -388,16 +494,21 @@ export class PianoDemo {
     const blackContainer = document.createElement('div');
     blackContainer.className = 'piano-black-keys';
 
-    NOTES.forEach(note => {
+    NOTES.forEach((note, index) => {
       const key = document.createElement('button');
       key.type = 'button';
       key.className = `piano-key piano-key--${note.sharp ? 'black' : 'white'}`;
       key.dataset.noteId = note.id;
       key.tabIndex = -1;
-      key.setAttribute('aria-label', `${note.label}, key ${note.keyLabel}`);
+      // Staggers the waiting animation into a sweep across the board
+      key.style.setProperty('--wait-delay', String(index));
+      key.setAttribute('aria-label', note.label);
+      // Only every C is labelled: at 30 pixels a name on all 36 white keys is
+      // noise, and the C is the landmark you actually navigate by.
+      const showName = !note.sharp && note.displayLabel === 'C';
       key.innerHTML = `
-        <span class="key-shortcut" aria-hidden="true">${note.keyLabel}</span>
-        <span class="key-label" aria-hidden="true">${note.displayLabel}${note.sharp ? '' : `<sub>${note.octave}</sub>`}</span>
+        <span class="key-shortcut" aria-hidden="true"></span>
+        ${showName ? `<span class="key-label" aria-hidden="true">C<sub>${note.octave}</sub></span>` : ''}
       `;
 
       if (note.sharp) {
@@ -411,6 +522,77 @@ export class PianoDemo {
 
     keyboard.appendChild(whiteContainer);
     keyboard.appendChild(blackContainer);
+  }
+
+  // ── Octave window ────────────────────────────────────────────────────────
+
+  private shiftOctave(delta: number): void {
+    const next = Math.max(LOWEST_BASE_OCTAVE, Math.min(HIGHEST_BASE_OCTAVE, this.baseOctave + delta));
+    if (next === this.baseOctave) return;
+
+    // Anything held belongs to the old mapping, so let it go before moving
+    this.releaseAllHeldKeys();
+    this.baseOctave = next;
+    this.applyKeyWindow();
+    gtag('event', 'piano_octave_shift', { octave: next, demo: 'multichannel' });
+  }
+
+  /**
+   * Points the computer keyboard at a new stretch of the board and makes that
+   * stretch obvious: the letters and the lit felt segment both follow it.
+   */
+  private applyKeyWindow(): void {
+    const firstSemitone = (this.baseOctave - LOWEST_OCTAVE) * 12;
+
+    this.keyElements.forEach(el => {
+      el.classList.remove('is-mapped');
+      const shortcut = el.querySelector<HTMLElement>('.key-shortcut');
+      if (shortcut) shortcut.textContent = '';
+    });
+
+    this.keyToNote = new Map();
+    KEY_BINDINGS.forEach(binding => {
+      const note = NOTES[firstSemitone + binding.offset];
+      if (!note) return;
+      this.keyToNote.set(binding.key, note);
+
+      const el = this.keyElements.get(note.id);
+      if (!el) return;
+      el.classList.add('is-mapped');
+      el.setAttribute('aria-label', `${note.label}, key ${binding.keyLabel}`);
+      const shortcut = el.querySelector<HTMLElement>('.key-shortcut');
+      if (shortcut) shortcut.textContent = binding.keyLabel;
+    });
+
+    const first = NOTES[firstSemitone];
+    const last = NOTES[firstSemitone + KEY_WINDOW_SEMITONES] ?? NOTES[NOTES.length - 1];
+    if (this.feltWindow && first?.whiteIndex !== null && last) {
+      const fromWhite = first.whiteIndex!;
+      const toWhite = (last.whiteIndex ?? WHITE_KEY_COUNT - 1) + 1;
+      this.feltWindow.style.setProperty('--window-x', `${(fromWhite / WHITE_KEY_COUNT) * 100}%`);
+      this.feltWindow.style.setProperty('--window-scale', String((toWhite - fromWhite) / WHITE_KEY_COUNT));
+    }
+
+    if (this.octaveValueEl) this.octaveValueEl.textContent = `C${this.baseOctave}`;
+    if (this.octaveDownButton) this.octaveDownButton.disabled = this.baseOctave <= LOWEST_BASE_OCTAVE;
+    if (this.octaveUpButton) this.octaveUpButton.disabled = this.baseOctave >= HIGHEST_BASE_OCTAVE;
+
+    this.scrollWindowIntoView(first);
+  }
+
+  /** Only does anything when the keyboard is wider than the case it sits in. */
+  private scrollWindowIntoView(first: NoteDefinition | undefined): void {
+    if (!this.instrument || !first) return;
+    const overflow = this.instrument.scrollWidth - this.instrument.clientWidth;
+    if (overflow <= 0) return;
+
+    const el = this.keyElements.get(first.id);
+    if (!el) return;
+    const target = el.offsetLeft - this.instrument.clientWidth * 0.1;
+    this.instrument.scrollTo({
+      left: Math.max(0, Math.min(overflow, target)),
+      behavior: this.reducedMotion ? 'auto' : 'smooth',
+    });
   }
 
   // ── Events ───────────────────────────────────────────────────────────────
@@ -474,6 +656,8 @@ export class PianoDemo {
     });
 
     root.querySelector('#panicButton')?.addEventListener('click', () => this.panic());
+    this.octaveDownButton?.addEventListener('click', () => { this.shiftOctave(-1); this.octaveDownButton?.blur(); });
+    this.octaveUpButton?.addEventListener('click', () => { this.shiftOctave(1); this.octaveUpButton?.blur(); });
 
     root.querySelectorAll<HTMLButtonElement>('[data-chord]').forEach(pad => {
       pad.addEventListener('pointerdown', (e) => {
@@ -555,13 +739,20 @@ export class PianoDemo {
       return;
     }
 
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      this.shiftOctave(e.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
+
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
 
-    const note = KEY_TO_NOTE.get(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    const note = this.keyToNote.get(key);
     if (!note) return;
     e.preventDefault();
-    if (this.heldKeyboardKeys.has(note.key)) return;
-    this.heldKeyboardKeys.add(note.key);
+    if (this.heldKeyboardKeys.has(key)) return;
+    this.heldKeyboardKeys.add(key);
     this.triggerNoteStart(note.id, true);
   }
 
@@ -571,14 +762,15 @@ export class PianoDemo {
       this.applySustain();
       return;
     }
-    const note = KEY_TO_NOTE.get(e.key.toLowerCase());
-    if (!note || !this.heldKeyboardKeys.delete(note.key)) return;
+    const key = e.key.toLowerCase();
+    const note = this.keyToNote.get(key);
+    if (!note || !this.heldKeyboardKeys.delete(key)) return;
     this.triggerNoteEnd(note.id, true);
   }
 
   private releaseAllHeldKeys(): void {
     this.heldKeyboardKeys.forEach(key => {
-      const note = KEY_TO_NOTE.get(key);
+      const note = this.keyToNote.get(key);
       if (note) this.triggerNoteEnd(note.id, true);
     });
     this.heldKeyboardKeys.clear();
@@ -599,6 +791,8 @@ export class PianoDemo {
   private triggerNoteStart(noteId: string, record: boolean): void {
     const note = NOTE_BY_ID.get(noteId);
     if (!note) return;
+    // A sample still on its way is simply not playable yet; the synth is
+    if (this.currentEngine === 'piano' && !this.soundManager.isSoundLoaded(noteId)) return;
 
     const keyEl = this.keyElements.get(noteId);
     if (record) this.recorder.capture(noteId, 'on');
@@ -816,6 +1010,8 @@ export class PianoDemo {
       ? `${this.icon('stop')} Stop`
       : `${this.icon('play')} Play`;
     this.melodyButton.classList.toggle('is-playing', this.melodyPlaying);
+    // A piece started mid-load would silently drop the notes it cannot reach
+    this.melodyButton.disabled = !this.coreLoaded;
   }
 
   // ── Recorder UI ──────────────────────────────────────────────────────────
@@ -869,22 +1065,30 @@ export class PianoDemo {
     if (!lab) return;
 
     if (this.currentEngine === 'piano') {
-      const longest = Math.max(...NOTES.map(n => this.soundManager.getDuration(n.id) || 0));
+      // Asking an unloaded sound for its duration is an error the manager logs,
+      // so only the samples that have actually arrived get measured
+      const loaded = NOTES.filter(n => this.soundManager.isSoundLoaded(n.id));
+      const longest = loaded.length
+        ? Math.max(...loaded.map(n => this.soundManager.getDuration(n.id) || 0))
+        : 0;
       lab.innerHTML = `
         <h2 class="bay-title">Sample engine</h2>
         <p class="lab-text">
-          Twenty-four recorded piano notes, one file per pitch. Every key press calls
+          Sixty-one recorded piano notes, one file per pitch. Every key press calls
           <code>play()</code> again, and because <code>createNewInstance</code> is on you get a
           fresh instance with its own gain node instead of restarting the one that is already ringing.
         </p>
         <dl class="lab-stats">
-          <div><dt>Samples</dt><dd>${NOTES.length}</dd></div>
-          <div><dt>Range</dt><dd>C4 to B5</dd></div>
+          <div><dt>Loaded</dt><dd>${loaded.length} / ${NOTES.length}</dd></div>
+          <div><dt>Range</dt><dd>C2 to C7</dd></div>
           <div><dt>Longest</dt><dd>${longest.toFixed(1)}s</dd></div>
         </dl>
         <p class="lab-text lab-text--muted">
-          With the sustain pedal off, releasing a key calls <code>fadeOut()</code> on that one
-          instance over ${DAMPER_SECONDS}s, the way a damper falls back onto the string.
+          ${this.allSamplesLoaded
+            ? `With the sustain pedal off, releasing a key calls <code>fadeOut()</code> on that one
+               instance over ${DAMPER_SECONDS}s, the way a damper falls back onto the string.`
+            : `The three middle octaves load first so the board is playable in about a second.
+               <code>loadSounds()</code> is still fetching the rest.`}
         </p>
       `;
       return;
@@ -1192,12 +1396,14 @@ const manager = new SoundManager({
   masterLimiter: true,
 });
 
-// 2. Load every sample up front
-await manager.loadSounds([
-  { id: 'piano-C4', url: 'C4.mp3' },
-  { id: 'piano-D4', url: 'D4.mp3' },
-  // ... 22 more
-]);
+// 2. Load the octaves you need first, then the rest in the background.
+//    61 samples is 1.6 MB; waiting for all of it before the first key works
+//    would cost seconds for notes most visitors never reach.
+await manager.loadSounds(middleOctaves); // page becomes playable here
+void manager.loadSounds(outerOctaves);   // no await, fills in behind you
+
+// isSoundLoaded() tells you which keys are ready while that runs:
+const ready = manager.isSoundLoaded('piano-C2');
 
 // 3. play() hands back a Sound whose id is unique per instance, so the same
 //    key pressed twice gives two instances that ring on independently.
@@ -1246,6 +1452,11 @@ osc.connect(manager.getMasterInput()); // master volume, mute, pan, limiter`;
           makes every keystroke start a <em>new sound instance</em> instead of restarting the one that
           is already ringing. That is why a chord sounds like a chord and why the voice counter above
           the keyboard climbs while you play.
+        </p>
+        <p>
+          The board covers five octaves, C2 to C7, one sample per note. A computer keyboard cannot
+          reach that far, so the letters mark a movable window of two octaves that you shift with the
+          arrow keys. The lit segment of felt shows where it is pointing.
         </p>
         <h3>What stacking voices costs</h3>
         <p>

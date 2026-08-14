@@ -1,6 +1,8 @@
 # Piano samples
 
-Two chromatic octaves, C4 through B5, used by the multichannel demo.
+Five chromatic octaves plus the closing C, C2 through C7, used by the multichannel demo.
+That is 61 notes, the range of a standard 61 key board, so the demo pieces have a real
+left hand instead of a bass line folded up into the melody's octave.
 
 ## Source
 

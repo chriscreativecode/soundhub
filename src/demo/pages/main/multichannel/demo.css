@@ -6,12 +6,12 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Keyboard geometry */
-  --key-white-w: 52px;
-  --key-white-h: 184px;
-  --key-black-w: 32px;
-  --key-black-h: 112px;
-  --key-gap: 2px;
+  /* Keyboard geometry. The white keys divide the available width, so the board
+     is fluid; below the minimum it scrolls inside the case instead of shrinking
+     into something you cannot hit. */
+  --key-min-w: 30px;
+  --key-white-h: 186px;
+  --key-black-h: 114px;
 
   /* Vertical room above the keys for the floating notes */
   --stage-lift: 152px;
@@ -153,43 +153,76 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   gap: 14px;
 }
 
-/* ── Loading state ───────────────────────────────────────────────────────── */
-.console.is-loading { min-height: 340px; justify-content: center; }
+/* ── Loading state ───────────────────────────────────────────────────────────
+   The console is up straight away and the keyboard itself is the progress bar:
+   each key lights when its own sample lands. The ribbon sits in the empty top
+   of the case, which is otherwise just there to give the floating notes room. */
+.console.is-loading { min-height: 420px; }
 
-.console-loading { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 0; }
+.load-ribbon {
+  position: absolute;
+  z-index: 2;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(400px, calc(100% - 48px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.load-ribbon.is-done { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 
-.console-loading-text {
+.load-ribbon-count {
   margin: 0;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.9rem;
-  color: var(--color-text-secondary);
+  align-items: baseline;
+  gap: 8px;
+  color: var(--case-ink);
+}
+.load-ribbon-number {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--piano-accent-bright);
+  font-variant-numeric: tabular-nums;
+}
+.load-ribbon-of {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
 }
 
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  opacity: 0.6;
+.load-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.skeleton-keys { display: flex; gap: var(--key-gap); }
-
-.skeleton-key {
-  width: var(--key-white-w);
-  height: 120px;
-  border-radius: 0 0 7px 7px;
-  background: linear-gradient(180deg, rgba(var(--piano-accent-rgb), 0.22), rgba(var(--piano-accent-rgb), 0.06));
-  animation: skeletonPulse 1.6s ease-in-out infinite;
-  animation-delay: calc(var(--i) * 60ms);
+.load-bar-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--piano-accent-deep), var(--piano-accent), var(--meter-cool));
+  transition: transform 0.25s ease-out;
 }
-@keyframes skeletonPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+
+.load-ribbon-note {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--case-ink-dim);
+}
 
 /* ── Deck: engine, volume, pedal, panic ──────────────────────────────────── */
 .deck {
@@ -312,6 +345,46 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .switch--compact .switch-knob { width: 11px; height: 11px; }
 .switch--compact.is-on .switch-knob { transform: translateX(11px); }
 
+/* ── Stepper ─────────────────────────────────────────────────────────────── */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-secondary);
+}
+
+.stepper-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.stepper-button:hover:not(:disabled) { transform: none; background: rgba(var(--piano-accent-rgb), 0.16); color: var(--piano-accent-deep); }
+.stepper-button:disabled { opacity: 0.35; cursor: not-allowed; background: transparent; }
+.stepper-button:focus-visible { outline: 2px solid var(--piano-accent); outline-offset: 1px; }
+
+.stepper-value {
+  min-width: 34px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--piano-accent-deep);
+  font-variant-numeric: tabular-nums;
+}
+
 .switch-kbd, kbd {
   font-family: var(--mono);
   font-size: 0.65rem;
@@ -426,9 +499,9 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 
 .monitor-line { display: flex; align-items: center; gap: 10px; }
 
-.voice-dots { display: inline-flex; gap: 3px; }
+.voice-dots { display: inline-flex; gap: 2px; }
 .voice-dots i {
-  width: 5px;
+  width: 4px;
   height: 14px;
   border-radius: 2px;
   background: var(--meter-track);
@@ -486,6 +559,8 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .monitor-cell.is-off .monitor-inline { color: var(--color-text-secondary); }
 
 /* ── Instrument case ─────────────────────────────────────────────────────── */
+.instrument-frame { position: relative; }
+
 .instrument {
   position: relative;
   border-radius: 14px;
@@ -503,19 +578,18 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .piano-stage {
   position: relative;
   padding-top: var(--stage-lift);
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
 /* Fallboard: the strip of casing a real keyboard carries its name on */
 .case-plate {
   position: absolute;
+  z-index: 1;
   top: 16px;
-  left: 4px;
-  right: 4px;
+  left: 24px;
+  right: 24px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -538,22 +612,45 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   opacity: 0.72;
 }
 
-.keybed { width: max-content; }
+/* The keys fill the case, down to a width you can still hit */
+.keybed {
+  width: 100%;
+  min-width: calc(var(--white-count) * var(--key-min-w));
+}
 
 /* Felt strip, exactly as wide as the keys it sits on */
 .piano-felt {
+  position: relative;
   height: 5px;
   margin-bottom: 9px;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--piano-accent-deep), var(--piano-accent), var(--meter-cool));
-  opacity: 0.75;
-  box-shadow: 0 1px 6px rgba(var(--piano-accent-rgb), 0.5);
+  background: var(--case-ink-dim);
+  opacity: 0.28;
 }
 
-.piano-keyboard { position: relative; display: inline-block; user-select: none; }
+/* The stretch of keys the computer keyboard is pointing at. Placed and sized
+   with a transform so shifting octaves never touches layout. */
+.felt-window {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--piano-accent-deep), var(--piano-accent), var(--meter-cool));
+  box-shadow: 0 1px 8px rgba(var(--piano-accent-rgb), 0.75);
+  transform-origin: left center;
+  transform: translateX(var(--window-x, 0)) scaleX(var(--window-scale, 0));
+  transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.piano-keyboard { position: relative; user-select: none; }
 
 /* ── Keys ────────────────────────────────────────────────────────────────── */
-.piano-white-keys { display: flex; flex-direction: row; gap: var(--key-gap); }
+.piano-white-keys {
+  display: grid;
+  grid-template-columns: repeat(var(--white-count), minmax(0, 1fr));
+}
 
 .piano-key {
   position: relative;
@@ -565,13 +662,39 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   font: inherit;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
-  transition: background 0.06s ease, box-shadow 0.06s ease, transform 0.06s ease;
+  transition: background 0.06s ease, box-shadow 0.06s ease, transform 0.06s ease, opacity 0.25s ease;
 }
 .piano-key:hover { transform: none; }
 .piano-key:focus { outline: none; }
 
+/* Waiting for its own sample: unlit, and a slow sweep across the board so the
+   wait reads as work in progress rather than a broken keyboard */
+.piano-key.is-pending {
+  cursor: progress;
+  filter: grayscale(1) brightness(0.62);
+  animation: keyWaiting 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--wait-delay, 0) * 40ms);
+}
+.piano-key.is-pending::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(10, 7, 18, 0.45);
+}
+@keyframes keyWaiting {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.8; }
+}
+
+/* One flash the first time a key can actually be played */
+.piano-key.is-arriving { animation: keyArrived 0.5s ease-out; }
+@keyframes keyArrived {
+  0% { box-shadow: 0 0 0 0 rgba(var(--piano-accent-rgb), 0.85), 0 0 22px 4px rgba(var(--piano-accent-rgb), 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--piano-accent-rgb), 0), 0 0 0 0 rgba(var(--piano-accent-rgb), 0); }
+}
+
 .piano-key--white {
-  width: var(--key-white-w);
   height: var(--key-white-h);
   padding: 0 0 10px;
   border: 1px solid #c3c0cf;
@@ -597,11 +720,11 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   position: absolute;
   top: 0;
   z-index: 2;
-  width: var(--key-black-w);
   height: var(--key-black-h);
   padding: 0 0 8px;
-  /* left = offset * (white width + gap) + (white width - black width) / 2 */
-  left: calc(var(--black-offset) * (var(--key-white-w) + var(--key-gap)) + (var(--key-white-w) - var(--key-black-w)) / 2);
+  /* Both measured in white-key widths, which are a fraction of the keyboard */
+  left: calc(var(--black-offset) * 100% / var(--white-count));
+  width: calc(var(--black-ratio) * 100% / var(--white-count));
   border: none;
   border-radius: 0 0 5px 5px;
   background: linear-gradient(180deg, #443c5e 0%, #221c33 55%, #100c1a 100%);
@@ -623,6 +746,17 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 .piano-black-keys { position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; }
 .piano-black-keys .piano-key { pointer-events: auto; }
 
+/* The stretch the computer keyboard reaches stays bright; everything outside it
+   steps back, so the window is readable at a glance rather than by hunting for
+   letters. Every key stays fully playable with the mouse. */
+.piano-key--white:not(.is-mapped) {
+  background: linear-gradient(180deg, #e7e4ee 0%, #dfdce8 78%, #cdc9da 100%);
+  border-color: #adaabb;
+}
+.piano-key--white:not(.is-mapped):hover { background: linear-gradient(180deg, #ece6fb 0%, #e0d6f8 78%, #cbbcf0 100%); }
+.piano-key--black:not(.is-mapped) { background: linear-gradient(180deg, #322c46 0%, #1b1729 55%, #0d0a15 100%); }
+
+
 .key-shortcut {
   position: absolute;
   font-family: var(--mono);
@@ -631,13 +765,18 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   pointer-events: none;
 }
 /* Sits just below the black keys, so no letter is ever covered */
-.piano-key--white .key-shortcut { top: calc(var(--key-black-h) + 10px); color: #9c96b4; }
-.piano-key--black .key-shortcut { top: 8px; font-size: 0.55rem; color: #b6a9df; }
+.piano-key--white .key-shortcut { top: calc(var(--key-black-h) + 10px); color: var(--piano-accent-deep); }
+.piano-key--black .key-shortcut { top: 8px; font-size: 0.55rem; color: #c9baf7; }
 
-.key-label { font-size: 0.68rem; font-weight: 600; line-height: 1; pointer-events: none; }
-.piano-key--white .key-label { color: #6b6683; }
-.piano-key--black .key-label { font-size: 0.58rem; color: #cfc4ee; }
-.key-label sub { font-size: 0.52rem; vertical-align: sub; opacity: 0.75; }
+.key-label { font-size: 0.62rem; font-weight: 600; line-height: 1; pointer-events: none; }
+.piano-key--white .key-label { color: #8b859f; }
+.key-label sub { font-size: 0.52rem; vertical-align: sub; opacity: 0.8; }
+
+.load-notice {
+  margin: -6px 0 0;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+}
 
 /* ── Floating notes ──────────────────────────────────────────────────────── */
 .note-anim {
@@ -934,6 +1073,7 @@ body.dark-theme .switch,
 body.dark-theme .ghost-button,
 body.dark-theme .pad,
 body.dark-theme .field-select,
+body.dark-theme .stepper,
 body.dark-theme .wave-option { background: #26262b; }
 
 body.dark-theme .switch-kbd,
@@ -953,18 +1093,25 @@ body.dark-theme .piano-key--white {
     0 8px 14px -6px rgba(0, 0, 0, 0.6);
 }
 body.dark-theme .piano-key--white:hover { background: linear-gradient(180deg, #e6dcff 0%, #d8caff 78%, #c3b1f5 100%); }
+body.dark-theme .piano-key--white:not(.is-mapped) {
+  background: linear-gradient(180deg, #b9b5c8 0%, #aeaabf 78%, #9a96ad 100%);
+  border-color: #625d75;
+}
 body.dark-theme .piano-key--white.is-active { background: linear-gradient(180deg, #d9c9ff 0%, #c3aaff 70%, #a888f5 100%); }
 
 body.dark-theme .info-code-block { background: #11111b; }
 
 /* ── Motion preferences ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-key,
-  .spinner,
+  .piano-key.is-pending,
+  .piano-key.is-arriving,
   .ghost-button.is-armed .btn-icon { animation: none; }
+  .load-ribbon,
+  .load-bar-fill { transition: none; }
   .note-anim,
   .piano-key,
   .switch-knob,
+  .felt-window,
   .meter-fill { transition: none; }
 }
 
@@ -977,9 +1124,8 @@ body.dark-theme .info-code-block { background: #11111b; }
 
 @media (max-width: 900px) {
   :root {
-    --key-white-w: 42px;
+    --key-min-w: 26px;
     --key-white-h: 152px;
-    --key-black-w: 26px;
     --key-black-h: 92px;
     --stage-lift: 120px;
     --note-travel: 0.78;
@@ -991,9 +1137,8 @@ body.dark-theme .info-code-block { background: #11111b; }
 @media (max-width: 620px) {
   .mc-page { padding: var(--spacing-sm); }
   :root {
-    --key-white-w: 34px;
+    --key-min-w: 23px;
     --key-white-h: 124px;
-    --key-black-w: 21px;
     --key-black-h: 76px;
     --stage-lift: 96px;
     --note-travel: 0.6;
@@ -1006,12 +1151,14 @@ body.dark-theme .info-code-block { background: #11111b; }
   .monitor-cell:not(.monitor-cell--meter) .monitor-label { white-space: normal; }
   .monitor-value { font-size: 1.25rem; }
   .voice-dots { display: none; }
-  .piano-key--white .key-label,
-  .piano-key--black .key-label { display: none; }
+  .key-label { display: none; }
   .piano-info { padding: 14px 16px; }
   .info-code-block { font-size: 0.7rem; padding: 12px 14px; }
   .pad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .case-plate { font-size: 0.6rem; letter-spacing: 0.14em; }
+  .load-ribbon { top: 38px; gap: 6px; }
+  .load-ribbon-number { font-size: 1.2rem; }
+  .load-ribbon-note { display: none; }
   .hint-narrow { display: inline; color: var(--piano-accent-deep); font-weight: 600; }
   .main-title { font-size: 1.05rem; }
   .mc-subtitle { margin-top: var(--spacing-md); padding-top: var(--spacing-md); }
