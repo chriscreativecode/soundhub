@@ -103,18 +103,23 @@
         </div>
       </div>
       <div class="mc-subtitle">
-        <span class="tagline">🎹 Piano Keyboard: Multichannel Demo</span>
+        <p class="tagline">Two octaves, unlimited voices</p>
+        <p class="mc-lede">
+          Every key you press starts its own sound instance, so notes ring on over each other
+          instead of cutting each other off. The meters show what that costs the output.
+        </p>
       </div>
     </div>
 
-      <!-- Piano + Info wrapper -->
-      <div class="piano-page-content">
-        <!-- Piano container (populated by JS) -->
-        <div id="pianoContainer"></div>
-      </div>
+    <!-- Console: deck, meters, keyboard, pads and transport (populated by JS) -->
+    <div class="control-group console is-loading" id="pianoConsole"></div>
 
-      <!-- Info panel (populated by JS) -->
-      <div id="pianoInfo" class="control-group piano-info"></div>
+    <div class="mc-columns">
+      <!-- Engine settings, contents depend on the selected engine (populated by JS) -->
+      <aside class="control-group engine-lab" id="engineLab"></aside>
+      <!-- Explanation and code sample (populated by JS) -->
+      <article class="control-group piano-info" id="pianoInfo"></article>
+    </div>
 
   </div>
 
