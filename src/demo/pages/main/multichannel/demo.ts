@@ -668,7 +668,12 @@ export class PianoDemo {
       });
     });
 
-    this.melodySelect?.addEventListener('change', () => this.renderMelodyBlurb());
+    this.melodySelect?.addEventListener('change', () => {
+      this.renderMelodyBlurb();
+      // Picking another piece while one is running means you want that one now,
+      // not a trip through stop and play
+      if (this.melodyPlaying) this.playMelody();
+    });
     this.melodyButton?.addEventListener('click', () => {
       if (this.melodyPlaying) this.stopMelody();
       else this.playMelody();
@@ -898,6 +903,11 @@ export class PianoDemo {
   private panic(): void {
     this.stopMelody();
     this.recorder.stopPlayback();
+    this.silenceEverySounding();
+  }
+
+  /** Cuts off whatever is still ringing, without touching any transport state. */
+  private silenceEverySounding(): void {
     this.soundManager.stopAllSounds();
     this.synthEngine.stopAll();
     this.sampleInstances.forEach(entry => this.cleanupAnimation(entry.animId));
@@ -966,7 +976,11 @@ export class PianoDemo {
 
   private playMelody(): void {
     const melody = this.currentMelody();
+    const wasPlaying = this.melodyPlaying;
     this.stopMelody();
+    // Taking over from another piece: samples ring for three seconds, so without
+    // this the two pieces would sound over each other on the way in
+    if (wasPlaying) this.silenceEverySounding();
     this.melodyPlaying = true;
     this.renderMelodyButton();
 
