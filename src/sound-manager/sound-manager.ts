@@ -2136,30 +2136,43 @@ export class SoundManager implements SoundManagerInterface {
         throw new Error(`Sound ${id} not found or buffer not loaded`);
       }
 
+      // Record the config on the owner sound so getSpriteConfig() can return it
+      // and removeSpriteSound() can resolve a key to its sprite sounds.
+      originalSound.sprite = { ...sprite };
+
       Object.entries(sprite).forEach(([key, [start, end]]) => {
         const spriteId = `${id}_${key}`;
         this.debugLog(
-          `Creating sprite ${spriteId} for sound ${id}: Start=${start}ms, End=${end}ms, Duration=${end - start}ms`
+          `Creating sprite ${spriteId} for sound ${id}: Start=${start}s, End=${end}s, Duration=${end - start}s`
         );
 
-        // Convert milliseconds to samples
+        // Convert seconds to samples, clamped to the source buffer. Reading past
+        // the end yielded undefined, which lands in a Float32Array as NaN and
+        // turns the sprite into silence or noise.
         const sampleRate = originalSound.buffer.sampleRate;
-        const startSample = Math.floor(start * sampleRate);
-        const endSample = Math.floor(end * sampleRate);
-        const duration = end - start;
+        const totalSamples = originalSound.buffer.length;
+        const startSample = Math.max(0, Math.min(Math.floor(start * sampleRate), totalSamples));
+        const endSample = Math.max(startSample, Math.min(Math.floor(end * sampleRate), totalSamples));
+        const frameCount = endSample - startSample;
+        const duration = frameCount / sampleRate;
+
+        if (frameCount <= 0) {
+          this.debugLog(
+            `Skipping sprite ${spriteId}: range ${start}s-${end}s is empty or outside the buffer (${totalSamples / sampleRate}s)`
+          );
+          return;
+        }
 
         // Create a new buffer for the sprite
         const numberOfChannels = originalSound.buffer.numberOfChannels;
-        const spriteBuffer = this.context.createBuffer(numberOfChannels, endSample - startSample, sampleRate);
+        const spriteBuffer = this.context.createBuffer(numberOfChannels, frameCount, sampleRate);
 
         // Copy the data from the original buffer to the sprite buffer
         for (let channel = 0; channel < numberOfChannels; channel++) {
           const originalData = originalSound.buffer.getChannelData(channel);
           const spriteData = spriteBuffer.getChannelData(channel);
 
-          for (let i = 0; i < spriteData.length; i++) {
-            spriteData[i] = originalData[i + startSample];
-          }
+          spriteData.set(originalData.subarray(startSample, endSample));
         }
 
         // Create audio nodes for the sprite
@@ -2228,10 +2241,34 @@ export class SoundManager implements SoundManagerInterface {
     }
   }
 
+  /**
+   * Removes a sprite sound and all of its instances.
+   *
+   * Accepts either a sprite key registered via setSoundSprite ("jump") or the
+   * full sprite sound id ("game-sounds_jump"). The previous substring match
+   * (`key.includes('_' + spriteKey)`) both over-matched, removing
+   * "player_double_jump" for the key "jump", and failed outright when callers
+   * passed the full sprite id.
+   */
   public removeSpriteSound(spriteKey: string): void {
     try {
-      // Find all sprite instances that match the spriteKey
-      const spriteInstances = Array.from(this.sounds.keys()).filter(key => key.includes(`_${spriteKey}`));
+      // Resolve the sprite sound ids this key refers to
+      const spriteIds = new Set<string>();
+
+      if (this.sounds.has(spriteKey)) {
+        spriteIds.add(spriteKey);
+      }
+
+      this.sounds.forEach((sound, id) => {
+        if (sound.sprite && Object.prototype.hasOwnProperty.call(sound.sprite, spriteKey)) {
+          spriteIds.add(`${id}_${spriteKey}`);
+        }
+      });
+
+      // Include every live instance of those sprite sounds ("<spriteId>:<n>")
+      const spriteInstances = Array.from(this.sounds.keys()).filter(
+        key => spriteIds.has(key.split(':')[0])
+      );
 
       if (spriteInstances.length === 0) {
         this.debugLog(`No sprite instances found for key: ${spriteKey}`);
