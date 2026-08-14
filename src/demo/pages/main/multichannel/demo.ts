@@ -466,8 +466,25 @@ export class PianoDemo {
     const codeSnippet = `// 1️⃣ Create SoundManager with multichannel config
 const manager = new SoundManager({
   createNewInstance: true, // each play() creates a new independent instance
-  masterLimiter: true,     // stops many notes at once from clipping
+
+  // 🔊 Why masterLimiter matters here:
+  // Every key press adds another instance playing at full volume. Audio signals
+  // add up, so five notes together reach roughly five times full scale. The
+  // output can only carry up to 1.0, so everything above that gets chopped off
+  // — you hear that as crackle, worst on the sharp attack of each note.
+  //
+  // The limiter sits last in the chain and holds those peaks back instead of
+  // letting them clip. Below the threshold nothing is touched, so single notes
+  // sound exactly the same. It is off by default; turn it on whenever sounds
+  // can overlap.
+  masterLimiter: true,
 });
+
+// Toggle it at runtime to hear the difference (playback is not interrupted):
+// manager.setMasterLimiter(false);
+//
+// Read how hard it is working, in dB of gain reduction:
+// manager.getMasterLimiterNode()?.reduction;
 
 // 2️⃣ Load all piano samples
 await manager.loadSounds([
