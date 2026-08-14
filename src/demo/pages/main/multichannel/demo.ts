@@ -252,6 +252,10 @@ export class PianoDemo {
       trackProgress: true,
       debug: false,
       defaultVolume: 1,
+      // Every key press adds another instance at full volume. Four or five notes
+      // together sum past full scale and the destination hard-clips them, which
+      // is audible as crackle. The limiter holds those peaks back instead.
+      masterLimiter: true,
     };
     this.soundManager = new SoundManager(config);
     this.synthEngine = new SynthEngine(this.soundManager.getContext());
@@ -462,6 +466,7 @@ export class PianoDemo {
     const codeSnippet = `// 1️⃣ Create SoundManager with multichannel config
 const manager = new SoundManager({
   createNewInstance: true, // each play() creates a new independent instance
+  masterLimiter: true,     // stops many notes at once from clipping
 });
 
 // 2️⃣ Load all piano samples
