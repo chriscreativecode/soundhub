@@ -1039,8 +1039,20 @@ export class SoundManager implements SoundManagerInterface {
 
   public stopAllSounds(): void {
     try {
-      const activeIds = Array.from(this.activeSources.keys());
-      activeIds.forEach((id) => this.stop(id));
+      // Iterate the sounds map, not activeSources: pause() removes the entry from
+      // activeSources, so paused sounds were silently skipped and stayed paused.
+      const ids = new Set<string>([
+        ...Array.from(this.sounds.keys()),
+        ...Array.from(this.activeSources.keys())
+      ]);
+
+      ids.forEach((id) => {
+        const sound = this.sounds.get(id);
+        if (!sound || sound.state !== SoundState.Stopped) {
+          this.stop(id);
+        }
+      });
+
       this.debugLog("All sounds stopped");
     } catch (error) {
       this.handleError("stopping all sounds", error);
@@ -2746,7 +2758,10 @@ export class SoundManager implements SoundManagerInterface {
 
     const source = sound.source;
 
-    // If stereo panning is active, reset it without dispatching PAN_CHANGED
+    // If stereo panning is active, reset it without dispatching PAN_CHANGED.
+    // removePan() reroutes the source straight to the gain node, so the panner
+    // has to be spliced back in below.
+    const sourceWasRerouted = !!sound.stereoPanner;
     if (sound.stereoPanner) {
       this.removePan(soundId);
       this.debugLog(`Removed stereo panner, and overwritten with spatial panning for sound ${soundId}`);
@@ -2787,12 +2802,16 @@ export class SoundManager implements SoundManagerInterface {
         source?.connect(sound.pannerNode);
         sound.pannerNode.connect(sound.gainNode);
       } else {
-        // Panner node already exists.
-        // Re-route source through pannerNode in case removePan() was called above
-        // (which disconnected the source from any panner and connected it directly to gainNode).
-        source?.disconnect();
-        source?.connect(sound.pannerNode);
-        sound.pannerNode.connect(sound.gainNode);
+        // Panner node already exists. Only re-route when removePan() above
+        // actually disconnected the source. Doing it on every call re-triggers
+        // onended and accumulates duplicate connections, which is exactly the
+        // problem the comment in the branch above warns about, and it is the path
+        // taken by every position update of a moving source.
+        if (sourceWasRerouted) {
+          source?.disconnect();
+          source?.connect(sound.pannerNode);
+          sound.pannerNode.connect(sound.gainNode);
+        }
 
         if (soundPannerConfig && Object.keys(soundPannerConfig).length !== 0) {
           // If panner exists and new config is provided, update only the provided values
