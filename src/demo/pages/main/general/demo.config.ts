@@ -18,11 +18,17 @@ export const DEMO_CONFIG: SoundManagerConfig = {
   fadeOutDuration: 1,
   loopSounds: true,
   maxLoops: -1,
+  // The spatial grid maps the pointer to a cube from -1 to +1, so the furthest
+  // the source can get from the listener is about 1.73. refDistance 0.5 with
+  // rolloffFactor 2 burned through roughly 15 dB over that tiny range, which is
+  // why dragging the marker made the sound drop off a cliff. Keeping the library
+  // defaults (refDistance 1, rolloffFactor 1) gives about 5 dB across the same
+  // space: audible movement without losing the sound.
   pannerNodeConfig: {
     ...DEFAULT_PANNER_CONFIG,
-    refDistance: 0.5,
+    refDistance: 1,
     maxDistance: 10,
-    rolloffFactor: 2,
+    rolloffFactor: 1,
   },
   spatialAudio: true,
   trackProgress: true,
