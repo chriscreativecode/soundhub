@@ -2063,7 +2063,7 @@ export class SoundManager implements SoundManagerInterface {
       return;
     }
 
-    this.stop(id, true);
+    this.stop(id, false);
     this.cleanupSound(id);
 
     // Actually release the sound. Keeping the entry meant the decoded AudioBuffer
