@@ -12,6 +12,7 @@ export interface PlayOptions {
   isSeeking?: boolean; // used internally for the seek method
   loop?: boolean; // default: false
   maxLoops?: number; // 0 or -1 for infinite, number > 0 for specific number of loops
+  seamlessLoop?: boolean; // Loop inside the audio graph instead of restarting the source, so there is no gap between iterations. Requires loop: true. Trade-off: the loop never ends by itself, so maxLoops is ignored and no 'loop-completed' event is dispatched. Use it for beds and drones, where a restart is audible.
   pan?: number; // -1 (left) to 1 (right)
   panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
   panType?: SoundPanType; // 'stereo' or 'spatial' (default is 'stereo') 

@@ -839,6 +839,10 @@ export interface PlayOptions {
   pauseAtDurationReached?: boolean; // This will only work if you set the duration and if that duration 
   // is reached it will pause. Note: Loop must be false.
   playbackRate?: number; // 0.5 to 4 (normal speed is 1) 
+  seamlessLoop?: boolean; // Loop inside the audio graph instead of restarting the source, 
+  // so there is no gap between iterations. Requires loop: true. The loop then never ends by itself, 
+  // so maxLoops is ignored and no 'loop-completed' event is dispatched. 
+  // Use it for beds and drones, where a restart is audible.
   startTime?: number; // in seconds
   trackProgress?: boolean; // Track progress of the sound playback. 
   // This will keep track of the process and will dispatch the 'progress' event. 

@@ -126,8 +126,8 @@ export const SOUNDSCAPES: Soundscape[] = [
     layers: [
       { id: "birds", volume: 0.55, position: { x: -0.3, y: 0.7, z: -1 } },
       { id: "brook", volume: 0.28, position: { x: 0.9, y: -0.25, z: 0.85 } },
-      { id: "sound-surfer-constellations", volume: 0.32, pan: 0 },
-      { id: "bee", volume: 0.3, position: beeFlightPosition(0), flightSeconds: 13 },
+      { id: "sound-surfer-constellations", volume: 0.18, pan: 0 },
+      { id: "bee", volume: 0.22, position: beeFlightPosition(0), flightSeconds: 13 },
     ],
   },
 ];

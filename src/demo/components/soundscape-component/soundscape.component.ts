@@ -210,7 +210,10 @@ export class SoundscapeComponent {
         ...placement,
         playbackRate: layer.playbackRate ?? 1,
         loop: true,
-        maxLoops: -1,
+        // A scene is meant to run underneath for as long as it is left on, so
+        // its layers loop inside the audio graph. Restarting the source leaves
+        // a gap that noise hides but a tone does not.
+        seamlessLoop: true,
         fadeInDuration: scene.fadeInDuration,
         trackProgress: true,
       });

@@ -940,6 +940,10 @@ soundManager.<span class="hljs-title function_">destroy</span>();
   <span class="hljs-attr">pauseAtDurationReached</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// This will only work if you set the duration and if that duration </span>
   <span class="hljs-comment">// is reached it will pause. Note: Loop must be false.</span>
   <span class="hljs-attr">playbackRate</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// 0.5 to 4 (normal speed is 1) </span>
+  <span class="hljs-attr">seamlessLoop</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Loop inside the audio graph instead of restarting the source, </span>
+  <span class="hljs-comment">// so there is no gap between iterations. Requires loop: true. The loop then never ends by itself, </span>
+  <span class="hljs-comment">// so maxLoops is ignored and no &#x27;loop-completed&#x27; event is dispatched. </span>
+  <span class="hljs-comment">// Use it for beds and drones, where a restart is audible.</span>
   <span class="hljs-attr">startTime</span>?: <span class="hljs-built_in">number</span>; <span class="hljs-comment">// in seconds</span>
   <span class="hljs-attr">trackProgress</span>?: <span class="hljs-built_in">boolean</span>; <span class="hljs-comment">// Track progress of the sound playback. </span>
   <span class="hljs-comment">// This will keep track of the process and will dispatch the &#x27;progress&#x27; event. </span>
