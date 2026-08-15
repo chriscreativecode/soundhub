@@ -253,6 +253,10 @@ export class SoundControl {
   private initializeCurrentOptions(): void {
     this.currentOptions = {
       loop: this.soundManagerConfig.loopSounds ?? this.loopCheckbox.checked,
+      // Set per sound rather than globally: a gapless loop is what a bed wants
+      // and what a one-shot has no use for, and the console then shows the
+      // option on exactly the channel it applies to.
+      seamlessLoop: this.meta.seamlessLoop,
       maxLoops: this.soundManagerConfig.maxLoops ?? parseInt(this.maxLoopsInput.value),
       volume: this.soundManagerConfig.defaultVolume ?? parseFloat(this.volumeSlider.value),
       pan: this.soundManagerConfig.defaultPan ?? parseFloat(this.panSlider.value),
