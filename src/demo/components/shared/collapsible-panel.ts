@@ -3,6 +3,13 @@
  * optional localStorage state persistence.
  */
 
+export interface CollapsiblePanel {
+  /** Opens or closes the panel from code; `persist` false leaves the saved preference alone */
+  setCollapsed(collapsed: boolean, persist?: boolean): void;
+  isCollapsed(): boolean;
+  destroy(): void;
+}
+
 /**
  * Sets up a collapsible panel.
  *
@@ -12,7 +19,7 @@
  *   - collapsedByDefault  Whether to start collapsed (default: true)
  *   - storageKey          If provided, collapse state is persisted to localStorage
  *   - onToggle            Optional callback after each toggle
- * @returns A function to destroy event listeners
+ * @returns A handle to drive the panel from code and to remove its listeners
  */
 export function setupCollapsiblePanel(
   header: HTMLElement,
@@ -22,19 +29,19 @@ export function setupCollapsiblePanel(
     storageKey?: string;
     onToggle?: (isCollapsed: boolean) => void;
   }
-): () => void {
+): CollapsiblePanel {
   const { collapsedByDefault = true, storageKey, onToggle } = options ?? {};
 
   // Find the collapse button (or use any SVG in the header as rotation target)
   const button = header.querySelector(".collapse-btn") as HTMLButtonElement | null;
   const svgIcon = button?.querySelector("svg") ?? header.querySelector("svg");
 
-  const setCollapsed = (collapsed: boolean) => {
+  const setCollapsed = (collapsed: boolean, persist: boolean = true) => {
     content.classList.toggle("collapsed", collapsed);
     if (svgIcon) {
       svgIcon.style.transform = collapsed ? "rotate(0deg)" : "rotate(180deg)";
     }
-    if (storageKey) {
+    if (storageKey && persist) {
       try {
         localStorage.setItem(storageKey, String(collapsed));
       } catch { /* ignore */ }
@@ -50,23 +57,21 @@ export function setupCollapsiblePanel(
       if (saved === "false") isCollapsed = false;
     } catch { /* ignore */ }
   }
-  setCollapsed(isCollapsed);
+  setCollapsed(isCollapsed, false);
 
   const toggle = () => {
-    const next = !content.classList.contains("collapsed");
-    setCollapsed(next);
+    setCollapsed(!content.classList.contains("collapsed"));
   };
 
+  // One handler on the header, with the button's click left to bubble into it.
+  // The button used to swallow its own click to avoid a double toggle, which
+  // made the one control that looks like the toggle the single spot in the
+  // header that did nothing.
   header.addEventListener("click", toggle);
 
-  // Prevent double-trigger when clicking the button directly
-  if (button) {
-    button.addEventListener("click", (e) => {
-      e.stopPropagation();
-    });
-  }
-
-  return () => {
-    header.removeEventListener("click", toggle);
+  return {
+    setCollapsed,
+    isCollapsed: () => content.classList.contains("collapsed"),
+    destroy: () => header.removeEventListener("click", toggle),
   };
 }

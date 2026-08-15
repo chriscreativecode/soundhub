@@ -13,7 +13,7 @@ import soundControlComponentHtml from "./sound-control.component.html?raw";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 import { svgIcon } from "../shared/icon-utils";
 import { updateRangeProgress } from "../shared/range-input-utils";
-import { setupCollapsiblePanel } from "../shared/collapsible-panel";
+import { CollapsiblePanel, setupCollapsiblePanel } from "../shared/collapsible-panel";
 import { SpatialSettings } from "../spatial-settings-component/spatial-settings.component";
 import { attachMeter } from "../shared/level-meter";
 import { CATEGORY_META, getSoundMeta, SoundCategory } from "../../pages/main/general/sound-catalog";
@@ -73,7 +73,7 @@ export class SoundControl {
   private loopSettings: HTMLElement;
   private maxLoopsInput: HTMLInputElement;
   private spatialSettings: SpatialSettings | null = null;
-  private collapsibleCleanup: (() => void) | null = null;
+  private spatialPanel: CollapsiblePanel | null = null;
   private detachMeter: (() => void) | null = null;
   private bodyElement!: HTMLElement;
   private disclosureButton!: HTMLButtonElement;
@@ -175,6 +175,24 @@ export class SoundControl {
     this.bodyElement.hidden = !expanded;
     this.element.classList.toggle("is-expanded", expanded);
     this.disclosureButton.setAttribute("aria-expanded", String(expanded));
+
+    // A channel that is somewhere in the room has its 3D panel opened along
+    // with it, because that panel is then the part worth seeing.
+    if (expanded && this.hasSpatialPosition()) {
+      this.openSpatialPanel();
+    }
+  }
+
+  /** True once the sound sits anywhere other than dead centre. */
+  private hasSpatialPosition(): boolean {
+    const position = this.soundManager.getSpatialPosition(this.id);
+    if (!position) return false;
+    return position.x !== 0 || position.y !== 0 || position.z !== 0;
+  }
+
+  /** Opens the 3D panel without overwriting what the visitor last chose. */
+  private openSpatialPanel(): void {
+    this.spatialPanel?.setCollapsed(false, false);
   }
 
   public isExpanded(): boolean {
@@ -195,6 +213,10 @@ export class SoundControl {
       true,
       true
     );
+
+    // Only worth unfolding while the strip itself is open; a collapsed strip
+    // opens its 3D panel the moment it is expanded.
+    if (this.isExpanded()) this.openSpatialPanel();
   }
 
   /** Hides rather than destroys, so state survives a change of filter. */
@@ -586,7 +608,7 @@ export class SoundControl {
     const header = this.element.querySelector(".control-header") as HTMLElement;
     const content = this.element.querySelector(".spatial-content") as HTMLElement;
     if (header && content) {
-      this.collapsibleCleanup = setupCollapsiblePanel(header, content, {
+      this.spatialPanel = setupCollapsiblePanel(header, content, {
         collapsedByDefault: true,
         storageKey: `spatial-panel-${this.id}-collapsed`,
       });
@@ -884,7 +906,7 @@ export class SoundControl {
       this.detachMeter?.();
 
       // Cleanup collapsible panel
-      this.collapsibleCleanup?.();
+      this.spatialPanel?.destroy();
 
       // Cleanup spatial settings
       this.spatialSettings?.destroy();

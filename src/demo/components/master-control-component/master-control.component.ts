@@ -11,7 +11,7 @@ import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
 import "../../shared.css";
 import { svgIcon } from "../shared/icon-utils";
 import { autoRangeProgress } from "../shared/range-input-utils";
-import { setupCollapsiblePanel } from "../shared/collapsible-panel";
+import { CollapsiblePanel, setupCollapsiblePanel } from "../shared/collapsible-panel";
 import { SpatialSettings } from "../spatial-settings-component/spatial-settings.component";
 
 // Build icon map once
@@ -33,7 +33,7 @@ export class MasterControl {
   private soundManagerConfig: SoundManagerConfig;
   private spatialGrid!: SpatialGrid;
   private spatialSettings: SpatialSettings | null = null;
-  private collapsibleCleanup: (() => void) | null = null;
+  private collapsiblePanel: CollapsiblePanel | null = null;
   private cleanupRangeProgress: (() => void) | null = null;
 
   private isMuted: boolean = false;
@@ -160,7 +160,7 @@ export class MasterControl {
       const header = this.containerElement.querySelector(".master-spatial-controls > .control-header") as HTMLElement;
       const content = this.containerElement.querySelector(".master-spatial-controls .spatial-content") as HTMLElement;
       if (header && content) {
-        this.collapsibleCleanup = setupCollapsiblePanel(header, content, {
+        this.collapsiblePanel = setupCollapsiblePanel(header, content, {
           collapsedByDefault: true,
         });
       }
