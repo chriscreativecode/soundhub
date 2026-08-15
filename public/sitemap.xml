@@ -2,36 +2,43 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://soundmanager.chriscreativecode.com/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>1.0</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://soundmanager.chriscreativecode.com/readme/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>0.8</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://soundmanager.chriscreativecode.com/general/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://soundmanager.chriscreativecode.com/multichannel/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://soundmanager.chriscreativecode.com/spatial/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://soundmanager.chriscreativecode.com/groups/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://soundmanager.chriscreativecode.com/sprite/</loc>
+    <lastmod>2026-08-15</lastmod>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>

@@ -5,27 +5,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Sound Manager TS</title>
-  <meta name="title" content="Sound Manager TS" />
+  <title>Sound Manager for the Web - TypeScript Sound Engine &amp; Player | Sound Manager TS</title>
+  <meta name="title" content="Sound Manager for the Web - TypeScript Sound Engine &amp; Player" />
   <meta name="description"
-    content="Advanced Audio Controller for Modern Web Apps. A TypeScript Web Audio API library for managing sounds, groups, and 3D spatial audio in modern web applications." />
+    content="A sound manager for the web: a TypeScript sound engine and audio player on the Web Audio API, with sound groups, sprites and 3D spatial audio. 13 KB, no dependencies." />
   <meta name="keywords"
-    content="sound manager typescript, web audio api, audio library, typescript audio, javascript audio control, spatial audio, sound groups" />
+    content="sound manager, sound manager for the web, web sound manager, sound engine, sound engine javascript, sound player, web audio player, javascript audio library, typescript audio library, web audio api, html5 audio manager, game audio engine, spatial audio, sound sprites, sound groups" />
   <meta name="author" content="Chris Schardijn" />
   <meta name="application-name" content="Sound Manager TS" />
 
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Sound Manager TS" />
+  <meta property="og:locale" content="en_US" />
   <meta property="og:url" content="https://soundmanager.chriscreativecode.com/" />
-  <meta property="og:title" content="Sound Manager TS" />
+  <meta property="og:title" content="Sound Manager for the Web - TypeScript Sound Engine &amp; Player" />
   <meta property="og:description"
-    content="Advanced Audio Controller for Modern Web Apps. Interactive demos for all Sound Manager TS features." />
+    content="A lightweight sound manager and audio engine for the web. Load, play and control sound in the browser with groups, sprites and 3D spatial audio. Zero dependencies, 13 KB gzipped." />
   <meta property="og:image" content="https://soundmanager.chriscreativecode.com/demo-interface.png" />
+  <meta property="og:image:alt" content="The Sound Manager TS demo interface" />
 
   <meta property="twitter:card" content="summary_large_image" />
   <meta property="twitter:url" content="https://soundmanager.chriscreativecode.com/" />
-  <meta property="twitter:title" content="Sound Manager TS" />
+  <meta property="twitter:title" content="Sound Manager for the Web - TypeScript Sound Engine &amp; Player" />
   <meta property="twitter:description"
-    content="Advanced Audio Controller for Modern Web Apps. Interactive demos for all Sound Manager TS features." />
+    content="A lightweight sound manager and audio engine for the web. Load, play and control sound in the browser with groups, sprites and 3D spatial audio." />
   <meta property="twitter:image" content="https://soundmanager.chriscreativecode.com/demo-interface.png" />
 
   <link rel="icon" href="/favicon.ico" type="image/x-icon" />
@@ -36,7 +39,106 @@
 
   <link rel="canonical" href="https://soundmanager.chriscreativecode.com/" />
   <meta name="theme-color" content="#ffffff" />
-  <meta name="robots" content="index, follow" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://soundmanager.chriscreativecode.com/#software",
+        "name": "Sound Manager TS",
+        "alternateName": "sound-manager-ts",
+        "description": "A sound manager for the web. A TypeScript sound engine and audio player built on the Web Audio API, with volume, fading, panning, sound groups, sound sprites and 3D spatial audio.",
+        "applicationCategory": "DeveloperApplication",
+        "applicationSubCategory": "Audio Library",
+        "operatingSystem": "Any browser with Web Audio API support",
+        "softwareVersion": "5.8.1",
+        "url": "https://soundmanager.chriscreativecode.com/",
+        "downloadUrl": "https://www.npmjs.com/package/sound-manager-ts",
+        "installUrl": "https://www.npmjs.com/package/sound-manager-ts",
+        "softwareHelp": "https://soundmanager-docs.chriscreativecode.com/",
+        "programmingLanguage": "TypeScript",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Chris Schardijn",
+          "url": "https://www.chriscreativecode.com"
+        },
+        "featureList": [
+          "Load and play audio in the browser",
+          "Volume control and fading",
+          "Stereo panning and 3D spatial audio",
+          "Sound groups with an instance limit",
+          "Sound sprites from a single file",
+          "Multichannel output",
+          "Event driven API"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://soundmanager.chriscreativecode.com/#website",
+        "url": "https://soundmanager.chriscreativecode.com/",
+        "name": "Sound Manager TS",
+        "description": "A sound manager for the web, with interactive demos.",
+        "publisher": { "@type": "Person", "name": "Chris Schardijn" }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://soundmanager.chriscreativecode.com/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a sound manager for the web?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A sound manager is the layer between your code and the browser audio system. It loads audio files once, keeps track of every sound that is playing, and gives you one place to start, stop, fade, pan or position them. Without one you end up writing that bookkeeping yourself for every project."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use Sound Manager TS as a sound engine for a browser game?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Each play call can create its own instance, so overlapping shots and explosions do not cut each other off, and sound groups let you cap how many instances a category may hold at once. Sound sprites keep dozens of short effects in a single file, which is the usual approach for web games."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is it different from using the HTML audio element?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The audio element plays one file at a time and gives you no control over panning, spatial position or grouping. Sound Manager TS runs on the Web Audio API, so the same sound can play many times at once, each with its own volume, pan and 3D position."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does the sound player work on mobile browsers?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Mobile browsers keep audio suspended until the user interacts with the page, and the library resumes the audio context on that first gesture. It also mutes when the tab goes to the background and resumes on focus, which is what mobile users expect."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How large is the library and does it have dependencies?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "It is around 13 KB gzipped and has zero runtime dependencies. It ships as an ES module and a UMD build with TypeScript declarations included."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 
   <!-- Google Tag Manager -->
   <script>
@@ -78,7 +180,7 @@
           <div class="audio-controller" id="landingAudioController"></div>
           <div class="header-info">
             <div class="header-info--title">
-              <h1 class="main-title">Sound Manager TS</h1>
+              <span class="main-title">Sound Manager TS</span>
               <a href="https://www.npmjs.com/package/sound-manager-ts" class="version-badge" target="_blank" rel="noopener">v5.8.1</a>
             </div>
             <div class="copyright">&copy; Chris Schardijn</div>
@@ -145,6 +247,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Hero: the page's one h1, and the plain description search engines read -->
+    <section class="landing-hero">
+      <h1 class="hero-title">A sound manager for the web</h1>
+      <p class="hero-lead">
+        <strong>Sound Manager TS</strong> is a TypeScript sound engine built on the Web Audio API.
+        It loads your audio once and keeps track of every sound that is playing, so volume, fading,
+        panning, sound groups, sprites and 3D spatial positioning all come from one small library.
+      </p>
+      <p class="hero-sub">
+        Use it as a sound player on a website, or as the audio engine behind a browser game. Zero
+        dependencies, 13 KB gzipped, and it runs anywhere the Web Audio API does.
+      </p>
+      <div class="hero-actions">
+        <a class="hero-btn hero-btn--primary" href="#quick-start">Get started</a>
+        <a class="hero-btn" href="/general/">Try the demos</a>
+        <a class="hero-btn" href="https://www.npmjs.com/package/sound-manager-ts" target="_blank" rel="noopener">View on npm</a>
+      </div>
+    </section>
 
     <!-- Stats strip -->
     <section class="stats-strip">
@@ -223,7 +344,7 @@
     </section>
 
     <!-- Quick Start -->
-    <section class="quick-start-section">
+    <section class="quick-start-section" id="quick-start">
       <h2 class="qs-heading">Quick Start</h2>
 
       <div class="qs-block">
@@ -476,6 +597,57 @@ sm.play("click");</code></pre>
 
       </div>
     </main>
+
+    <!-- FAQ: mirrors the FAQPage structured data in the head -->
+    <section class="landing-faq" aria-labelledby="faqHeading">
+      <h2 class="faq-heading" id="faqHeading">Questions about using a sound manager</h2>
+
+      <div class="faq-item">
+        <h3 class="faq-q">What is a sound manager for the web?</h3>
+        <p class="faq-a">
+          A sound manager is the layer between your code and the browser audio system. It loads
+          audio files once, keeps track of every sound that is playing, and gives you one place to
+          start, stop, fade, pan or position them. Without one you end up writing that bookkeeping
+          yourself in every project.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-q">Can I use Sound Manager TS as a sound engine for a browser game?</h3>
+        <p class="faq-a">
+          Yes. Each play call can create its own instance, so overlapping shots and explosions do
+          not cut each other off, and sound groups let you cap how many instances a category may
+          hold at once. Sound sprites keep dozens of short effects in a single file, which is the
+          usual approach for web games.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-q">How is it different from using the HTML audio element?</h3>
+        <p class="faq-a">
+          The audio element plays one file at a time and gives you no control over panning, spatial
+          position or grouping. Sound Manager TS runs on the Web Audio API, so the same sound can
+          play many times at once, each with its own volume, pan and 3D position.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-q">Does the sound player work on mobile browsers?</h3>
+        <p class="faq-a">
+          Yes. Mobile browsers keep audio suspended until the user interacts with the page, and the
+          library resumes the audio context on that first gesture. It also mutes when the tab goes
+          to the background and resumes on focus, which is what mobile users expect.
+        </p>
+      </div>
+
+      <div class="faq-item">
+        <h3 class="faq-q">How large is the library and does it have dependencies?</h3>
+        <p class="faq-a">
+          It is around 13 KB gzipped and has zero runtime dependencies. It ships as an ES module and
+          a UMD build, with TypeScript declarations included.
+        </p>
+      </div>
+    </section>
 
     <!-- About Modal -->
     <div class="modal-backdrop" id="aboutBackdrop"></div>
