@@ -53,7 +53,7 @@ export class SoundManager implements SoundManagerInterface {
   private static readonly RESUME_EVENTS = ["click", "touchstart", "keydown"] as const;
   private static readonly GLOBAL_FADE_ID = "fade_global";
 
-  private VERSION = "5.8.1";
+  private VERSION = "5.9.0";
 
   constructor(config: SoundManagerConfig = {}) {
     this.ticker = new Ticker();
