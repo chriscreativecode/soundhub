@@ -315,6 +315,22 @@ export class SoundManager implements SoundManagerInterface {
     sound.source = source;
     source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
 
+    // A seamless loop is handled by the source node itself. Restarting the
+    // source from the ended callback always leaves a small gap, which is
+    // inaudible under noise but obvious on a tone, so a bed or a drone can ask
+    // for the loop to happen inside the audio graph instead.
+    if (sound.playOptions?.loop && sound.playOptions?.seamlessLoop) {
+      const loopStart = sound.playOptions.startTime ?? 0;
+      const duration = sound.playOptions.duration;
+
+      source.loop = true;
+      source.loopStart = loopStart;
+      source.loopEnd =
+        duration !== undefined && duration > 0
+          ? loopStart + duration
+          : sound.buffer?.duration ?? 0;
+    }
+
     // Apply panning settings if needed
     if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
       this.setPan(sound.id, sound.playOptions.pan, true);
@@ -932,11 +948,15 @@ export class SoundManager implements SoundManagerInterface {
         }
       }
 
-      source.start(0, startOffset,
-        (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0)
-          ? sound.playOptions.duration * playbackRate
-          : undefined
-      );
+      // A seamless loop expresses its region with loopStart / loopEnd, so it
+      // must not also be given a stop time: that would end the loop after one
+      // pass instead of letting it run until the sound is stopped.
+      const playForDuration =
+        sound.playOptions?.duration !== undefined &&
+        sound.playOptions.duration > 0 &&
+        !(sound.playOptions.loop && sound.playOptions.seamlessLoop);
+
+      source.start(0, startOffset, playForDuration ? sound.playOptions!.duration! * playbackRate : undefined);
 
       if (sound.playOptions?.trackProgress === true) {
         this.startProgressTracking(sound.id);
@@ -1665,6 +1685,13 @@ export class SoundManager implements SoundManagerInterface {
     }
 
     sound.playOptions = { ...sound.playOptions, loop, maxLoops };
+
+    // A seamless loop lives on the source node, so switching looping off has
+    // to reach the node that is already playing.
+    if (sound.playOptions.seamlessLoop && sound.source) {
+      sound.source.loop = loop;
+    }
+
     this.debugLog(`Loop set for sound ${id}: ${loop}`);
   }
 
@@ -2527,8 +2554,15 @@ export class SoundManager implements SoundManagerInterface {
       elapsedTime = (this.context.currentTime - sound.startTime) * playbackRate;
       currentTime = elapsedTime;
 
-      if (sound.playOptions?.loop) {
+      if (sound.playOptions?.loop && rawDuration > 0) {
         currentTime = currentTime % rawDuration;
+
+        // A loop reports where it is inside the file, not how long it has been
+        // running. A restarting loop gets that for free because every
+        // iteration resets the start time, but a seamless loop keeps one start
+        // time for the whole run, and its elapsed time would otherwise climb
+        // past the duration forever.
+        elapsedTime = currentTime;
       }
     } else {
       currentTime = sound.pausedAt || sound.currentTime || 0;
