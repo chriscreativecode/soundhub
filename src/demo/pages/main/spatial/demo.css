@@ -547,7 +547,11 @@ body.dark-theme .intro-details summary { color: #ffc266; }
   position: absolute;
   font-size: 1.8rem;
   line-height: 1;
-  transform: translate(-50%, -50%);
+  /* Centering has to use the `translate` property, not `transform`: the
+     individual properties apply before `transform`, so a transform-based
+     translate would be rotated along with the icon and drag it off the
+     orbit, worst of all at 180deg on the right-hand side. */
+  translate: -50% -50%;
   rotate: var(--speaker-angle, 0deg);
   transform-origin: center;
   pointer-events: none;
