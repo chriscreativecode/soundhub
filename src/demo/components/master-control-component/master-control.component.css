@@ -54,6 +54,24 @@ body.dark-theme .control-group.sticky.master-controls.is-stuck {
   position: sticky;
 }
 
+/* While the panel is folded up it still reserves the height it had, so the
+   fold never moves the page. That leaves an empty strip below the card, and an
+   empty strip must not catch clicks meant for the list scrolling under it. */
+#masterControlContainer.is-reserving {
+  pointer-events: none;
+}
+
+#masterControlContainer.is-reserving > .master-controls {
+  pointer-events: auto;
+}
+
+/* Used for a single frame while the unfolded height is measured. Without it the
+   measurement lands somewhere inside the fold animation. */
+#masterControlContainer.is-measuring #waveVisualizerContainer,
+#masterControlContainer.is-measuring .master-spatial-controls {
+  transition: none;
+}
+
 .control-group.master-controls input[type="range"]::-webkit-slider-runnable-track {
   background: linear-gradient(to right,
       var(--color-master) var(--range-progress, 0%),

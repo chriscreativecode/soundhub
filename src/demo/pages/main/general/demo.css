@@ -2,18 +2,6 @@
    General demo page
    ========================================================================== */
 
-/* The master panel folds its scope and its 3D grid away once it sticks, which
-   makes the page about 175px shorter halfway through a scroll. The browser then
-   anchors on whatever is under the pointer and scrolls back to hold it still,
-   which fights the scroll and reads as the panel flickering. Everything the
-   panel pushes around is taken out of the running as an anchor, so the collapse
-   is allowed to move the page instead of the page moving back. */
-#soundListToolbarContainer,
-#soundControlsContainer,
-#listEmptyState {
-  overflow-anchor: none;
-}
-
 #soundControlsContainer {
   display: none;
   flex-direction: column;

@@ -388,21 +388,61 @@ export class MasterControl {
     });
   }
 
+  /**
+   * Folds the panel down to a transport bar once it sticks to the top.
+   *
+   * The panel is in the flow, so anything that changes its height moves the
+   * whole page under the reader. Folding it away removes about 175px, which
+   * made the channel list lurch upward mid-scroll. So the moment it sticks, the
+   * container keeps the height it had: the page below never moves, and only the
+   * card inside it shrinks. The reserved strip is then empty, which is why it
+   * has to stop swallowing clicks meant for the list scrolling underneath.
+   */
   private createStickyObserver(): () => void {
-    const soundControlsContainer = document.getElementById("masterControlContainer") as HTMLElement;
-    const childContainer = soundControlsContainer.querySelector(".master-controls") as HTMLElement;
+    const container = document.getElementById("masterControlContainer") as HTMLElement;
+    const panel = container.querySelector(".master-controls") as HTMLElement;
 
-    const containerRect = soundControlsContainer.getBoundingClientRect();
-    const originalTop = containerRect.top + window.scrollY;
-
-    const stickyTop = parseInt(window.getComputedStyle(soundControlsContainer).top) || 0;
+    const originalTop = container.getBoundingClientRect().top + window.scrollY;
+    const stickyTop = parseInt(window.getComputedStyle(container).top) || 0;
 
     let ticking = false;
+    let stuck = false;
+
+    /**
+     * The height the panel has with nothing folded away. Taken with the fold
+     * undone and the transitions off, because a measurement during the
+     * animation returns whatever height the fold happens to be passing through.
+     */
+    const measureUnfoldedHeight = (): number => {
+      const wasFolded = panel.classList.contains("is-stuck");
+      const reserved = container.style.height;
+
+      container.classList.add("is-measuring");
+      panel.classList.remove("is-stuck");
+      container.style.height = "";
+
+      const height = container.getBoundingClientRect().height;
+
+      container.style.height = reserved;
+      panel.classList.toggle("is-stuck", wasFolded);
+      void container.offsetHeight; // flush, so restoring the fold does not animate
+      container.classList.remove("is-measuring");
+
+      return height;
+    };
+
+    const setStuck = (next: boolean) => {
+      if (next === stuck) return;
+      stuck = next;
+
+      container.style.height = next ? `${measureUnfoldedHeight()}px` : "";
+      container.classList.toggle("is-reserving", next);
+      panel.classList.toggle("is-stuck", next);
+    };
 
     const checkStuck = () => {
-      const currentTop = soundControlsContainer.getBoundingClientRect().top;
-      const isStuck = currentTop <= stickyTop && window.scrollY >= (originalTop - stickyTop);
-      childContainer.classList.toggle('is-stuck', isStuck);
+      const currentTop = container.getBoundingClientRect().top;
+      setStuck(currentTop <= stickyTop && window.scrollY >= originalTop - stickyTop);
       ticking = false;
     };
 
@@ -413,10 +453,21 @@ export class MasterControl {
       }
     };
 
+    // A resize changes how tall the panel needs to be, so a height reserved at
+    // the old width is no longer the right amount of space to hold open.
+    const onResize = () => {
+      if (stuck) container.style.height = `${measureUnfoldedHeight()}px`;
+      checkStuck();
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
     checkStuck();
 
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
   }
 
   private setGlobalVolume(volume: number): void {
