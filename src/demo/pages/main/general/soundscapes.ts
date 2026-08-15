@@ -59,10 +59,14 @@ export function beeFlightPosition(phase: number): SpatialPosition {
   // reads as close by on the near pass and further out on the wide swing.
   const radius = 0.62 + 0.34 * Math.sin(angle * 2 + 0.6);
 
+  // Two decimals: the ear cannot tell the difference and the API console stays
+  // readable while the position updates every frame.
+  const round = (value: number) => Math.round(value * 100) / 100;
+
   return {
-    x: Math.sin(angle) * radius,
-    y: 0.18 + 0.34 * Math.sin(angle * 3 + 1.1),
-    z: Math.cos(angle) * radius,
+    x: round(Math.sin(angle) * radius),
+    y: round(0.18 + 0.34 * Math.sin(angle * 3 + 1.1)),
+    z: round(Math.cos(angle) * radius),
   };
 }
 
