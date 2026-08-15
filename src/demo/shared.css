@@ -59,36 +59,159 @@ body {
   --color-grid-line: #ddddddb5;
 }
 
+/* ==================== */
+/* Theme switch         */
+/* ==================== */
+
+/* The sun and the moon are the button. A checkbox still carries the state,
+   because every page reads and writes its `checked` value, but it is hidden
+   and the label around it does the work. */
 .theme-toggle-container {
   display: flex;
-  gap: 5px;
+  align-items: center;
 }
 
-.theme-icon {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
-  height: 24px;
-  width: 24px;
+.theme-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #e8890c;
+  background: linear-gradient(150deg, #fffdf6, #ffe6b8);
+  border: 1px solid rgba(232, 137, 12, 0.5);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    background 0.4s ease,
+    border-color 0.4s ease,
+    color 0.4s ease;
 }
 
-.theme-icon--moon,
-.theme-icon--sun {
-  grid-row: 1;
-  grid-column: 1;
-  width: 24px;
-  height: 24px;
-  transition: opacity 0.3s ease;
-}
-
-/* Hide moon icon by default */
-.theme-icon--moon {
+.theme-switch input {
+  position: absolute;
   opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
 }
 
-/* Hide sun icon by default */
-.theme-icon--sun {
-  opacity: 1;
+.theme-switch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(232, 137, 12, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.theme-switch:active {
+  transform: translateY(0) scale(0.92);
+}
+
+.theme-switch input:focus-visible ~ .theme-switch__icons {
+  outline: 2px solid currentColor;
+  outline-offset: 8px;
+  border-radius: 50%;
+}
+
+/* A ring that opens up on hover, so the icon reads as something you press */
+.theme-switch::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0;
+  transform: scale(0.75);
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.theme-switch:hover::after {
+  opacity: 0.5;
+  transform: scale(1);
+}
+
+/* And a ripple that fires on the press itself */
+.theme-switch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.theme-switch:active::before {
+  animation: themeSwitchRipple 0.55s ease-out;
+}
+
+@keyframes themeSwitchRipple {
+  from { opacity: 0.6; transform: scale(1); }
+  to   { opacity: 0;   transform: scale(1.9); }
+}
+
+.theme-switch__icons {
+  position: relative;
+  width: 22px;
+  height: 22px;
+}
+
+/* Sun and moon sit on top of each other and trade places with a quarter
+   turn, so the swap reads as one object rotating in rather than a crossfade */
+.theme-icon {
+  position: absolute;
+  inset: 0;
+  width: 22px;
+  height: 22px;
+  transition:
+    opacity 0.4s ease,
+    transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.theme-icon--sun  { opacity: 1; transform: rotate(0deg) scale(1); }
+.theme-icon--moon { opacity: 0; transform: rotate(-90deg) scale(0.3); }
+
+body.dark-theme .theme-icon--sun  { opacity: 0; transform: rotate(90deg) scale(0.3); }
+body.dark-theme .theme-icon--moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+/* Only the icon that is actually showing responds to hover, so the two
+   transforms can never fight over the same element */
+body:not(.dark-theme) .theme-switch:hover .theme-icon--sun {
+  transform: rotate(45deg) scale(1.1);
+}
+
+body.dark-theme .theme-switch:hover .theme-icon--moon {
+  transform: rotate(-20deg) scale(1.1);
+}
+
+.theme-switch__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-switch,
+  .theme-switch::after,
+  .theme-icon {
+    transition-duration: 0.01ms;
+  }
+
+  .theme-switch:hover { transform: none; }
+  .theme-switch:active::before { animation: none; }
+
+  body:not(.dark-theme) .theme-switch:hover .theme-icon--sun,
+  body.dark-theme .theme-switch:hover .theme-icon--moon {
+    transform: none;
+  }
 }
 
 /* ==================== */
@@ -433,13 +556,15 @@ body.dark-theme {
   --color-music-note: rgb(182, 104, 1);
 }
 
-body.dark-theme .theme-icon--moon {
-  opacity: 1;
-  stroke: #ffb74d;
+body.dark-theme .theme-switch {
+  color: #ffc46b;
+  background: linear-gradient(150deg, #2a3358, #161c38);
+  border-color: rgba(255, 196, 107, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-body.dark-theme .theme-icon--sun {
-  opacity: 0;
+body.dark-theme .theme-switch:hover {
+  box-shadow: 0 6px 16px rgba(255, 196, 107, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 body.dark-theme .control-group {
