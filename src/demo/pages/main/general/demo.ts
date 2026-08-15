@@ -8,13 +8,20 @@ import { MasterControl } from "../../../components/master-control-component/mast
 import { SoundControl } from "../../../components/sound-control-component/sound-control.component";
 import { SoundLoaderComponent } from "../../../components/sound-loader-component/sound-loader.component";
 import { WaveVisualizerComponent } from "../../../components/wave-visualizer-component/wave-visualizer.component";
+import { ConsoleDock } from "../../../components/console-dock-component/console-dock.component";
+import { SoundscapeComponent } from "../../../components/soundscape-component/soundscape.component";
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 // @ts-ignore
 import demoTemplate from "./demo-template.html?raw";
 import { DEMO_CONFIG } from "./demo.config";
 import { LocalStorageManagerManager } from "../../../services/local-storage-manager";
+import { ApiLogger, instrumentSoundManager } from "../../../services/api-logger";
 import { SoundEventsEnum } from "../../../../sound-manager/sound-events.enum";
 import { SoundEvent } from "../../../../sound-manager/sound-event.interface";
+import { SOUNDSCAPES } from "./soundscapes";
+import { getSoundMeta } from "./sound-catalog";
+import { CategoryFilter, SoundListToolbar, ToolbarState } from "./sound-list-toolbar";
+import { KeyboardShortcuts } from "./keyboard-shortcuts";
 
 /**
  * Sound file manifests — keeps import lines shorter and centralised.
@@ -53,6 +60,17 @@ export class SoundManagerDemo {
   private containerElement: HTMLElement;
   private soundManagerConfig: SoundManagerConfig = DEMO_CONFIG;
 
+  private apiLogger = new ApiLogger();
+  private consoleDock: ConsoleDock | null = null;
+  private soundscapes: SoundscapeComponent | null = null;
+  private toolbar: SoundListToolbar | null = null;
+  private shortcuts: KeyboardShortcuts | null = null;
+  private emptyState: HTMLElement | null = null;
+
+  private filter: ToolbarState = { query: "", category: "all" };
+  /** Controls in list order, filtered — the order the number keys address. */
+  private visibleControls: SoundControl[] = [];
+
   constructor(container: HTMLElement) {
     if (!container) {
       throw new Error("Container element is required for SoundManagerDemo");
@@ -67,7 +85,15 @@ export class SoundManagerDemo {
     }
 
     this.containerElement = container;
-    this.soundManager = new SoundManager(<SoundManagerConfig>this.soundManagerConfig);
+
+    // Every control talks to the instrumented manager, so the console can
+    // print the exact call behind whatever the visitor just did without a
+    // single control having to know the console exists.
+    this.soundManager = instrumentSoundManager(
+      new SoundManager(<SoundManagerConfig>this.soundManagerConfig),
+      this.apiLogger
+    );
+
     this.initialize();
   }
 
@@ -88,6 +114,7 @@ export class SoundManagerDemo {
       throw new Error("Element not found");
     }
     this.containerElement.innerHTML = demoTemplate;
+    this.emptyState = document.getElementById("listEmptyState");
   }
 
   private initializeAudioController(): void {
@@ -98,8 +125,18 @@ export class SoundManagerDemo {
   }
 
   private initializeEventListeners(): void {
-    this.soundManager.addEventListener(SoundEventsEnum.LOADED, (event: SoundEvent) => {
-      // console.log('sound loaded', event);
+    // Anything that changes what is running refreshes the "n playing" readout.
+    const transportEvents = [
+      SoundEventsEnum.STARTED,
+      SoundEventsEnum.RESUMED,
+      SoundEventsEnum.PAUSED,
+      SoundEventsEnum.STOPPED,
+      SoundEventsEnum.ENDED,
+      SoundEventsEnum.RESET,
+    ];
+
+    transportEvents.forEach((type) => {
+      this.soundManager.addEventListener(type, () => this.updatePlayingCount());
     });
   }
 
@@ -171,9 +208,20 @@ export class SoundManagerDemo {
     const masterControlContainer = document.getElementById("masterControlContainer") as HTMLElement;
     const soundControlsContainer = document.getElementById("soundControlsContainer") as HTMLElement;
     soundControlsContainer.classList.add("show");
+
+    this.createSoundscapes(loaded);
     this.createMasterControl(masterControlContainer);
     this.initializeVisualizer();
     this.createSoundControls(loaded);
+    this.createToolbar();
+    // Wiring up eleven channels means applying eleven sets of defaults, and
+    // that setup is not what the visitor came to read. The log starts from
+    // the first thing they actually do.
+    this.apiLogger.clear();
+
+    this.createConsoleDock();
+    this.createShortcuts();
+    this.updatePlayingCount();
   }
 
   private createSoundControls(soundsToLoad: Array<{ id: string; url: string }>): void {
@@ -192,18 +240,128 @@ export class SoundManagerDemo {
 
         Object.entries(sprites).forEach(([spriteName]) => {
           const spriteId = `${id}_${spriteName}`;
-          const control = new SoundControl(spriteId, this.soundManager, container, true);
+          const control = new SoundControl(spriteId, this.soundManager, container, true, (removed) =>
+            this.forgetControl(removed)
+          );
           this.soundControls.set(spriteId, control);
         });
       } else {
-        const control = new SoundControl(id, this.soundManager, container);
+        const control = new SoundControl(id, this.soundManager, container, false, (removed) =>
+          this.forgetControl(removed)
+        );
         this.soundControls.set(id, control);
       }
     });
   }
 
+  /** A removed channel must leave the counts, the filter and the number keys. */
+  private forgetControl(id: string): void {
+    this.soundControls.delete(id);
+    this.applyFilter();
+    this.updatePlayingCount();
+  }
+
   private createMasterControl(container: HTMLElement): void {
-    const control = new MasterControl(container, this.soundManagerConfig, this.soundManager);
+    new MasterControl(container, this.soundManagerConfig, this.soundManager);
+  }
+
+  private createSoundscapes(loaded: Array<{ id: string }>): void {
+    const container = document.getElementById("soundscapesContainer");
+    if (!container) return;
+
+    const loadedIds = new Set(loaded.map(({ id }) => id));
+    this.soundscapes = new SoundscapeComponent(
+      container,
+      this.soundManager,
+      SOUNDSCAPES,
+      (id) => loadedIds.has(id)
+    );
+  }
+
+  private createToolbar(): void {
+    const container = document.getElementById("soundListToolbarContainer");
+    if (!container) return;
+
+    const counts = { all: 0, ambience: 0, music: 0, voice: 0, game: 0 } as Record<CategoryFilter, number>;
+    this.soundControls.forEach((_, id) => {
+      counts.all += 1;
+      counts[getSoundMeta(id).category] += 1;
+    });
+
+    this.toolbar = new SoundListToolbar(
+      container,
+      counts,
+      (state) => {
+        this.filter = state;
+        this.applyFilter();
+      },
+      (expanded) => {
+        this.visibleControls.forEach((control) => control.setExpanded(expanded));
+      }
+    );
+
+    this.applyFilter();
+  }
+
+  private createConsoleDock(): void {
+    const container = document.getElementById("consoleDockContainer");
+    if (!container) return;
+    this.consoleDock = new ConsoleDock(container, this.apiLogger, this.soundManager);
+  }
+
+  private createShortcuts(): void {
+    const container = document.getElementById("shortcutsContainer");
+    if (!container) return;
+
+    this.shortcuts = new KeyboardShortcuts(container, {
+      togglePlayAll: () => {
+        if (this.countPlaying() > 0) {
+          this.soundManager.pauseAllSounds();
+        } else {
+          this.soundManager.resumeAllSounds();
+        }
+      },
+      stopAll: () => this.soundManager.stopAllSounds(),
+      toggleMuteAll: () => this.soundManager.toggleGlobalMute(),
+      toggleConsole: () => this.consoleDock?.toggle(),
+      focusSearch: () => this.toolbar?.focusSearch(),
+      playNth: (index) => this.visibleControls[index]?.togglePlayback(),
+      startScene: (index) => this.soundscapes?.startByIndex(index),
+    });
+
+    document.getElementById("shortcutsButton")?.addEventListener("click", () => {
+      this.shortcuts?.open();
+    });
+  }
+
+  /** Filtering hides strips rather than rebuilding them, so nothing resets. */
+  private applyFilter(): void {
+    this.visibleControls = [];
+
+    this.soundControls.forEach((control) => {
+      const visible = control.matches(this.filter.query, this.filter.category);
+      control.setVisible(visible);
+      if (visible) this.visibleControls.push(control);
+    });
+
+    const total = this.soundControls.size;
+    this.toolbar?.setResultCount(this.visibleControls.length, total);
+
+    if (this.emptyState) {
+      this.emptyState.hidden = this.visibleControls.length > 0;
+    }
+  }
+
+  private countPlaying(): number {
+    let playing = 0;
+    this.soundControls.forEach((control) => {
+      if (control.isCurrentlyPlaying()) playing += 1;
+    });
+    return playing;
+  }
+
+  private updatePlayingCount(): void {
+    this.toolbar?.setPlayingCount(this.countPlaying());
   }
 
   private initializeVisualizer(): void {

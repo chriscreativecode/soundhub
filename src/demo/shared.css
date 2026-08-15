@@ -8,6 +8,46 @@ body {
   margin: 0;
 }
 
+/* The surfaces the browser draws for us still belong to the design. */
+::selection {
+  background: rgba(var(--color-primary-rgb, 76, 175, 80), 0.28);
+  color: inherit;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 149, 163, 0.55) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: rgba(128, 149, 163, 0.5);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 149, 163, 0.8);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
 /* ==================== */
 /* Global Variables */
 /* ==================== */
@@ -16,6 +56,9 @@ body {
   --color-primary: #4caf50;
   --color-primary-rgb: 76, 175, 80;
   --color-primary-hover: #45a049;
+  /* The brand green is a fill colour; at text sizes it only reaches 2.3:1 on
+     a light panel. This is the same green taken down to a readable value. */
+  --color-primary-text: #2e7d32;
   --color-master: #2196F3;
   --color-master-hover: #1976D2;
   --color-master-disabled: #a8c1d9;
@@ -29,6 +72,11 @@ body {
   --color-text-title: #0e8ee8;
   --color-close-icon: #fff;
   --color-white: #fff;
+  /* Secondary copy is tinted from the surface rather than set in flat grey,
+     so it still reads as part of the panel it sits on. */
+  --color-text-muted: #56616b;
+  --color-meter-track: #dfe3e6;
+  --color-meter-gap: #f5f5f5;
 
   /* Spacing */
   --spacing-xs: 4px;
@@ -536,6 +584,7 @@ body.dark-theme {
   --color-primary: #66bb6a;
   --color-primary-rgb: 102, 187, 106;
   --color-primary-hover: #4caf50;
+  --color-primary-text: #8fd894;
   --color-master: #42a5f5;
   --color-master-hover: #2196f3;
   --color-master-disabled: #64b5f6;
@@ -549,6 +598,9 @@ body.dark-theme {
   --color-text-title: #ffc061;
   --color-close-icon: #000;
   --color-text-secondary: #b0b0b0;
+  --color-text-muted: #9aa7ad;
+  --color-meter-track: #2a2f33;
+  --color-meter-gap: #1e1e1e;
   --panel-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   --controls-shadow: inset 0 2px 4px 0px rgba(0, 0, 0, 0.2);
   --panel-background: #00000052;

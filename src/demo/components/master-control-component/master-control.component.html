@@ -1,19 +1,26 @@
 <div class="control-group sticky master-controls">
   <div class="control-content">
     <div class="control-group">
-      <h4>Master controls</h4>
+      <h4>Master transport</h4>
       <div class="control-content">
         <div class="button-group-global">
-          <button id="pauseAllBtn" class="icon-button pause-btn" title="Pause all">{{iconPause}}</button>
-          <button id="resumeAllBtn" class="icon-button play-btn" title="Resume all">{{iconPlay}}</button>
-          <button id="stopAllBtn" class="icon-button stop-btn" title="Stop all">{{iconStop}}</button>
-          <button id="toggleMuteBtn" class="icon-button mute-btn" title="Mute all">
+          <button id="pauseAllBtn" class="icon-button pause-btn" title="Pause every channel"
+            aria-label="Pause every channel">{{iconPause}}</button>
+          <button id="resumeAllBtn" class="icon-button play-btn" title="Resume every paused channel"
+            aria-label="Resume every paused channel">{{iconPlay}}</button>
+          <button id="stopAllBtn" class="icon-button stop-btn" title="Stop every channel"
+            aria-label="Stop every channel">{{iconStop}}</button>
+          <button id="toggleMuteBtn" class="icon-button mute-btn" title="Mute the master output"
+            aria-label="Mute the master output">
             <span class="mute-icon">{{iconMute}}</span>
             <span class="unmute-icon" style="display: none">{{iconUnmute}}</span>
           </button>
-          <button id="fadeInBtn" class="icon-button fade-in-btn" title="Fade in all">{{iconFadeIn}}</button>
-          <button id="fadeOutBtn" class="icon-button fade-out-btn" title="Fade out all">{{iconFadeOut}}</button>
-          <button id="resetBtn" class="icon-button stop-btn" title="Reset all sound settings">{{iconReset}}</button>
+          <button id="fadeInBtn" class="icon-button fade-in-btn" title="Fade the master output in"
+            aria-label="Fade the master output in">{{iconFadeIn}}</button>
+          <button id="fadeOutBtn" class="icon-button fade-out-btn" title="Fade the master output out"
+            aria-label="Fade the master output out">{{iconFadeOut}}</button>
+          <button id="resetBtn" class="icon-button stop-btn" title="Reset every sound to its starting settings"
+            aria-label="Reset every sound to its starting settings">{{iconReset}}</button>
         </div>
       </div>
     </div>
@@ -21,7 +28,8 @@
       <h4>Master volume</h4>
       <div class="control-content">
         <div class="slider-container">
-          <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="1" />
+          <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="1"
+            aria-label="Master volume" />
           <span id="masterVolumeValue">100%</span>
         </div>
       </div>
@@ -31,8 +39,9 @@
       <h4>Master panning</h4>
       <div class="control-content">
         <div class="slider-container">
-          <input type="range" id="masterPanning" min="-1" max="1" step="0.01" value="0" />
-          <span id="masterPanValue">0.0</span>
+          <input type="range" id="masterPanning" min="-1" max="1" step="0.01" value="0"
+            aria-label="Master panning" />
+          <span id="masterPanValue">center</span>
         </div>
       </div>
     </div>
