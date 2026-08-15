@@ -66,6 +66,194 @@
   color: var(--sprite-color);
 }
 
+/* ── Timeline ────────────────────────────────────────────────────────────
+   The whole audio file drawn to scale. Every sprite is a block on it, so the
+   point of a sprite (one file, several timestamps) is visible before you
+   read a word about it. */
+.sprite-timeline-panel { padding: 16px 20px 14px; }
+
+.timeline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.timeline-file {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-family: monospace;
+}
+
+.timeline-length {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--sprite-color);
+  font-family: monospace;
+}
+
+.timeline {
+  position: relative;
+  height: 96px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  overflow: hidden;
+}
+
+/* The canvas takes its ink colour from `color`, so the theme drives it */
+.timeline__wave {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: color-mix(in srgb, var(--color-text) 28%, transparent);
+}
+
+.timeline__regions {
+  position: absolute;
+  inset: 0;
+}
+
+.tl-region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--sprite-color) 70%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sprite-color) 16%, transparent);
+  cursor: pointer;
+  overflow: visible;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.tl-region:disabled { cursor: default; opacity: 0.5; }
+
+.tl-region:not(:disabled):hover {
+  background: color-mix(in srgb, var(--sprite-color) 30%, transparent);
+  border-color: var(--sprite-color);
+}
+
+.tl-region.active {
+  background: color-mix(in srgb, var(--sprite-color) 26%, transparent);
+  border-color: var(--sprite-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sprite-color) 35%, transparent);
+}
+
+/* Grows left to right while the region plays */
+.tl-region__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: color-mix(in srgb, var(--sprite-color) 80%, transparent);
+  box-shadow: inset -1px 0 0 #fff;
+  pointer-events: none;
+}
+
+.tl-region__badge {
+  position: relative;
+  z-index: 2;
+  margin-top: 4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--sprite-color);
+  box-shadow: 0 0 0 2px var(--color-surface-secondary);
+  color: #1a1205;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Named label under the block. Regions can be a few percent wide, so it is
+   allowed to spill past its own edges and centre on the block. */
+.tl-region__tag {
+  position: absolute;
+  top: calc(100% - 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--sprite-color);
+  color: var(--color-text);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.tl-region:hover .tl-region__tag,
+.tl-region.active .tl-region__tag { opacity: 1; }
+
+.timeline__playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  box-shadow: 0 0 10px 2px var(--sprite-color);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.15s ease;
+}
+
+/* A knob on top of the line, so the marker stays findable on a small block */
+.timeline__playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #fff;
+}
+
+.timeline__playhead.is-visible { opacity: 1; }
+
+.timeline__axis {
+  position: relative;
+  height: 16px;
+  margin-top: 4px;
+}
+
+.timeline__tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  font-family: monospace;
+  color: var(--color-text-secondary);
+}
+
+/* The 0s label would hang half off the panel if it were centred */
+.timeline__tick:first-child { transform: none; }
+
+.timeline__legend {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+body.dark-theme .tl-region__badge { color: #1a1205; }
+body.dark-theme .tl-region__tag { background: #23262e; }
+body.dark-theme .timeline { background: #1c1f26; }
+body.dark-theme .timeline__wave { color: rgba(255, 255, 255, 0.34); }
+
 /* ── Sprite grid ─────────────────────────────────────────────────────── */
 .sprite-grid {
   display: grid;
@@ -117,6 +305,27 @@
 
 .sprite-btn.active .sprite-btn__time {
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* Same number as the block on the timeline, so the two line up at a glance */
+.sprite-btn__no {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sprite-color) 25%, transparent);
+  color: var(--sprite-color);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.sprite-btn.active .sprite-btn__no {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 
 .sprite-btn__emoji {
