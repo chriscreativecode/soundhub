@@ -54,15 +54,20 @@ body.dark-theme .control-group.sticky.master-controls.is-stuck {
   position: sticky;
 }
 
-/* While the panel is folded up it still reserves the height it had, so the
-   fold never moves the page. That leaves an empty strip below the card, and an
-   empty strip must not catch clicks meant for the list scrolling under it. */
+/* Lifted out of the flow while it is folded up at the top of the screen. The
+   container keeps the panel's full height as a placeholder, so the page below
+   stays exactly where it was and the space the panel came from scrolls away
+   like any other block. left and width are set from the column it came out of. */
 #masterControlContainer.is-reserving {
-  pointer-events: none;
+  /* A placeholder that sticks would ride along to the top of the screen as an
+     empty strip, which is the hole this whole arrangement is here to avoid. */
+  position: static;
 }
 
 #masterControlContainer.is-reserving > .master-controls {
-  pointer-events: auto;
+  position: fixed;
+  top: 10px;
+  z-index: 100;
 }
 
 /* Used for a single frame while the unfolded height is measured. Without it the
