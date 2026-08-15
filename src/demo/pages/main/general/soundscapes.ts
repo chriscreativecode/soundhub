@@ -37,36 +37,33 @@ export interface SoundscapeLayer {
   pan?: number;
   playbackRate?: number;
   /**
-   * Seconds for one lap of `flightPath`. A layer with this set does not sit
-   * still: the scene keeps moving it while it plays, starting from `position`.
+   * A layer with a path does not sit still: the scene keeps moving it while it
+   * plays. The function maps a lap phase of 0 to 1 onto a position, and
+   * `flightSeconds` says how long one lap takes.
    */
+  flightPath?: (phase: number) => SpatialPosition;
   flightSeconds?: number;
 }
 
+/** Two decimals: the ear cannot tell, and the API console stays readable. */
+const round = (value: number) => Math.round(value * 100) / 100;
+
 /**
- * The bumblebee's circuit, as a position for a lap phase of 0 to 1.
+ * The flock's path, as a position for a lap phase of 0 to 1.
  *
- * It is deliberately not a circle. A bee crosses in front of you, swings out
- * wide to the left, comes back over your shoulder and dives past your ear, so
- * the radius, the height and the speed all vary within one lap. The path is
- * built from sines that complete whole cycles over the lap, which is what keeps
- * the loop from stepping when it comes back round.
+ * It starts out in front of the listener, drifts off to the right and passes
+ * behind the right shoulder, and wanders while it does so: each axis is two
+ * sines at different rates rather than one, which is what keeps it from reading
+ * as a turntable going round. Both sines complete whole cycles over the lap, so
+ * the path comes back to where it started without a step.
  */
-export function beeFlightPosition(phase: number): SpatialPosition {
+export function birdFlightPosition(phase: number): SpatialPosition {
   const angle = phase * Math.PI * 2;
 
-  // Sweeps between roughly a third of a metre and just under one, so the bee
-  // reads as close by on the near pass and further out on the wide swing.
-  const radius = 0.62 + 0.34 * Math.sin(angle * 2 + 0.6);
-
-  // Two decimals: the ear cannot tell the difference and the API console stays
-  // readable while the position updates every frame.
-  const round = (value: number) => Math.round(value * 100) / 100;
-
   return {
-    x: round(Math.sin(angle) * radius),
-    y: round(0.18 + 0.34 * Math.sin(angle * 3 + 1.1)),
-    z: round(Math.cos(angle) * radius),
+    x: round(0.5 * Math.sin(angle) + 0.35 * Math.sin(angle * 2 + 0.6)),
+    y: round(0.35 + 0.25 * Math.sin(angle * 2 + 0.4)),
+    z: round(-0.75 * Math.cos(angle) + 0.2 * Math.sin(angle * 3 + 1.1)),
   };
 }
 
@@ -84,12 +81,18 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: "rainy-forest",
     name: "Rainy Forest",
-    blurb: "Rain on the canopy above you, birds off to the left, a brook running behind your right shoulder.",
+    blurb: "Rain on the canopy above you, a brook behind your right shoulder, and the birds moving: they come from the front, drift right and pass behind you.",
     icon: "cloud-rain",
     fadeInDuration: 2.5,
     layers: [
       { id: "rain", volume: 0.65, position: { x: 0, y: 1, z: -0.2 } },
-      { id: "birds", volume: 0.45, position: { x: -0.95, y: 0.35, z: -0.7 } },
+      {
+        id: "birds",
+        volume: 0.45,
+        position: birdFlightPosition(0),
+        flightPath: birdFlightPosition,
+        flightSeconds: 24,
+      },
       { id: "brook", volume: 0.35, position: { x: 0.9, y: -0.2, z: 0.8 } },
     ],
   },
@@ -120,14 +123,13 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: "dawn-chorus",
     name: "Dawn Chorus",
-    blurb: "Birds up front and slightly above, strings spread wide ahead, moving water behind you, and a bee doing laps around your head.",
+    blurb: "Birds up front and slightly above, strings spread wide ahead, moving water behind you on the right.",
     icon: "sunrise",
     fadeInDuration: 3.5,
     layers: [
       { id: "birds", volume: 0.55, position: { x: -0.3, y: 0.7, z: -1 } },
       { id: "brook", volume: 0.28, position: { x: 0.9, y: -0.25, z: 0.85 } },
       { id: "sound-surfer-constellations", volume: 0.18, pan: 0 },
-      { id: "bee", volume: 0.22, position: beeFlightPosition(0), flightSeconds: 13 },
     ],
   },
 ];
@@ -138,7 +140,7 @@ export const SOUNDSCAPES: Soundscape[] = [
  * it put it rather than printing three coordinates at them.
  */
 export function describeLayer(layer: SoundscapeLayer): string {
-  if (layer.flightSeconds) return "circling you";
+  if (layer.flightPath) return "on the move";
   if (layer.position) return describePosition(layer.position);
   if (!layer.pan) return "stereo bed";
   return `stereo ${layer.pan < 0 ? "left" : "right"}`;

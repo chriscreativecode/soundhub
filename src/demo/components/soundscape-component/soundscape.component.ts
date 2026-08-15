@@ -4,7 +4,6 @@ import { SoundManager } from "../../../sound-manager/sound-manager";
 import { SoundPanType } from "../../../sound-manager/sound-pan-type.enum";
 import { SoundState } from "../../../sound-manager/sound-state.interface";
 import {
-  beeFlightPosition,
   describeLayer,
   Soundscape,
   SoundscapeLayer,
@@ -247,7 +246,7 @@ export class SoundscapeComponent {
   private startFlights(layers: SoundscapeLayer[]): void {
     this.stopFlights();
 
-    const flying = layers.filter((layer) => layer.flightSeconds);
+    const flying = layers.filter((layer) => layer.flightPath && layer.flightSeconds);
     if (!flying.length) return;
 
     const context = this.soundManager.getContext();
@@ -258,7 +257,7 @@ export class SoundscapeComponent {
 
       const moved = flying.map((layer) => {
         const phase = (elapsed / layer.flightSeconds!) % 1;
-        const position = beeFlightPosition(phase);
+        const position = layer.flightPath!(phase);
 
         this.soundManager.setSpatialPosition(position.x, position.y, position.z, layer.id, undefined, true);
 

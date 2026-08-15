@@ -36,7 +36,7 @@ const SOUND_MANIFEST: { id: string; url: () => Promise<{ default: string }> }[] 
   { id: "crickets", url: () => import("../../../../sounds/crickets.mp3") },
   { id: "brook", url: () => import("../../../../sounds/brook.mp3") },
   { id: "magma", url: () => import("../../../../sounds/under-sea-magma.mp3") },
-  { id: "bee", url: () => import("../../../../sounds/bee-buzz.wav") },
+  { id: "pad-loop", url: () => import("../../../../sounds/pad-loop.wav") },
   { id: "little-wonders-song", url: () => import("../../../../sounds/little-wonders.mp3") },
   { id: "sound-surfer-constellations", url: () => import("../../../../sounds/sound-surfer-constellations.mp3") },
 ];

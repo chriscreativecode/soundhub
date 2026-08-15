@@ -18,6 +18,8 @@ export interface SoundMeta {
   category: SoundCategory;
   /** One line: what this clip is, and what it is good for demonstrating */
   blurb: string;
+  /** Plays with `seamlessLoop`, so the strip loops without a gap at the seam */
+  seamlessLoop?: boolean;
 }
 
 export interface CategoryMeta {
@@ -78,10 +80,12 @@ const CATALOG: Record<string, SoundMeta> = {
     category: "ambience",
     blurb: "Water loop with no obvious seam, built to be left running underneath.",
   },
-  bee: {
-    label: "Bumblebee",
+  "pad-loop": {
+    label: "Ambient Pad (WAV)",
     category: "ambience",
-    blurb: "A single point source. In a soundscape it flies a circuit around your head.",
+    blurb:
+      "Loops with seamlessLoop, so it repeats without a gap at the seam. Works best on WAV: an MP3 carries encoder padding at both ends, and playing that padding leaves a hole in the loop whatever the player does.",
+    seamlessLoop: true,
   },
   magma: {
     label: "Undersea Magma",
