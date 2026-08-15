@@ -328,9 +328,12 @@ export class SpriteDemo {
       }
     }
 
-    // Play the sprite
+    // Played under its own sprite id rather than as a new instance: this page
+    // only ever runs one sprite at a time, and an instance id (`..._powerUp:1`)
+    // would not match the key the button state is keyed on, so the button would
+    // stay lit after the sound finished.
     this.soundManager.playSprite('game-sounds', spriteKey, {
-      createNewInstance: true,
+      createNewInstance: false,
       trackProgress: false,
     });
 
@@ -365,29 +368,21 @@ export class SpriteDemo {
   // ── Event listeners (cleanup when sprite ends) ──────────────────────────
 
   private setupEventListeners(): void {
-    this.soundManager.addEventListener(SoundEventsEnum.ENDED, (event: any) => {
+    const clearIfActive = (event: any) => {
       const soundId: string = event.soundId ?? '';
-      if (soundId.startsWith('game-sounds_')) {
-        const spriteKey = soundId.replace('game-sounds_', '');
-        if (spriteKey === this.activeSprite) {
-          this.activeSprite = null;
-          this.updateUI(null);
-          this.stopPlayhead();
-        }
-      }
-    });
+      if (!soundId.startsWith('game-sounds_')) return;
 
-    this.soundManager.addEventListener(SoundEventsEnum.STOPPED, (event: any) => {
-      const soundId: string = event.soundId ?? '';
-      if (soundId.startsWith('game-sounds_')) {
-        const spriteKey = soundId.replace('game-sounds_', '');
-        if (spriteKey === this.activeSprite) {
-          this.activeSprite = null;
-          this.updateUI(null);
-          this.stopPlayhead();
-        }
-      }
-    });
+      // An instance id carries a `:n` suffix; strip it so the key still matches.
+      const spriteKey = soundId.replace('game-sounds_', '').split(':')[0];
+      if (spriteKey !== this.activeSprite) return;
+
+      this.activeSprite = null;
+      this.updateUI(null);
+      this.stopPlayhead();
+    };
+
+    this.soundManager.addEventListener(SoundEventsEnum.ENDED, clearIfActive);
+    this.soundManager.addEventListener(SoundEventsEnum.STOPPED, clearIfActive);
   }
 
   // ── Loading state ───────────────────────────────────────────────────────
