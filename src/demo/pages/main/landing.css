@@ -600,19 +600,59 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   border-radius: 3px;
 }
 
+/* The whole card is the link, so the CTA is the affordance that says so.
+   Internal demo links get a solid button, outbound links stay outlined. */
 .card-cta {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--card-color, var(--color-primary));
   margin-top: auto;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--card-color, var(--color-primary));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 8px -4px rgba(0, 0, 0, 0.6);
+  transition: filter 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.landing-card:hover .card-cta,
+.landing-card:focus-visible .card-cta {
+  filter: brightness(1.12);
+  box-shadow: 0 8px 18px -8px var(--card-color, var(--color-primary));
+}
+
+.landing-card:hover .card-cta-icon {
+  transform: translateX(4px);
+}
+
+.card-cta--external {
+  background: transparent;
+  color: var(--card-color, var(--color-primary));
+  border-color: color-mix(in srgb, var(--card-color, var(--color-primary)) 45%, transparent);
+  box-shadow: none;
+}
+
+.landing-card:hover .card-cta--external {
+  filter: none;
+  background: color-mix(in srgb, var(--card-color, var(--color-primary)) 12%, transparent);
+  border-color: var(--card-color, var(--color-primary));
+  box-shadow: none;
+}
+
+.landing-card:hover .card-cta--external .card-cta-icon {
+  transform: translate(2px, -2px);
 }
 
 .card-cta-icon {
   width: 0.875rem;
   height: 0.875rem;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
 }
 
 .qs-link-icon {
@@ -677,10 +717,10 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 /* Mini Piano (card)    */
 /* ==================== */
 .mini-piano {
-  --mini-white-count: 10;
-  --mini-black-ratio: 0.62;
-  --mini-white-h: 46px;
-  --mini-black-h: 28px;
+  --mini-white-count: 17;
+  --mini-black-ratio: 0.6;
+  --mini-white-h: 58px;
+  --mini-black-h: 36px;
   padding: 8px 9px 9px;
   border-radius: 8px;
   background: linear-gradient(180deg, #241c3b 0%, #16112a 60%, #0d0918 100%);
@@ -722,8 +762,8 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 }
 
 .mini-key {
-  animation-duration: 3.4s;
-  animation-delay: calc(var(--step) * 0.2s);
+  animation-duration: 4.35s;
+  animation-delay: calc(var(--step) * 0.15s);
   animation-iteration-count: infinite;
   animation-timing-function: ease-out;
 }
@@ -758,12 +798,12 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
     background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 78%, #ececf2 100%);
     box-shadow: inset 0 -7px 8px -8px rgba(40, 26, 78, 0.45);
   }
-  3%, 8% {
+  2%, 6% {
     transform: translateY(2px);
     background: linear-gradient(180deg, #ece2ff 0%, #dcccff 70%, #c9b3fb 100%);
     box-shadow: inset 0 7px 9px -8px rgba(70, 35, 150, 0.55), 0 0 12px -1px rgba(139, 92, 246, 0.75);
   }
-  18% {
+  13% {
     transform: translateY(0);
     background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 78%, #ececf2 100%);
     box-shadow: inset 0 -7px 8px -8px rgba(40, 26, 78, 0.45);
@@ -776,12 +816,12 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
     background: linear-gradient(180deg, #443c5e 0%, #221c33 55%, #100c1a 100%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 3px 0 0 #06040c;
   }
-  3%, 8% {
+  2%, 6% {
     transform: translateY(2px);
     background: linear-gradient(180deg, #8b5cf6 0%, #6231c9 60%, #3d1a86 100%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 0 0 #06040c, 0 0 14px -1px rgba(139, 92, 246, 0.85);
   }
-  18% {
+  13% {
     transform: translateY(0);
     background: linear-gradient(180deg, #443c5e 0%, #221c33 55%, #100c1a 100%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 3px 0 0 #06040c;
