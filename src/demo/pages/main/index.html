@@ -322,7 +322,8 @@ sm.play("click");</code></pre>
         </a>
 
         <!-- Multichannel & Groups -->
-        <a href="./multichannel/" class="landing-card">
+        <a href="./multichannel/" class="landing-card landing-card--piano">
+          <span class="card-badge card-badge--updated"><span class="card-badge__pulse"></span>Updated</span>
           <div class="card-header">
             <div class="card-icon" style="--card-color:#8b5cf6">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -331,7 +332,34 @@ sm.play("click");</code></pre>
             </div>
             <h2 class="card-title">Multichannels Demo</h2>
           </div>
-          <p class="card-description">Organize sounds into named groups and control multiple audio channels simultaneously with group-level volume, play, and stop controls.</p>
+          <p class="card-description">Play a five-octave sampled piano where every key starts its own sound instance, so notes ring on over each other. Record a take, name it, and play it back.</p>
+
+          <!-- Mini keyboard, same casing and accent as the demo it links to -->
+          <div class="mini-piano" aria-hidden="true">
+            <div class="mini-piano__felt"></div>
+            <div class="mini-piano__keys">
+              <span class="mini-key mini-key--white" style="--step:0"></span>
+              <span class="mini-key mini-key--white" style="--step:6"></span>
+              <span class="mini-key mini-key--white" style="--step:1"></span>
+              <span class="mini-key mini-key--white" style="--step:12"></span>
+              <span class="mini-key mini-key--white" style="--step:2"></span>
+              <span class="mini-key mini-key--white" style="--step:9"></span>
+              <span class="mini-key mini-key--white" style="--step:3"></span>
+              <span class="mini-key mini-key--white" style="--step:15"></span>
+              <span class="mini-key mini-key--white" style="--step:7"></span>
+              <span class="mini-key mini-key--white" style="--step:4"></span>
+              <span class="mini-piano__blacks">
+                <span class="mini-key mini-key--black" style="--step:13;--offset:0.69"></span>
+                <span class="mini-key mini-key--black" style="--step:5;--offset:1.69"></span>
+                <span class="mini-key mini-key--black" style="--step:10;--offset:3.69"></span>
+                <span class="mini-key mini-key--black" style="--step:8;--offset:4.69"></span>
+                <span class="mini-key mini-key--black" style="--step:16;--offset:5.69"></span>
+                <span class="mini-key mini-key--black" style="--step:11;--offset:7.69"></span>
+                <span class="mini-key mini-key--black" style="--step:14;--offset:8.69"></span>
+              </span>
+            </div>
+          </div>
+
           <span class="card-cta">Open Demo <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="card-cta-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg></span>
         </a>
 
