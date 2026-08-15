@@ -251,23 +251,35 @@ export class SpatialDemo {
         </aside>
       </div>
 
-      <div class="control-group">
-        <div class="sound-selector-row">
-          <label class="sound-selector-label" for="soundSelect"><strong>Test sound:</strong></label>
-          <select class="sound-select-dropdown" id="soundSelect">
-            ${SOUND_OPTIONS.map(s => `
-              <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
-            `).join('')}
-          </select>
-          <span class="selector-row-divider"></span>
-          <label class="sound-selector-label" for="audioModeSelect"
-            title="Picks the panner preset, and on a true multi-channel output also the per-speaker routing">Audio system:</label>
-          <select class="audio-mode-select" id="audioModeSelect">
-            ${AUDIO_MODE_OPTIONS.map(opt => `
-              <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
-            `).join('')}
-          </select>
-          <div class="channel-info" id="channelInfo"></div>
+      <div class="control-group spatial-setup">
+        <div class="spatial-setup__header">
+          <span class="spatial-setup__step">Before you start</span>
+          <h3 class="spatial-setup__title">Pick a sound and tell us what you listen on</h3>
+        </div>
+        <div class="spatial-setup__fields">
+          <div class="setup-field">
+            <label class="setup-field__label" for="soundSelect">
+              <span class="setup-field__icon">🔈</span>Test sound
+            </label>
+            <select class="setup-field__select" id="soundSelect">
+              ${SOUND_OPTIONS.map(s => `
+                <option value="${s.id}" ${s.id === this.selectedSound ? 'selected' : ''}>${s.label}</option>
+              `).join('')}
+            </select>
+            <p class="setup-field__hint">This is the source that travels through the room below.</p>
+          </div>
+          <div class="setup-field">
+            <label class="setup-field__label" for="audioModeSelect">
+              <span class="setup-field__icon">🎚️</span>Audio system
+            </label>
+            <select class="setup-field__select" id="audioModeSelect">
+              ${AUDIO_MODE_OPTIONS.map(opt => `
+                <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
+              `).join('')}
+            </select>
+            <p class="setup-field__hint">Sets the panner preset, and the per-speaker routing on a true multi-channel output.</p>
+            <div class="channel-info" id="channelInfo"></div>
+          </div>
         </div>
       </div>
 
