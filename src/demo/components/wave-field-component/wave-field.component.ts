@@ -210,8 +210,8 @@ export class WaveFieldComponent {
     // The dark panels are translucent, so the field reads through the whole
     // page there and needs less alpha than the light theme, where only the
     // gutters ever show it.
-    const lineAlpha = this.isDark ? 0.46 : 0.48;
-    const glowAlpha = this.isDark ? 0.10 : 0.09;
+    const lineAlpha = this.isDark ? 0.46 : 0.56;
+    const glowAlpha = this.isDark ? 0.10 : 0.10;
 
     const step = Math.max(POINT_SPACING, width / MAX_POINTS);
     const gain = 1 + this.energy;

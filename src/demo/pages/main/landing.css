@@ -1,7 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
 
 :root {
-  --color-text-secondary: #6b7280;
+  /* Same value shared.css already uses for muted copy. The old #6b7280 sat at
+     4.4:1 on the flat panel and dropped to 3.6:1 once the panels went
+     translucent over the gradient; this measures 4.7:1 at the worst spot. */
+  --color-text-secondary: #56616b;
 }
 
 /* Flex column root so full-width footer sticks to bottom */
@@ -28,6 +31,30 @@ body {
   flex-direction: column;
   gap: var(--panel-gap);
   flex: 1;
+}
+
+/* The dark theme already runs on translucent panels, so the wave field behind
+   the page reads straight through it. The light theme's flat #f5f5f5 hid it
+   everywhere except the outer margins, which on a phone is nowhere at all.
+   These panels give the signal the same 22% of the surface back.
+
+   The fixed header gets far less of it. The dark theme lets content scroll
+   through its header too, but dark code blocks under a dark bar go unnoticed
+   where the same blocks under a light one would smear. */
+body:not(.dark-theme) :is(
+  .landing-hero,
+  .stats-strip,
+  .features-strip,
+  .quick-start-section,
+  .landing-faq,
+  .landing-card
+) {
+  background: rgba(245, 245, 245, 0.86);
+}
+
+body:not(.dark-theme) .landing-header {
+  background: rgba(245, 245, 245, 0.96);
+  backdrop-filter: blur(8px);
 }
 
 /* ==================== */
@@ -202,7 +229,10 @@ body {
   color: var(--color-text);
 }
 
-.hero-lead strong { color: var(--color-primary); }
+/* The fill green only reaches 2.2:1 on the translucent panel. This is the
+   token shared.css keeps for exactly this: the same brand green at a value
+   you can read. */
+.hero-lead strong { color: var(--color-primary-text); }
 
 .hero-sub {
   margin: 0 0 1.4rem;
