@@ -174,6 +174,56 @@
     <!-- Arcade game (populated by JS) -->
     <section class="control-group arcade" id="arcade"></section>
 
+    <!-- The second machine in the room: a full game by the same author, running
+         its audio on this library. Static markup, so it costs the page nothing. -->
+    <section class="control-group cabinet" id="pongCabinet" aria-labelledby="pongCabinetTitle">
+      <div class="cabinet__marquee">
+        <span class="cabinet__marquee-name">RETRO PONG</span>
+        <span class="cabinet__marquee-meta">1 PLAYER &middot; 2 PLAYER &middot; FREE PLAY</span>
+      </div>
+
+      <div class="cabinet__body">
+        <a class="cabinet__screen" href="https://pong.chriscreativecode.com/" target="_blank"
+          rel="noopener" aria-label="Play Retro Pong in a new tab">
+          <span class="crt">
+            <span class="pong" aria-hidden="true">
+              <span class="pong__net"></span>
+              <span class="pong__score">03</span>
+              <span class="pong__score pong__score--player">02</span>
+              <span class="pong__paddle pong__paddle--top"></span>
+              <span class="pong__paddle pong__paddle--bottom"></span>
+              <span class="pong__ball"></span>
+            </span>
+            <span class="crt__scanlines" aria-hidden="true"></span>
+          </span>
+          <span class="cabinet__insert">&#9654; INSERT COIN</span>
+        </a>
+
+        <div class="cabinet__side">
+          <h2 class="section-title" id="pongCabinetTitle">Also from this workshop</h2>
+          <p class="section-sub">
+            <strong>Retro Pong</strong> is a full game rather than a demo, and its audio runs on this
+            same library: stereo-panned effects, a serve you aim yourself, power-ups, mines, and an
+            end-of-match sequence that tells you how the match went.
+          </p>
+          <ul class="cabinet__facts">
+            <li><span>Sound</span> sound-manager-ts, panned per hit</li>
+            <li><span>Install</span> <code>npm i retro-pong-game</code></li>
+            <li><span>Drop-in</span> one constructor call on any page</li>
+          </ul>
+          <div class="cabinet__actions">
+            <a class="cabinet__btn" href="https://pong.chriscreativecode.com/" target="_blank" rel="noopener">
+              Play Retro Pong
+            </a>
+            <a class="cabinet__btn cabinet__btn--ghost" href="https://pong.chriscreativecode.com/demo/"
+              target="_blank" rel="noopener">Demo &amp; setup</a>
+            <a class="cabinet__btn cabinet__btn--ghost" href="https://www.npmjs.com/package/retro-pong-game"
+              target="_blank" rel="noopener">View on npm</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Info panel (populated by JS) -->
     <div id="groupsInfo" class="control-group groups-info"></div>
 
