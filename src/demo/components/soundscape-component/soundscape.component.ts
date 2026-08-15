@@ -257,14 +257,7 @@ export class SoundscapeComponent {
         const phase = (elapsed / layer.flightSeconds!) % 1;
         const position = beeFlightPosition(phase);
 
-        this.soundManager.setSpatialPosition(
-          Math.round(position.x * 100) / 100,
-          Math.round(position.y * 100) / 100,
-          Math.round(position.z * 100) / 100,
-          layer.id,
-          undefined,
-          true
-        );
+        this.soundManager.setSpatialPosition(position.x, position.y, position.z, layer.id, undefined, true);
 
         return { id: layer.id, position };
       });
