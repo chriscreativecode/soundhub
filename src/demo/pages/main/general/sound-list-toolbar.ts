@@ -19,6 +19,10 @@ export class SoundListToolbar {
   private clearButton!: HTMLButtonElement;
   private playingCount!: HTMLElement;
   private resultCount!: HTMLElement;
+  private bulkButton!: HTMLButtonElement;
+
+  /** What the list is doing now, which decides what the one bulk button offers. */
+  private bulkExpanded = false;
 
   private state: ToolbarState = { query: "", category: "all" };
 
@@ -46,6 +50,16 @@ export class SoundListToolbar {
   public focusSearch(): void {
     this.searchInput.focus();
     this.searchInput.select();
+  }
+
+  /**
+   * Keeps the single bulk button honest. Everything open means the only useful
+   * offer left is to close it again, and a strip opened by hand counts too.
+   */
+  public setBulkExpanded(expanded: boolean): void {
+    if (this.bulkExpanded === expanded) return;
+    this.bulkExpanded = expanded;
+    this.renderBulkButton();
   }
 
   private render(): void {
@@ -79,18 +93,12 @@ export class SoundListToolbar {
           <button type="button" class="list-toolbar__clear" data-clear hidden aria-label="Clear search">
             ${svgIcon("close", 13)}
           </button>
-          <kbd class="list-toolbar__hint">/</kbd>
         </div>
 
         <div class="list-toolbar__chips" role="group" aria-label="Filter by family">${chips}</div>
 
         <div class="list-toolbar__bulk">
-          <button type="button" class="bulk-button" data-expand-all>
-            ${svgIcon("expand-all", 14)}<span>Expand all</span>
-          </button>
-          <button type="button" class="bulk-button" data-collapse-all>
-            ${svgIcon("collapse-all", 14)}<span>Collapse all</span>
-          </button>
+          <button type="button" class="bulk-button" data-bulk-toggle></button>
         </div>
       </div>`;
 
@@ -98,6 +106,16 @@ export class SoundListToolbar {
     this.clearButton = this.root.querySelector("[data-clear]")!;
     this.playingCount = this.root.querySelector("[data-playing]")!;
     this.resultCount = this.root.querySelector("[data-result]")!;
+    this.bulkButton = this.root.querySelector("[data-bulk-toggle]")!;
+    this.renderBulkButton();
+  }
+
+  /** One button that swaps sides, rather than two where one is always a no-op. */
+  private renderBulkButton(): void {
+    const label = this.bulkExpanded ? "Collapse all" : "Expand all";
+    this.bulkButton.innerHTML = `${svgIcon(this.bulkExpanded ? "collapse-all" : "expand-all", 14)}<span>${label}</span>`;
+    this.bulkButton.title = label;
+    this.bulkButton.setAttribute("aria-label", label);
   }
 
   private bind(): void {
@@ -131,8 +149,11 @@ export class SoundListToolbar {
       });
     });
 
-    this.root.querySelector("[data-expand-all]")!.addEventListener("click", () => this.onExpandAll(true));
-    this.root.querySelector("[data-collapse-all]")!.addEventListener("click", () => this.onExpandAll(false));
+    this.bulkButton.addEventListener("click", () => {
+      const expand = !this.bulkExpanded;
+      this.onExpandAll(expand);
+      this.setBulkExpanded(expand);
+    });
   }
 
   private resetSearch(): void {

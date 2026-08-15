@@ -183,16 +183,32 @@
   color: var(--color-text-muted);
 }
 
+/* Each layer names itself and where the scene puts it, because the placement
+   is the point: the card should say "rear right" before the ears do. */
 .scene__layers {
-  margin-top: 2px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.scene__layer {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--scene-accent) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--scene-accent) 9%, transparent);
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.scene__layer b {
+  font-weight: 700;
   color: color-mix(in srgb, var(--scene-accent) 78%, var(--color-text));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* -------------------------------------------------------------------------

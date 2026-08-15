@@ -240,14 +240,24 @@ export class SoundManagerDemo {
 
         Object.entries(sprites).forEach(([spriteName]) => {
           const spriteId = `${id}_${spriteName}`;
-          const control = new SoundControl(spriteId, this.soundManager, container, true, (removed) =>
-            this.forgetControl(removed)
+          const control = new SoundControl(
+            spriteId,
+            this.soundManager,
+            container,
+            true,
+            (removed) => this.forgetControl(removed),
+            () => this.syncBulkToggle()
           );
           this.soundControls.set(spriteId, control);
         });
       } else {
-        const control = new SoundControl(id, this.soundManager, container, false, (removed) =>
-          this.forgetControl(removed)
+        const control = new SoundControl(
+          id,
+          this.soundManager,
+          container,
+          false,
+          (removed) => this.forgetControl(removed),
+          () => this.syncBulkToggle()
         );
         this.soundControls.set(id, control);
       }
@@ -274,7 +284,13 @@ export class SoundManagerDemo {
       container,
       this.soundManager,
       SOUNDSCAPES,
-      (id) => loadedIds.has(id)
+      (id) => loadedIds.has(id),
+      // The scene places its layers in 3D; the strips show where they landed.
+      (placements) => {
+        placements.forEach(({ id, position }) => {
+          this.soundControls.get(id)?.showSpatialPosition(position);
+        });
+      }
     );
   }
 
@@ -350,6 +366,19 @@ export class SoundManagerDemo {
     if (this.emptyState) {
       this.emptyState.hidden = this.visibleControls.length > 0;
     }
+
+    this.syncBulkToggle();
+  }
+
+  /**
+   * The bulk button offers whatever the list is not already doing, so it says
+   * "collapse all" only while every visible strip is genuinely open, including
+   * when that happened one disclosure at a time.
+   */
+  private syncBulkToggle(): void {
+    const allExpanded =
+      this.visibleControls.length > 0 && this.visibleControls.every((control) => control.isExpanded());
+    this.toolbar?.setBulkExpanded(allExpanded);
   }
 
   private countPlaying(): number {
