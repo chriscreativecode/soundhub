@@ -4,6 +4,8 @@
  * weapons group so you can hear and see the oldest shot being cut off.
  */
 
+import { drawText, textWidth } from './bitmap-font';
+
 export type GameState = 'attract' | 'playing' | 'paused' | 'over';
 
 export interface GroupUsage {
@@ -530,10 +532,10 @@ export class ArcadeGame {
     let x = 6;
     for (const group of usage) {
       this.text(group.label.toUpperCase(), x, H - 12, COLOR.gray);
-      x += group.label.length * 4.9 + 5;
+      x += textWidth(group.label) + 6;
       for (let slot = 0; slot < group.max; slot++) {
         this.ctx.fillStyle = slot < group.used ? group.color : COLOR.dgray;
-        this.ctx.fillRect(x, H - 12, 4, 6);
+        this.ctx.fillRect(x, H - 12, 4, 7);
         x += 6;
       }
       x += 8;
@@ -541,17 +543,13 @@ export class ArcadeGame {
   }
 
   private drawAttract(): void {
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.scale(2, 2);
-    this.text('VOICE RAIDERS', (W / 2) / 2, 28, COLOR.lgreen, 'center');
-    ctx.restore();
+    this.text('VOICE RAIDERS', W / 2, 48, COLOR.lgreen, 'center', 2);
 
-    this.text('EVERY SHOT IS ITS OWN SOUND INSTANCE', W / 2, 82, COLOR.lcyan, 'center');
-    this.text('FILL THE WEAPONS GROUP AND THE OLDEST SHOT STOPS', W / 2, 92, COLOR.gray, 'center');
+    this.text('EVERY SHOT IS ITS OWN SOUND INSTANCE', W / 2, 78, COLOR.lcyan, 'center');
+    this.text('FILL THE WEAPONS GROUP AND THE OLDEST STOPS', W / 2, 90, COLOR.gray, 'center');
 
-    this.text('ARROWS OR A/D  MOVE', W / 2, 112, COLOR.white, 'center');
-    this.text('SPACE  FIRE      P  PAUSE', W / 2, 122, COLOR.white, 'center');
+    this.text('ARROWS OR A/D   MOVE', W / 2, 112, COLOR.white, 'center');
+    this.text('SPACE FIRE      P PAUSE', W / 2, 124, COLOR.white, 'center');
 
     if (Math.floor(this.clock * 2) % 2 === 0) {
       this.text('CLICK THE SCREEN, THEN PRESS ENTER', W / 2, 146, COLOR.yellow, 'center');
@@ -560,14 +558,14 @@ export class ArcadeGame {
 
   private drawPanel(title: string, subtitle: string): void {
     const ctx = this.ctx;
+    // Drawn with fills instead of a stroke, so the frame lands on whole pixels
+    ctx.fillStyle = COLOR.lcyan;
+    ctx.fillRect(36, 76, W - 72, 48);
     ctx.fillStyle = COLOR.black;
-    ctx.fillRect(40, 78, W - 80, 44);
-    ctx.strokeStyle = COLOR.lcyan;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(40.5, 78.5, W - 81, 43);
-    this.text(title, W / 2, 90, COLOR.white, 'center');
+    ctx.fillRect(37, 77, W - 74, 46);
+    this.text(title, W / 2, 86, COLOR.white, 'center', 2);
     if (Math.floor(this.clock * 2) % 2 === 0) {
-      this.text(subtitle, W / 2, 105, COLOR.yellow, 'center');
+      this.text(subtitle, W / 2, 106, COLOR.yellow, 'center');
     }
   }
 
@@ -585,13 +583,18 @@ export class ArcadeGame {
     }
   }
 
-  private text(value: string, x: number, y: number, color: string, align: CanvasTextAlign = 'left'): void {
-    const ctx = this.ctx;
-    ctx.font = '8px "Courier New", Courier, monospace';
-    ctx.textAlign = align;
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = color;
-    ctx.fillText(value, x, y);
+  private text(
+    value: string,
+    x: number,
+    y: number,
+    color: string,
+    align: 'left' | 'center' | 'right' = 'left',
+    scale = 1,
+  ): void {
+    let left = x;
+    if (align === 'center') left = x - textWidth(value, scale) / 2;
+    else if (align === 'right') left = x - textWidth(value, scale);
+    drawText(this.ctx, value, left, y, color, scale);
   }
 
   private pad(value: number, size: number): string {
