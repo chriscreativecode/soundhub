@@ -87,12 +87,15 @@ export class SpatialDemo {
   private activeSpeaker: string | null = null;
   private loaded = false;
   private selectedSound = 'helicopter-new';
-  private activeTab: 'speaker-grid' | 'free-move' = 'speaker-grid';
+  // The orbit is what this demo is about, so that is the tab people land on
+  private activeTab: 'speaker-grid' | 'free-move' = 'free-move';
 
   // Free Move state
   private freeMovePlaying = false;
   private freeMovePos = { x: 0, z: 0 };
-  private autoRotate = false;
+  private autoRotate = true;
+  /** Browsers keep audio silent until a click, so playback waits for one. */
+  private audioStarted = false;
   private lastMouseRelative = { x: 0.5, z: 0.5 };
   private autoRotateRafId: number | null = null;
   private autoRotateAngle = 0;
@@ -129,13 +132,31 @@ export class SpatialDemo {
       trackProgress: false,
     };
     this.soundManager = new SoundManager(config);
-    this.audioMode = this.detectDefaultMode();
+    this.audioMode = 'headphones';
     this.initAudioController();
     this.initEqualizer();
     this.initTheme();
     this.renderUI();
     this.initSpatialSettings();
+    this.startOrbit();
     this.loadSounds();
+  }
+
+  /** Runs the orbit animation right away; sound joins in after the first click. */
+  private startOrbit(): void {
+    if (!this.autoRotate || this.activeTab !== 'free-move') return;
+    const speakerEl = document.getElementById('freeMoveSpeaker');
+    const labelEl = document.getElementById('freeMoveLabel');
+    const coordsEl = document.getElementById('freeMoveCoords');
+    if (speakerEl && labelEl && coordsEl) {
+      this.startAutoRotate(speakerEl, labelEl, coordsEl);
+    }
+  }
+
+  private beginPlayback(): void {
+    this.audioStarted = true;
+    document.getElementById('roomStart')?.classList.add('is-hidden');
+    if (this.activeTab === 'free-move') this.startFreeMoveSound();
   }
 
   private initAudioController(): void {
@@ -177,22 +198,57 @@ export class SpatialDemo {
   private renderUI(): void {
     const container = document.getElementById('spatialContainer')!;
     container.innerHTML = `
-      <div class="control-group spatial-info">
-        <p class="spatial-description">
-          Test your surround sound speaker setup. Select a test sound, then use the Speaker Grid or
-          Free Move tab to hear it from different positions.
-          <br><br>
-          <strong>Note:</strong> For best results, use headphones or a proper surround sound system.
-          The listener is positioned at the center of the room.
-          <br><br>
-          <strong>Speaker isolation limitation:</strong><br/>Browsers can only output discrete per-speaker
-          audio when the operating system exposes the audio device as a true multi-channel PCM output<br/>
-          (e.g. a PC with a 5.1 soundcard connected directly to powered speakers or an AV receiver).<br/>
-          Soundbars connected via TV HDMI ARC, optical, or Bluetooth typically appear as a 2-channel
-          stereo device to the browser<br/>the soundbar then applies its own upmixing to all speakers.<br/>
-          To test individual speakers in isolation, use your audio system's own companion app or a
-          streaming service that outputs native Dolby 5.1 / 7.1 (such as Netflix or Disney+).
-        </p>
+      <div class="control-group spatial-intro">
+        <div class="intro-main">
+          <h2 class="intro-title">Put a sound anywhere around the listener</h2>
+          <p class="intro-text">
+            Every sound gets an x, y and z position in the room. SoundManager hands those coordinates to
+            a Web Audio panner, so a helicopter can circle your head, rain can sit behind you, and a
+            voice can stay locked to the screen in front of you. Move the source and the sound follows
+            while it plays.
+          </p>
+          <ul class="intro-points">
+            <li>
+              <span class="intro-points__icon">🎯</span>
+              <div><b>Move the sound</b>It orbits you by itself. Move your mouse into the room to place it yourself.</div>
+            </li>
+            <li>
+              <span class="intro-points__icon">🔊</span>
+              <div><b>Speaker check</b>Send the sound to one spot at a time: front, side, rear or the sub.</div>
+            </li>
+            <li>
+              <span class="intro-points__icon">🎛️</span>
+              <div><b>Panner settings</b>Change the panning model, distance model and rolloff while it plays.</div>
+            </li>
+          </ul>
+        </div>
+
+        <aside class="intro-note">
+          <h3>🎧 Headphones give the real effect</h3>
+          <p>
+            The browser renders 3D audio with HRTF, a binaural technique made for headphones, and mixes
+            the result down to two channels.
+          </p>
+          <p>
+            So a 5.1 or 7.1 set hooked up to your TV does not receive separate channels from this page.
+            Your TV or receiver gets a stereo signal and spreads it over the other speakers itself. That
+            is a browser limit, not something the library can work around.
+          </p>
+          <details class="intro-details">
+            <summary>When does per-speaker output actually work?</summary>
+            <p>
+              Only when the operating system exposes the audio device as a true multi-channel PCM
+              output: a PC with a 5.1 or 7.1 sound card wired straight to powered speakers or an AV
+              receiver. The browser can address those channels, and the Speaker check tab then routes
+              the sound to one channel at a time.
+            </p>
+            <p>
+              A soundbar over HDMI ARC, optical or Bluetooth shows up as a 2-channel device, so the
+              isolation test cannot reach the individual speakers. For a real surround check, use your
+              audio system's own app or a Dolby 5.1 stream such as Netflix.
+            </p>
+          </details>
+        </aside>
       </div>
 
       <div class="control-group">
@@ -204,7 +260,8 @@ export class SpatialDemo {
             `).join('')}
           </select>
           <span class="selector-row-divider"></span>
-          <label class="sound-selector-label" for="audioModeSelect">Audio system:</label>
+          <label class="sound-selector-label" for="audioModeSelect"
+            title="Picks the panner preset, and on a true multi-channel output also the per-speaker routing">Audio system:</label>
           <select class="audio-mode-select" id="audioModeSelect">
             ${AUDIO_MODE_OPTIONS.map(opt => `
               <option value="${opt.value}" ${opt.value === this.audioMode ? 'selected' : ''}>${opt.label}</option>
@@ -220,12 +277,16 @@ export class SpatialDemo {
         <div class="spatial-room-section">
           <div class="control-group spatial-room-panel">
             <!-- Tab navigation -->
-            <div class="spatial-tabs">
-              <button class="spatial-tab ${this.activeTab === 'speaker-grid' ? 'active' : ''}" data-tab="speaker-grid">
-                🔊 Speaker Grid
+            <div class="spatial-tabs" role="tablist">
+              <button class="spatial-tab ${this.activeTab === 'free-move' ? 'active' : ''}" data-tab="free-move"
+                role="tab" aria-selected="${this.activeTab === 'free-move'}">
+                <span class="spatial-tab__title">🎯 Move the sound</span>
+                <span class="spatial-tab__sub">Orbit around you, or take over with the mouse</span>
               </button>
-              <button class="spatial-tab ${this.activeTab === 'free-move' ? 'active' : ''}" data-tab="free-move">
-                🎯 Free Move
+              <button class="spatial-tab ${this.activeTab === 'speaker-grid' ? 'active' : ''}" data-tab="speaker-grid"
+                role="tab" aria-selected="${this.activeTab === 'speaker-grid'}">
+                <span class="spatial-tab__title">🔊 Speaker check</span>
+                <span class="spatial-tab__sub">One position at a time, front to rear</span>
               </button>
             </div>
 
@@ -295,16 +356,24 @@ export class SpatialDemo {
             <!-- Tab 2: Free Move -->
             <div class="spatial-tab-content" id="tabFreeMove" style="${this.activeTab === 'free-move' ? '' : 'display:none'}">
               <p class="free-move-desc">
-                Move your mouse over the room to position the sound anywhere.
-                The speaker icon follows your cursor for real-time spatial audio.
+                The sound circles the listener on its own. Move your mouse into the room to take over and
+                place it yourself, move out again and the orbit picks up where you left it.
               </p>
               <div class="room-layout-wrapper">
-                <div class="room-label-top">↑ Front (TV / Screen)</div>
+                <div class="room-label-top">↑ Front (TV / screen)</div>
                 <div class="room-layout">
                   <div class="room-border free-move-room" id="freeMoveRoom">
+                    <span class="orbit-path" aria-hidden="true"></span>
                     <div class="free-move-tv-label">📺 TV</div>
                     <div class="free-move-listener" id="freeMoveListener">👤</div>
                     <div class="free-move-speaker" id="freeMoveSpeaker" style="left:50%;top:50%">🔊</div>
+                    <div class="room-start" id="roomStart">
+                      <button class="room-start__btn" type="button" id="roomStartBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true"><path d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z"/></svg>
+                        Start the sound
+                      </button>
+                      <span class="room-start__hint">Browsers keep audio muted until you click. Headphones on for the full effect.</span>
+                    </div>
                   </div>
                 </div>
                 <div class="room-label-bottom">↓ Behind you</div>
@@ -328,8 +397,8 @@ export class SpatialDemo {
               </div>
 
               <div class="active-speaker-info" id="freeMoveInfo">
-                <span class="active-label" id="freeMoveLabel">Move your mouse over the room</span>
-                <span class="active-coords" id="freeMoveCoords"></span>
+                <span class="active-label" id="freeMoveLabel">The sound is orbiting you</span>
+                <span class="active-coords" id="freeMoveCoords">Move your mouse into the room to place it yourself</span>
               </div>
             </div>
 
@@ -455,6 +524,10 @@ export class SpatialDemo {
     const muteBtn = document.getElementById('freeMoveMuteBtn');
 
     if (room && speakerEl && freeMoveLabel && freeMoveCoords && autoRotateCheckbox && muteBtn) {
+      const startBtn = document.getElementById('roomStartBtn');
+      startBtn?.addEventListener('click', () => this.beginPlayback());
+      document.getElementById('roomStart')?.addEventListener('click', () => this.beginPlayback());
+
       room.addEventListener('mouseenter', () => {
         this.isMouseOverRoom = true;
         room.classList.add('free-move-active');
@@ -466,7 +539,11 @@ export class SpatialDemo {
       room.addEventListener('mouseleave', () => {
         this.isMouseOverRoom = false;
         room.classList.remove('free-move-active');
-        if (!this.autoRotate) {
+        if (this.autoRotate) {
+          // Hand the sound back to the orbit where the pointer left it
+          this.autoRotateAngle = Math.atan2(this.freeMovePos.z, this.freeMovePos.x);
+          this.startAutoRotate(speakerEl, freeMoveLabel, freeMoveCoords);
+        } else {
           this.stopFreeMoveSound();
         }
       });
@@ -477,7 +554,8 @@ export class SpatialDemo {
         const relativeZ = (e.clientY - rect.top) / rect.height;
         this.lastMouseRelative = { x: relativeX, z: relativeZ };
 
-        if (this.autoRotate) return;
+        // The pointer takes priority over the orbit for as long as it is inside
+        if (this.autoRotateRafId !== null) this.pauseOrbit();
         this.updateFreeMovePosition(relativeX, relativeZ, speakerEl, freeMoveLabel, freeMoveCoords);
       });
 
@@ -644,9 +722,10 @@ export class SpatialDemo {
 
     gtag('event', 'demo_tab_open', { tab_name: tab, demo: 'spatial' });
 
-    // Stop auto rotate & cancel pending free move frame when switching away
+    // Only pause the orbit when switching away, so the toggle keeps its state
+    // and the orbit picks up again when this tab comes back
     if (tab !== 'free-move') {
-      this.stopAutoRotate();
+      this.pauseOrbit();
       if (this.soundManager.isPlaying(this.selectedSound)) {
         try { this.soundManager.stop(this.selectedSound); } catch { /* ignore */ }
       }
@@ -655,6 +734,8 @@ export class SpatialDemo {
 
     if (tab === 'free-move') {
       this.teardownChannelIsolation();
+      this.startOrbit();
+      this.startFreeMoveSound();
     } else if (tab === 'speaker-grid') {
       try { this.initChannelIsolation(); } catch { /* multi-channel not supported on this device */ }
     }
@@ -663,6 +744,7 @@ export class SpatialDemo {
   // ── Free Move ───────────────────────────────────────────────────────────
 
   private startFreeMoveSound(): void {
+    if (!this.audioStarted) return;
     if (this.freeMoveSoundStarted) return;
     if (this.freeMoveMuted) return;
     try {
@@ -710,8 +792,8 @@ export class SpatialDemo {
     );
 
     // Update info (use textContent instead of innerHTML for performance)
-    labelEl.textContent = `Position: (${x.toFixed(2)}, 0.00, ${z.toFixed(2)})`;
-    coordsEl.textContent = 'Move your mouse to explore spatial audio';
+    labelEl.textContent = 'You are placing the sound';
+    coordsEl.textContent = `x ${x.toFixed(2)}   y 0.00   z ${z.toFixed(2)}`;
   }
 
   // ── Auto Rotate ─────────────────────────────────────────────────────────
@@ -719,7 +801,7 @@ export class SpatialDemo {
   private startAutoRotate(speakerEl: HTMLElement, labelEl: HTMLElement, coordsEl: HTMLElement): void {
     if (this.autoRotateRafId !== null) return;
 
-    if (!this.freeMoveSoundStarted) {
+    if (this.audioStarted && !this.freeMoveSoundStarted) {
       this.startFreeMoveSound();
     }
 
@@ -761,8 +843,8 @@ export class SpatialDemo {
       );
 
       // // Update info (use textContent instead of innerHTML for performance)
-      labelEl.textContent = `Auto Rotate: (${x.toFixed(2)}, 0.00, ${z.toFixed(2)})`;
-      coordsEl.textContent = 'Testing all spatial angles automatically';
+      labelEl.textContent = 'The sound is orbiting you';
+      coordsEl.textContent = `x ${x.toFixed(2)}   y 0.00   z ${z.toFixed(2)}`;
 
       this.autoRotateRafId = requestAnimationFrame(animate);
     };
@@ -796,11 +878,16 @@ export class SpatialDemo {
     return this.lastSpeakerAngle;
   }
 
-  private stopAutoRotate(): void {
+  /** Halts the animation without touching the toggle, used for mouse takeover. */
+  private pauseOrbit(): void {
     if (this.autoRotateRafId !== null) {
       cancelAnimationFrame(this.autoRotateRafId);
       this.autoRotateRafId = null;
     }
+  }
+
+  private stopAutoRotate(): void {
+    this.pauseOrbit();
     this.autoRotate = false;
     const checkbox = document.getElementById('autoRotateToggle') as HTMLInputElement;
     if (checkbox) checkbox.checked = false;
@@ -825,14 +912,6 @@ export class SpatialDemo {
   }
 
   // ── Audio mode & channel isolation (Speaker Grid tab) ──────────────────
-
-  private detectDefaultMode(): AudioMode {
-    const max = this.soundManager.getContext().destination.maxChannelCount;
-    if (max >= 8) return '7.1';
-    if (max >= 6) return '5.1';
-    if (max >= 4) return '3.1';
-    return 'headphones';
-  }
 
   private setAudioMode(mode: AudioMode): void {
     if (this.audioMode === mode) return;
@@ -859,28 +938,31 @@ export class SpatialDemo {
     const el = document.getElementById('channelInfo');
     if (!el) return;
 
+    const maxCh = this.soundManager.getContext().destination.maxChannelCount;
+
     if (this.audioMode === 'headphones') {
-      el.textContent = 'HRTF binaural, each speaker simulated in 3D';
+      el.textContent = maxCh >= 4
+        ? `HRTF binaural over 2 channels. Your output reports ${maxCh} channels, so the surround modes can address speakers directly.`
+        : 'HRTF binaural, mixed down to 2 channels';
       el.className = 'channel-info';
       return;
     }
     if (this.audioMode === 'stereo') {
-      el.textContent = 'Equal-power, stereo panning left/right';
+      el.textContent = 'Equal-power panning between left and right';
       el.className = 'channel-info';
       return;
     }
 
     const required = MODE_CHANNEL_COUNTS[this.audioMode];
-    const maxCh = this.soundManager.getContext().destination.maxChannelCount;
 
     if (this.channelMerger) {
-      el.textContent = `✓ Channel routing active ${required} discrete channels`;
+      el.textContent = `Routing to ${required} discrete channels, one speaker at a time`;
       el.className = 'channel-info channel-info--ok';
     } else if (maxCh < required) {
-      el.textContent = `⚠ Device supports ${maxCh} ch (${required} needed) using spatial fallback`;
+      el.textContent = `Your output reports ${maxCh} channels and ${required} are needed, so this falls back to simulated 3D over stereo`;
       el.className = 'channel-info channel-info--warn';
     } else {
-      el.textContent = `Direct channel routing ${required} channels`;
+      el.textContent = `Direct channel routing, ${required} channels`;
       el.className = 'channel-info';
     }
   }
@@ -932,6 +1014,9 @@ export class SpatialDemo {
   }
 
   private playSpeaker(speakerId: string): void {
+    // Clicking a speaker is a user gesture as well, so the orbit may sound later
+    this.audioStarted = true;
+    document.getElementById('roomStart')?.classList.add('is-hidden');
     const speaker = SPEAKERS.find(s => s.id === speakerId)!;
     const isCurrentlyPlaying = this.soundManager.isPlaying(this.selectedSound);
 
