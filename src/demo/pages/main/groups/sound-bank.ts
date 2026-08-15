@@ -163,8 +163,12 @@ export const LAB_SOUNDS: SoundRecipe[] = [
   {
     id: 'drone', label: 'Drone', emoji: '🌊', duration: 2.6,
     layers: [
-      { type: 'sine', freq: 55, gain: 0.5, attack: 0.3, duration: 2.5 },
-      { type: 'sine', freq: 110, gain: 0.14, attack: 0.5, duration: 2.5 },
+      // A sawtooth at 82.5 Hz behind a soft lowpass: the harmonics land at 165,
+      // 247 and 330 Hz, so the pad stays audible on speakers that drop
+      // everything below ~100 Hz while still reading as the lowest voice.
+      { type: 'sawtooth', freq: 82.5, gain: 0.26, attack: 0.3, duration: 2.5, filter: { type: 'lowpass', freq: 900, freqEnd: 420, q: 4 } },
+      { type: 'sine', freq: 165, gain: 0.14, attack: 0.5, duration: 2.5 },
+      { type: 'sine', freq: 82.5, gain: 0.16, attack: 0.4, duration: 2.5 },
     ],
   },
   {
