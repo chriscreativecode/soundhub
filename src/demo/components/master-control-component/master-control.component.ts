@@ -389,14 +389,15 @@ export class MasterControl {
   }
 
   /**
-   * Folds the panel down to a transport bar once it sticks to the top.
+   * Folds the panel down to a transport bar once it reaches the top.
    *
-   * The panel is in the flow, so anything that changes its height moves the
-   * whole page under the reader. Folding it away removes about 175px, which
-   * made the channel list lurch upward mid-scroll. So the moment it sticks, the
-   * container keeps the height it had: the page below never moves, and only the
-   * card inside it shrinks. The reserved strip is then empty, which is why it
-   * has to stop swallowing clicks meant for the list scrolling underneath.
+   * Sticky alone cannot do this. A sticky box stays in the flow, so folding it
+   * either drags the page up by the 175px it gave back, or, if the container
+   * holds that height, drags an empty strip along to the top of the screen. So
+   * while it is up there the panel is taken out of the flow and the container
+   * keeps its full height as a placeholder: the page below never moves, the
+   * space the panel used to occupy stays where it was and scrolls away
+   * normally, and the list passes underneath the folded bar.
    */
   private createStickyObserver(): () => void {
     const container = document.getElementById("masterControlContainer") as HTMLElement;
@@ -414,10 +415,13 @@ export class MasterControl {
      * animation returns whatever height the fold happens to be passing through.
      */
     const measureUnfoldedHeight = (): number => {
+      const wasLifted = container.classList.contains("is-reserving");
       const wasFolded = panel.classList.contains("is-stuck");
       const reserved = container.style.height;
 
       container.classList.add("is-measuring");
+      // Back in the flow and unfolded, which is the state being measured.
+      container.classList.remove("is-reserving");
       panel.classList.remove("is-stuck");
       container.style.height = "";
 
@@ -425,17 +429,39 @@ export class MasterControl {
 
       container.style.height = reserved;
       panel.classList.toggle("is-stuck", wasFolded);
+      container.classList.toggle("is-reserving", wasLifted);
       void container.offsetHeight; // flush, so restoring the fold does not animate
       container.classList.remove("is-measuring");
 
       return height;
     };
 
+    /**
+     * Lines the lifted panel up with the column it came out of. Held by both
+     * edges rather than by a width, because the panel pads its own box and a
+     * width would land those paddings outside the column.
+     */
+    const positionLiftedPanel = () => {
+      const rect = container.getBoundingClientRect();
+      panel.style.left = `${rect.left}px`;
+      panel.style.right = `${document.documentElement.clientWidth - rect.right}px`;
+    };
+
     const setStuck = (next: boolean) => {
       if (next === stuck) return;
       stuck = next;
 
-      container.style.height = next ? `${measureUnfoldedHeight()}px` : "";
+      if (next) {
+        // Measured while the panel is still in the flow, so the placeholder
+        // holds exactly the space the panel is about to vacate.
+        container.style.height = `${measureUnfoldedHeight()}px`;
+        positionLiftedPanel();
+      } else {
+        container.style.height = "";
+        panel.style.left = "";
+        panel.style.right = "";
+      }
+
       container.classList.toggle("is-reserving", next);
       panel.classList.toggle("is-stuck", next);
     };
@@ -453,10 +479,13 @@ export class MasterControl {
       }
     };
 
-    // A resize changes how tall the panel needs to be, so a height reserved at
-    // the old width is no longer the right amount of space to hold open.
+    // A resize moves the column and changes how tall the panel needs to be, so
+    // both the placeholder and the lifted panel are worked out again.
     const onResize = () => {
-      if (stuck) container.style.height = `${measureUnfoldedHeight()}px`;
+      if (stuck) {
+        container.style.height = `${measureUnfoldedHeight()}px`;
+        positionLiftedPanel();
+      }
       checkStuck();
     };
 
