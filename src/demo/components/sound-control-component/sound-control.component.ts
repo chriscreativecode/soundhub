@@ -2,7 +2,6 @@ import { PlayOptions } from "../../../sound-manager/play-sound-options.interface
 import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";
-import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "../../../sound-manager/sound-panner-config";
 import { SoundState } from "../../../sound-manager/sound-state.interface";
 import { SoundManagerConfig } from "../../../sound-manager/sound-manager-config";
 /* @ts-ignore */
@@ -12,11 +11,12 @@ import "./sound-control.component.css";
 /* @ts-ignore */
 import soundControlComponentHtml from "./sound-control.component.html?raw";
 import { SpatialGrid } from "../spatial-grid-component/spatial-grid.component";
-import { LocalStorageManagerManager } from "../../services/local-storage-manager";
 import { svgIcon } from "../shared/icon-utils";
 import { updateRangeProgress } from "../shared/range-input-utils";
 import { setupCollapsiblePanel } from "../shared/collapsible-panel";
 import { SpatialSettings } from "../spatial-settings-component/spatial-settings.component";
+import { attachMeter } from "../shared/level-meter";
+import { CATEGORY_META, getSoundMeta, SoundCategory } from "../../pages/main/general/sound-catalog";
 
 declare function gtag(...args: any[]): void;
 
@@ -74,6 +74,16 @@ export class SoundControl {
   private maxLoopsInput: HTMLInputElement;
   private spatialSettings: SpatialSettings | null = null;
   private collapsibleCleanup: (() => void) | null = null;
+  private detachMeter: (() => void) | null = null;
+  private bodyElement!: HTMLElement;
+  private disclosureButton!: HTMLButtonElement;
+  private progressLine!: HTMLElement;
+  private meterElement!: HTMLElement;
+
+  /** A getter, because the template is built before field initialisers run. */
+  private get meta() {
+    return getSoundMeta(this.id);
+  }
 
   private state: SoundControlState = {
     isPlaying: false,
@@ -92,7 +102,9 @@ export class SoundControl {
     private id: string,
     private soundManager: SoundManager,
     private container: HTMLElement,
-    private isSprite: boolean = false
+    private isSprite: boolean = false,
+    /** Lets the page drop this channel from its own bookkeeping when removed */
+    private onDestroyed?: (id: string) => void
   ) {
     this.element = this.createControl();
     this.soundManagerConfig = this.soundManager.getConfig();
@@ -105,16 +117,96 @@ export class SoundControl {
     this.maxLoopsSelect = this.element.querySelector(".max-loops-select")!;
     this.loopSettings = this.element.querySelector(".loop-settings")!;
     this.maxLoopsInput = this.element.querySelector(".max-loops-input")!;
+    this.bodyElement = this.element.querySelector(".sound-control__body")!;
+    this.disclosureButton = this.element.querySelector(".channel__disclosure")!;
+    this.progressLine = this.element.querySelector(".channel__progressline-fill")!;
+    this.meterElement = this.element.querySelector(".channel__meter")!;
 
     this.initializeCurrentOptions();
     this.initializeEventListeners();
     this.initializeSoundEventListeners();
     this.initializeLoopControls();
+    this.initializeDisclosure();
     this.spatialGrid = new SpatialGrid(this.element.querySelector(".spatial-grid-container-wrapper")!, this.soundManager, this.id, (position) => {
       this.currentOptions.panSpatialPosition = position;
     });
     this.container.appendChild(this.element);
+    this.initializeMeter();
     this.updateState();
+  }
+
+  // ---------------------------------------------------------------------
+  // Public surface used by the page: filtering, keyboard control and the
+  // expand / collapse all buttons in the list toolbar.
+  // ---------------------------------------------------------------------
+
+  public getId(): string {
+    return this.id;
+  }
+
+  public getLabel(): string {
+    return this.meta.label;
+  }
+
+  public getCategory(): SoundCategory {
+    return this.meta.category;
+  }
+
+  public getElement(): HTMLElement {
+    return this.element;
+  }
+
+  public isCurrentlyPlaying(): boolean {
+    return this.soundManager.getSoundState(this.id)?.state === SoundState.Playing;
+  }
+
+  /** Space bar and the number keys route through the same path as the button. */
+  public togglePlayback(): void {
+    if (this.isCurrentlyPlaying()) {
+      this.pause();
+    } else {
+      this.play();
+    }
+  }
+
+  public setExpanded(expanded: boolean): void {
+    this.bodyElement.hidden = !expanded;
+    this.element.classList.toggle("is-expanded", expanded);
+    this.disclosureButton.setAttribute("aria-expanded", String(expanded));
+  }
+
+  public isExpanded(): boolean {
+    return !this.bodyElement.hidden;
+  }
+
+  /** Hides rather than destroys, so state survives a change of filter. */
+  public setVisible(visible: boolean): void {
+    this.element.hidden = !visible;
+  }
+
+  public matches(query: string, category: SoundCategory | "all"): boolean {
+    if (category !== "all" && this.meta.category !== category) return false;
+    if (!query) return true;
+
+    const haystack = `${this.meta.label} ${this.id} ${this.meta.blurb}`.toLowerCase();
+    return haystack.includes(query.toLowerCase());
+  }
+
+  private initializeDisclosure(): void {
+    this.setExpanded(false);
+    this.disclosureButton.addEventListener("click", () => {
+      this.setExpanded(!this.isExpanded());
+    });
+  }
+
+  /**
+   * Taps this channel's own gain node so the strip shows the level of this
+   * sound alone rather than of the master bus.
+   */
+  private initializeMeter(): void {
+    const gainNode = this.soundManager.getGainNode(this.id);
+    if (!gainNode) return;
+    this.detachMeter = attachMeter(gainNode, this.meterElement);
   }
 
   private initializeCurrentOptions(): void {
@@ -177,11 +269,19 @@ export class SoundControl {
 
   /** Interpolate placeholder markers with SVG icons and runtime values */
   private interpolateTemplate(tpl: string): string {
+    const meta = this.meta;
+    const category = CATEGORY_META[meta.category];
+
     return tpl
       .replace(/\{\{soundId\}\}/g, this.id)
+      .replace(/\{\{label\}\}/g, meta.label)
+      .replace(/\{\{blurb\}\}/g, meta.blurb)
+      .replace(/\{\{category\}\}/g, meta.category)
+      .replace(/\{\{categoryLabel\}\}/g, category.label)
+      .replace(/\{\{categoryIcon\}\}/g, svgIcon(category.icon, 17))
       .replace(/\{\{spriteHeaderClass\}\}/g, this.isSprite ? "sprite-header" : "")
       .replace(/\{\{spriteBadge\}\}/g, this.isSprite
-        ? `<div class="sprite-badge">${svgIcon("sprite")}<span>Sprite</span></div>`
+        ? `<span class="sprite-badge">${svgIcon("sprite")}<span>Sprite</span></span>`
         : ""
       )
       .replace(/\{\{iconPlay\}\}/g, CONTROL_ICONS.iconPlay)
@@ -206,8 +306,7 @@ export class SoundControl {
 
   private bindButtonEvents(): void {
     const buttonHandlers: Record<string, () => void> = {
-      "play-btn": () => this.play(),
-      "pause-btn": () => this.pause(),
+      "playpause-btn": () => this.togglePlayback(),
       "stop-btn": () => this.stop(),
       "mute-btn": () => this.toggleMute(),
       "fade-in-btn": () => this.fadeIn(),
@@ -245,16 +344,16 @@ export class SoundControl {
   private updateUIFromState(): void {
     if (this.isUpdatingUI) return;
     this.isUpdatingUI = true;
-    // Button states
-    const buttons: Record<string, boolean> = {
-      "play-btn": this.state.isPlaying,
-      "pause-btn": !this.state.isPlaying,
-      "stop-btn": !this.state.isPlaying && !this.state.isPaused,
-    };
 
-    Object.entries(buttons).forEach(([className, disabled]) => {
-      this.element.querySelector(`.${className}`)!.toggleAttribute("disabled", disabled);
-    });
+    this.updatePlayPauseButton();
+    this.element
+      .querySelector(".stop-btn")!
+      .toggleAttribute("disabled", !this.state.isPlaying && !this.state.isPaused);
+
+    // The strip reports its own transport state, so a scan down the list shows
+    // what is running without reading every button.
+    this.element.classList.toggle("is-playing", this.state.isPlaying);
+    this.element.classList.toggle("is-paused", this.state.isPaused);
 
     // Update playback rate only if it has changed
     const newPlaybackRate = parseFloat(this.playbackRateInput.value);
@@ -273,6 +372,21 @@ export class SoundControl {
 
     // Commented out spatial grid position sync — keeping as-is
     this.isUpdatingUI = false;
+  }
+
+  /** One button that swaps its icon, rather than two that take turns dimming. */
+  private updatePlayPauseButton(): void {
+    const button = this.element.querySelector(".playpause-btn") as HTMLButtonElement;
+    const playIcon = button.querySelector(".play-icon") as HTMLElement;
+    const pauseIcon = button.querySelector(".pause-icon") as HTMLElement;
+
+    playIcon.style.display = this.state.isPlaying ? "none" : "block";
+    pauseIcon.style.display = this.state.isPlaying ? "block" : "none";
+
+    const action = this.state.isPlaying ? "Pause" : this.state.isPaused ? "Resume" : "Play";
+    const description = `${action} ${this.meta.label}`;
+    button.title = description;
+    button.setAttribute("aria-label", description);
   }
 
   private handleRangeInput(input: HTMLInputElement, value?: number): void {
@@ -468,6 +582,8 @@ export class SoundControl {
   private updateProgress(progress: number): void {
     if (this.isDragging) return;
     this.handleRangeInput(this.progressSlider, progress);
+    // A hairline under the strip, so position stays visible while collapsed.
+    this.progressLine.style.transform = `scaleX(${Math.min(1, Math.max(0, progress / 100))})`;
     this.updateTimeDisplay(this.state.elapsedTime);
   }
 
@@ -489,9 +605,9 @@ export class SoundControl {
 
   private updateVolumeDisplay(value: number): void {
     this.handleRangeInput(this.volumeSlider, value);
-    const volumeValueTop = this.element.querySelector(".volume-value-top") as HTMLSpanElement;
-    if (volumeValueTop) {
-      volumeValueTop.textContent = `${Math.round(value * 100)}%`;
+    const volumeValue = this.element.querySelector(".volume-value") as HTMLSpanElement;
+    if (volumeValue) {
+      volumeValue.textContent = `${Math.round(value * 100)}%`;
     }
   }
 
@@ -745,6 +861,9 @@ export class SoundControl {
         this.soundManager.removeSpriteSound(this.id);
       }
 
+      // Stop the shared meter loop from holding on to a removed element
+      this.detachMeter?.();
+
       // Cleanup collapsible panel
       this.collapsibleCleanup?.();
 
@@ -770,8 +889,7 @@ export class SoundControl {
         // Remove button event listeners
         () => {
           const buttonHandlers: Record<string, () => void> = {
-            "play-btn": this.play.bind(this),
-            "pause-btn": this.pause.bind(this),
+            "playpause-btn": this.togglePlayback.bind(this),
             "stop-btn": this.stop.bind(this),
             "mute-btn": this.toggleMute.bind(this),
             "fade-in-btn": this.fadeIn.bind(this),
@@ -825,6 +943,8 @@ export class SoundControl {
       if (this.element?.parentElement) {
         this.element.parentElement.removeChild(this.element);
       }
+
+      this.onDestroyed?.(this.id);
     } catch (error) {
       console.error("Error during destroy:", error);
     }

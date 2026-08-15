@@ -1,4 +1,4 @@
-﻿<div class="sound-manager-demo">
+<div class="sound-manager-demo">
   <div class="control-group sound-manager-intro">
     <header class="sound-manager-header">
 
@@ -24,7 +24,7 @@
               <h1 class="main-title">Sound Manager TS</h1>
               <span class="version-badge">v5.8.1</span>
             </div>
-            <div class="copyright">Â© Chris Schardijn</div>
+            <div class="copyright">&copy; Chris Schardijn</div>
           </div>
         </div>
         <div class="theme-toggle-container">
@@ -47,12 +47,26 @@
         </div>
 
       </div>
+
+      <p class="intro-lead">
+        Every control on this page calls the library directly. Start a soundscape to hear several
+        channels running at once, open a channel for its full control set, and keep the console at the
+        bottom open to watch the calls and events go by as you work.
+      </p>
+
       <div class="subtitle">
         <span class="tagline">Advanced Audio Controller for Modern Web Apps</span>
         <div class="links-container">
+          <button type="button" class="header-link shortcuts-link" id="shortcutsButton">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+              <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>
+              <path d="M6 9h.01"/><path d="M10 9h.01"/><path d="M14 9h.01"/><path d="M18 9h.01"/><path d="M8 15h8"/>
+            </svg>
+            Shortcuts
+          </button>
           <a href="https://soundmanager.chriscreativecode.com/readme/#documentation"
             class="header-link docs-link" target="_blank" rel="noopener">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
               <path
                 d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
             </svg>
@@ -60,7 +74,7 @@
           </a>
           <a href="https://www.npmjs.com/package/sound-manager-ts?activeTab=readme" class="header-link npm-link"
             target="_blank" rel="noopener">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
               <path
                 d="M12 1.5a.75.75 0 01.75.75v2.25h9a.75.75 0 01.75.75v12a.75.75 0 01-.75.75H1.5a.75.75 0 01-.75-.75v-12a.75.75 0 01.75-.75h9V2.25A.75.75 0 0112 1.5z" />
             </svg>
@@ -69,18 +83,29 @@
         </div>
       </div>
     </header>
-    <div class="control-content">
-    </div>
   </div>
 
   <!-- Loading state, replaced by the controls once every sound has decoded -->
   <div id="soundLoaderContainer"></div>
 
+  <!-- Scene launcher: several channels at once -->
+  <div id="soundscapesContainer"></div>
+
   <!-- Master Controls -->
   <div id="masterControlContainer"></div>
 
-  <!-- Sound Controls Container -->
+  <!-- Channel list: toolbar, then one strip per loaded sound -->
+  <div id="soundListToolbarContainer"></div>
+
   <div id="soundControlsContainer">
     <!-- Sound controls will be dynamically added here -->
   </div>
+
+  <p class="list-empty" id="listEmptyState" hidden>
+    No sound matches that search. Clear the field or pick another family to see the rest.
+  </p>
 </div>
+
+<!-- Docked console and the shortcut sheet both sit outside the page flow -->
+<div id="consoleDockContainer"></div>
+<div id="shortcutsContainer"></div>
