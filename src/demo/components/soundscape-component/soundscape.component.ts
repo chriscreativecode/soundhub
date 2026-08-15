@@ -2,7 +2,14 @@ import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";
 import { SoundPanType } from "../../../sound-manager/sound-pan-type.enum";
-import { describePosition, Soundscape, SpatialPosition } from "../../pages/main/general/soundscapes";
+import { SoundState } from "../../../sound-manager/sound-state.interface";
+import {
+  beeFlightPosition,
+  describeLayer,
+  Soundscape,
+  SoundscapeLayer,
+  SpatialPosition,
+} from "../../pages/main/general/soundscapes";
 import { getSoundMeta } from "../../pages/main/general/sound-catalog";
 import { svgIcon } from "../shared/icon-utils";
 /* @ts-ignore */
@@ -24,8 +31,11 @@ export class SoundscapeComponent {
   private buttons = new Map<string, HTMLButtonElement>();
   private stopButton!: HTMLButtonElement;
   private stopHandler: (event: SoundEvent) => void;
+  private transportHandler: () => void;
   /** Ids this component put in 3D, so it can hand them back as stereo later. */
   private placedLayers: string[] = [];
+  /** Frame loop that flies the moving layers of the running scene. */
+  private flightRafId: number | null = null;
 
   constructor(
     container: HTMLElement,
@@ -46,11 +56,27 @@ export class SoundscapeComponent {
     // manager-wide reset counts here.
     this.stopHandler = (event: SoundEvent) => {
       if (event.soundId) return;
+      this.stopFlights();
       this.placedLayers = [];
       this.setActive(null);
     };
     this.soundManager.addEventListener(SoundEventsEnum.RESET, this.stopHandler);
+
+    // The master transport stops sounds one by one rather than resetting the
+    // manager, so the scene has to notice that nothing of it is left running.
+    // Deferred by a microtask because the events arrive while the library is
+    // still walking its own list of sounds.
+    this.transportHandler = () => {
+      if (!this.activeId) return;
+      queueMicrotask(() => this.dropSceneIfSilent());
+    };
+    SoundscapeComponent.TRANSPORT_EVENTS.forEach((type) => {
+      this.soundManager.addEventListener(type, this.transportHandler);
+    });
   }
+
+  /** Events after which a scene may have nothing left playing. */
+  private static readonly TRANSPORT_EVENTS = [SoundEventsEnum.STOPPED, SoundEventsEnum.ENDED];
 
   /** Shift + a digit starts the matching scene from the keyboard. */
   public startByIndex(index: number): void {
@@ -64,7 +90,33 @@ export class SoundscapeComponent {
   }
 
   public destroy(): void {
+    this.stopFlights();
     this.soundManager.removeEventListener(SoundEventsEnum.RESET, this.stopHandler);
+    SoundscapeComponent.TRANSPORT_EVENTS.forEach((type) => {
+      this.soundManager.removeEventListener(type, this.transportHandler);
+    });
+  }
+
+  /**
+   * Ends the scene once none of its layers is playing or paused any more,
+   * whatever stopped them: the master transport, a strip's own stop button or
+   * the last layer simply running out.
+   */
+  private dropSceneIfSilent(): void {
+    if (!this.activeId) return;
+
+    const scene = this.scenes.find((candidate) => candidate.id === this.activeId);
+    const stillRunning = scene
+      ? this.playableLayers(scene).some((layer) => {
+          const state = this.soundManager.getSoundState(layer.id)?.state;
+          return state === SoundState.Playing || state === SoundState.Paused;
+        })
+      : false;
+
+    if (stillRunning) return;
+
+    this.releasePlacedLayers();
+    this.setActive(null);
   }
 
   private playableLayers(scene: Soundscape) {
@@ -79,7 +131,7 @@ export class SoundscapeComponent {
         const placements = layers
           .map(
             (layer) =>
-              `<span class="scene__layer"><b>${getSoundMeta(layer.id).label}</b>${describePosition(layer.position)}</span>`
+              `<span class="scene__layer"><b>${getSoundMeta(layer.id).label}</b>${describeLayer(layer)}</span>`
           )
           .join("");
 
@@ -147,10 +199,15 @@ export class SoundscapeComponent {
     this.releasePlacedLayers();
 
     layers.forEach((layer) => {
+      // A layer with a position becomes a point in the room; one without stays
+      // a stereo bed, which is what a piece of music wants to be.
+      const placement = layer.position
+        ? { panType: SoundPanType.Spatial, panSpatialPosition: layer.position }
+        : { pan: layer.pan ?? 0 };
+
       this.soundManager.play(layer.id, {
         volume: layer.volume,
-        panType: SoundPanType.Spatial,
-        panSpatialPosition: layer.position,
+        ...placement,
         playbackRate: layer.playbackRate ?? 1,
         loop: true,
         maxLoops: -1,
@@ -159,8 +216,10 @@ export class SoundscapeComponent {
       });
     });
 
-    this.placedLayers = layers.map((layer) => layer.id);
-    this.onLayersPlaced?.(layers.map((layer) => ({ id: layer.id, position: layer.position })));
+    const placed = layers.filter((layer) => layer.position);
+    this.placedLayers = placed.map((layer) => layer.id);
+    this.onLayersPlaced?.(placed.map((layer) => ({ id: layer.id, position: layer.position! })));
+    this.startFlights(layers);
     this.setActive(id);
 
     if (typeof gtag === "function") {
@@ -175,12 +234,62 @@ export class SoundscapeComponent {
   }
 
   /**
+   * Flies the layers that are not supposed to stand still.
+   *
+   * One frame loop drives all of them, moving each along its own path and
+   * writing the new position straight into the library. The event is skipped
+   * per move because sixty of them a second is noise; the channel strip's grid
+   * is updated directly instead, so the marker flies with the sound.
+   */
+  private startFlights(layers: SoundscapeLayer[]): void {
+    this.stopFlights();
+
+    const flying = layers.filter((layer) => layer.flightSeconds);
+    if (!flying.length) return;
+
+    const context = this.soundManager.getContext();
+    const startedAt = context.currentTime;
+
+    const step = () => {
+      const elapsed = context.currentTime - startedAt;
+
+      const moved = flying.map((layer) => {
+        const phase = (elapsed / layer.flightSeconds!) % 1;
+        const position = beeFlightPosition(phase);
+
+        this.soundManager.setSpatialPosition(
+          Math.round(position.x * 100) / 100,
+          Math.round(position.y * 100) / 100,
+          Math.round(position.z * 100) / 100,
+          layer.id,
+          undefined,
+          true
+        );
+
+        return { id: layer.id, position };
+      });
+
+      this.onLayersPlaced?.(moved);
+      this.flightRafId = requestAnimationFrame(step);
+    };
+
+    this.flightRafId = requestAnimationFrame(step);
+  }
+
+  private stopFlights(): void {
+    if (this.flightRafId === null) return;
+    cancelAnimationFrame(this.flightRafId);
+    this.flightRafId = null;
+  }
+
+  /**
    * Hands the layers back the way they were found. A scene swaps a channel's
    * stereo panner for a panner node, and leaving that in place would mean the
    * pan slider on that strip silently does nothing after the scene ends.
    * `resetSound` tears the spatial node down and puts stereo panning back.
    */
   private releasePlacedLayers(): void {
+    this.stopFlights();
     const placed = this.placedLayers;
     this.placedLayers = [];
     placed.forEach((soundId) => this.soundManager.resetSound(soundId));

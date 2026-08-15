@@ -82,9 +82,13 @@ const METHODS_WITH_TRAILING_FLAG = new Set<string>([
 
 const MAX_ENTRIES = 200;
 
+/** How often a run of repeats is allowed to redraw the panel, in ms. */
+const REPEAT_EMIT_INTERVAL = 120;
+
 export class ApiLogger {
   private entries: ApiCall[] = [];
   private listeners = new Set<(entries: readonly ApiCall[]) => void>();
+  private repeatEmitTimer: number | null = null;
 
   public record(method: string, args: unknown[]): void {
     const cleaned = this.stripTrailingFlag(method, args);
@@ -96,18 +100,26 @@ export class ApiLogger {
     if (last && last.method === method && this.sameTarget(last.args, cleaned)) {
       last.args = cleaned;
       last.repeats += 1;
-    } else {
-      this.entries.push({ method, args: cleaned, repeats: 1 });
-      if (this.entries.length > MAX_ENTRIES) {
-        this.entries.splice(0, this.entries.length - MAX_ENTRIES);
-      }
+      // Only the counter and one line of arguments changed, and a source
+      // moving through 3D produces sixty of those a second. Redrawing the
+      // whole panel that often is work nobody can read, so repeats are
+      // sampled; a new call still shows up the moment it is made.
+      this.scheduleRepeatEmit();
+      return;
     }
 
+    this.entries.push({ method, args: cleaned, repeats: 1 });
+    if (this.entries.length > MAX_ENTRIES) {
+      this.entries.splice(0, this.entries.length - MAX_ENTRIES);
+    }
+
+    this.cancelRepeatEmit();
     this.emit();
   }
 
   public clear(): void {
     this.entries = [];
+    this.cancelRepeatEmit();
     this.emit();
   }
 
@@ -128,6 +140,20 @@ export class ApiLogger {
 
   private emit(): void {
     this.listeners.forEach((listener) => listener(this.entries));
+  }
+
+  private scheduleRepeatEmit(): void {
+    if (this.repeatEmitTimer !== null) return;
+    this.repeatEmitTimer = window.setTimeout(() => {
+      this.repeatEmitTimer = null;
+      this.emit();
+    }, REPEAT_EMIT_INTERVAL);
+  }
+
+  private cancelRepeatEmit(): void {
+    if (this.repeatEmitTimer === null) return;
+    window.clearTimeout(this.repeatEmitTimer);
+    this.repeatEmitTimer = null;
   }
 
   private stripTrailingFlag(method: string, args: unknown[]): unknown[] {
