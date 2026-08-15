@@ -68,7 +68,7 @@ const GAME_GROUPS: GroupConfig[] = [
   {
     id: 'impacts',
     title: 'Explosions',
-    note: 'Raiders blowing up and your ship taking a hit.',
+    note: 'Invaders blowing up, shields crumbling and your ship taking a hit.',
     color: '#ff5555',
     max: 4,
     limitRange: [1, 8],
@@ -89,6 +89,7 @@ const GAME_SOUND_GROUP: Record<string, string> = {
   'sfx-laser': 'weapons',
   'sfx-boom': 'impacts',
   'sfx-hit': 'impacts',
+  'sfx-shield': 'impacts',
   'sfx-alarm': 'alerts',
   'sfx-wave': 'alerts',
   'sfx-over': 'alerts',
@@ -240,7 +241,7 @@ export class GroupsDemo {
 
     host.innerHTML = `
       <div class="section-head">
-        <h2 class="section-title">Voice Raiders</h2>
+        <h2 class="section-title">Audio Invaders</h2>
         <p class="section-sub">
           A tiny DOS-era shooter wired to three groups. Fire fast and the weapons group runs out of
           slots, exactly like the lab above.
@@ -250,7 +251,7 @@ export class GroupsDemo {
         <div class="arcade__screen">
           <div class="crt">
             <canvas class="crt__canvas" id="arcadeCanvas" width="320" height="200"
-              aria-label="Voice Raiders arcade game"></canvas>
+              aria-label="Audio Invaders arcade game"></canvas>
             <div class="crt__scanlines" aria-hidden="true"></div>
           </div>
           <div class="arcade__controls">
