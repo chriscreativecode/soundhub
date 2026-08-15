@@ -78,6 +78,11 @@ const CATALOG: Record<string, SoundMeta> = {
     category: "ambience",
     blurb: "Water loop with no obvious seam, built to be left running underneath.",
   },
+  bee: {
+    label: "Bumblebee",
+    category: "ambience",
+    blurb: "A single point source. In a soundscape it flies a circuit around your head.",
+  },
   magma: {
     label: "Undersea Magma",
     category: "ambience",
