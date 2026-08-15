@@ -534,6 +534,7 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
 }
 
 .landing-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -619,6 +620,179 @@ input:checked + .theme-slider:before { transform: translateX(20px); }
   height: 0.9rem;
   vertical-align: middle;
   margin-left: 0.1rem;
+}
+
+/* ==================== */
+/* Card Badge           */
+/* ==================== */
+.card-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* Keeps the title clear of the badge without reserving space on cards without one */
+.landing-card:has(.card-badge) .card-header {
+  padding-right: 78px;
+}
+
+.card-badge__pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  flex-shrink: 0;
+  animation: cardBadgePulse 2.2s ease-out infinite;
+}
+
+.card-badge--updated {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d33d6 55%, #0ea5e9 100%);
+  box-shadow: 0 2px 10px -2px rgba(139, 92, 246, 0.8);
+}
+
+.card-badge--new {
+  background: linear-gradient(135deg, #10b981 0%, #059669 55%, #0ea5e9 100%);
+  box-shadow: 0 2px 10px -2px rgba(16, 185, 129, 0.8);
+}
+
+@keyframes cardBadgePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.85); }
+  70%  { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+/* ==================== */
+/* Mini Piano (card)    */
+/* ==================== */
+.mini-piano {
+  --mini-white-count: 10;
+  --mini-black-ratio: 0.62;
+  --mini-white-h: 46px;
+  --mini-black-h: 28px;
+  padding: 8px 9px 9px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #241c3b 0%, #16112a 60%, #0d0918 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -14px 22px -18px rgba(0, 0, 0, 0.9),
+    0 6px 16px -10px rgba(21, 17, 31, 0.9);
+  transition: box-shadow 0.25s ease;
+}
+
+.landing-card--piano:hover .mini-piano {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -14px 22px -18px rgba(0, 0, 0, 0.9),
+    0 8px 22px -10px rgba(139, 92, 246, 0.55);
+}
+
+/* Felt strip above the keys, same idea as the demo keybed */
+.mini-piano__felt {
+  height: 3px;
+  margin-bottom: 6px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #6d33d6, #8b5cf6 45%, #0ea5e9);
+  opacity: 0.8;
+  box-shadow: 0 1px 6px rgba(139, 92, 246, 0.6);
+}
+
+.mini-piano__keys {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--mini-white-count), minmax(0, 1fr));
+  height: var(--mini-white-h);
+}
+
+.mini-piano__blacks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mini-key {
+  animation-duration: 3.4s;
+  animation-delay: calc(var(--step) * 0.2s);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-out;
+}
+
+.mini-key--white {
+  height: var(--mini-white-h);
+  border: 1px solid #c3c0cf;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 78%, #ececf2 100%);
+  box-shadow: inset 0 -7px 8px -8px rgba(40, 26, 78, 0.45);
+  animation-name: miniKeyWhite;
+}
+
+.mini-key--black {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  height: var(--mini-black-h);
+  /* Both measured in white-key widths, so the blacks follow any card width */
+  left: calc(var(--offset) * 100% / var(--mini-white-count));
+  width: calc(var(--mini-black-ratio) * 100% / var(--mini-white-count));
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(180deg, #443c5e 0%, #221c33 55%, #100c1a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 3px 0 0 #06040c;
+  animation-name: miniKeyBlack;
+}
+
+@keyframes miniKeyWhite {
+  0%, 100% {
+    transform: translateY(0);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 78%, #ececf2 100%);
+    box-shadow: inset 0 -7px 8px -8px rgba(40, 26, 78, 0.45);
+  }
+  3%, 8% {
+    transform: translateY(2px);
+    background: linear-gradient(180deg, #ece2ff 0%, #dcccff 70%, #c9b3fb 100%);
+    box-shadow: inset 0 7px 9px -8px rgba(70, 35, 150, 0.55), 0 0 12px -1px rgba(139, 92, 246, 0.75);
+  }
+  18% {
+    transform: translateY(0);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfd 78%, #ececf2 100%);
+    box-shadow: inset 0 -7px 8px -8px rgba(40, 26, 78, 0.45);
+  }
+}
+
+@keyframes miniKeyBlack {
+  0%, 100% {
+    transform: translateY(0);
+    background: linear-gradient(180deg, #443c5e 0%, #221c33 55%, #100c1a 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 3px 0 0 #06040c;
+  }
+  3%, 8% {
+    transform: translateY(2px);
+    background: linear-gradient(180deg, #8b5cf6 0%, #6231c9 60%, #3d1a86 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 0 0 #06040c, 0 0 14px -1px rgba(139, 92, 246, 0.85);
+  }
+  18% {
+    transform: translateY(0);
+    background: linear-gradient(180deg, #443c5e 0%, #221c33 55%, #100c1a 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 3px 0 0 #06040c;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mini-key,
+  .card-badge__pulse {
+    animation: none;
+  }
 }
 
 /* ==================== */
