@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fallback only. scripts/prepare-deploy.js overwrites this in dist/deploy/ with
+  lastmod dates read from git history, so the deployed sitemap is accurate even
+  when nobody remembers to touch this file. The dates below are only what ships
+  if that generation step fails.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://soundmanager.chriscreativecode.com/</loc>
