@@ -695,6 +695,34 @@ body {
 }
 
 /* ==================== */
+/* Card Figure          */
+/* ==================== */
+/* A still lifted straight out of the demo the card links to. The shots are
+   taken on the demo's dark theme, so the frame is tinted with the card's own
+   accent rather than with a page colour that would only work in one theme. */
+.card-figure {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0d1512;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--card-color, var(--color-primary)) 38%, transparent),
+    0 6px 16px -10px rgba(0, 0, 0, 0.75);
+  transition: box-shadow 0.25s ease;
+}
+
+.card-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.landing-card:hover .card-figure {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--card-color, var(--color-primary)) 70%, transparent),
+    0 8px 22px -10px color-mix(in srgb, var(--card-color, var(--color-primary)) 70%, transparent);
+}
+
+/* ==================== */
 /* Card Screenshot      */
 /* ==================== */
 .card-shot {
