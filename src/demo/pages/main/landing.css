@@ -18,9 +18,12 @@ body {
   font-family: Arial, sans-serif;
   max-width: 1200px;
   width: 100%;
+  /* width:100% plus padding would otherwise push the page wider than the
+     viewport and leave a horizontal scrollbar on narrow screens */
+  box-sizing: border-box;
   margin: 0 auto;
   padding: var(--spacing-lg);
-  padding-top: 140px; /* ruimte voor fixed header */
+  padding-top: 104px; /* clears the fixed header */
   display: flex;
   flex-direction: column;
   gap: var(--panel-gap);
@@ -37,6 +40,7 @@ body {
   transform: translateX(-50%);
   width: calc(100% - var(--spacing-lg) * 2);
   max-width: 1200px;
+  box-sizing: border-box;
   z-index: 50;
   padding: var(--spacing-md);
   border: 1px solid var(--color-border);
@@ -44,31 +48,48 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+/* Three groups on one line: brand, project links, actions. The links sit in
+   the middle so the row breathes instead of stacking against the title. */
 .title-container {
   display: flex;
-  padding: 5px 5px 10px 5px;
   align-items: center;
-  gap: var(--spacing-sm);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem 1.75rem;
+  padding: 4px 6px;
 }
 
 .main-title-container {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  flex: 1;
+  gap: 0.9rem;
 }
 
 .header-info {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.2rem;
 }
 
 .header-info--title {
   display: flex;
   flex-direction: row;
-  gap: 0.85rem;
+  gap: 0.7rem;
   align-items: center;
+}
+
+.header-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-inline: auto;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .main-title {
@@ -93,12 +114,6 @@ body {
 
 .version-badge:hover {
   opacity: 0.85;
-}
-
-.header-info--langs {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
 }
 
 .lang-badge {
@@ -172,80 +187,6 @@ body {
   padding: 0;
   letter-spacing: 0.01em;
   line-height: 1.5;
-}
-
-/* ==================== */
-/* Tagline Wave         */
-/* ==================== */
-.tagline-wave-container {
-  flex: 1;
-  min-width: 0;
-  margin-left: 8rem;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  height: 62px;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
-}
-
-.tagline-wave {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 100%;
-  width: auto;
-  padding: 0 4px;
-}
-
-.tagline-wave span {
-  display: block;
-  width: 3px;
-  flex-shrink: 0;
-  border-radius: 2px;
-  transform-origin: center;
-  transform: scaleY(0.05);
-  animation: soundWaveBar 1.6s ease-in-out infinite alternate;
-}
-
-.tagline-wave span:nth-child(3n+1) { background: #4a6bff; }
-.tagline-wave span:nth-child(3n+2) { background: #8b5cf6; }
-.tagline-wave span:nth-child(3n)   { background: #0ea5e9; }
-
-/* Heights — waveform-like amplitude envelope */
-.tagline-wave span:nth-child(7n+1) { height: 12px; }
-.tagline-wave span:nth-child(7n+2) { height: 42px; }
-.tagline-wave span:nth-child(7n+3) { height: 22px; }
-.tagline-wave span:nth-child(7n+4) { height: 54px; }
-.tagline-wave span:nth-child(7n+5) { height: 18px; }
-.tagline-wave span:nth-child(7n+6) { height: 46px; }
-.tagline-wave span:nth-child(7n)   { height: 32px; }
-
-/* Varied durations for organic feel */
-.tagline-wave span:nth-child(5n+1) { animation-duration: 1.4s; }
-.tagline-wave span:nth-child(5n+2) { animation-duration: 1.7s; }
-.tagline-wave span:nth-child(5n+3) { animation-duration: 2.0s; }
-.tagline-wave span:nth-child(5n+4) { animation-duration: 1.5s; }
-.tagline-wave span:nth-child(5n)   { animation-duration: 1.9s; }
-
-/* Traveling-wave stagger across 13 groups */
-.tagline-wave span:nth-child(13n+1)  { animation-delay:  0s; }
-.tagline-wave span:nth-child(13n+2)  { animation-delay: -0.12s; }
-.tagline-wave span:nth-child(13n+3)  { animation-delay: -0.25s; }
-.tagline-wave span:nth-child(13n+4)  { animation-delay: -0.37s; }
-.tagline-wave span:nth-child(13n+5)  { animation-delay: -0.49s; }
-.tagline-wave span:nth-child(13n+6)  { animation-delay: -0.62s; }
-.tagline-wave span:nth-child(13n+7)  { animation-delay: -0.74s; }
-.tagline-wave span:nth-child(13n+8)  { animation-delay: -0.86s; }
-.tagline-wave span:nth-child(13n+9)  { animation-delay: -0.99s; }
-.tagline-wave span:nth-child(13n+10) { animation-delay: -1.11s; }
-.tagline-wave span:nth-child(13n+11) { animation-delay: -1.23s; }
-.tagline-wave span:nth-child(13n+12) { animation-delay: -1.36s; }
-.tagline-wave span:nth-child(13n)    { animation-delay: -1.48s; }
-
-@keyframes soundWaveBar {
-  from { transform: scaleY(0.05); }
-  to   { transform: scaleY(1); }
 }
 
 /* ==================== */
@@ -1355,6 +1296,26 @@ body.dark-theme .modal-close-btn:hover {
 /* ==================== */
 /* Responsive           */
 /* ==================== */
+/* Narrow enough that the header wraps onto three rows. Pinning 180px of it to
+   the top would swallow the screen, so it scrolls with the page instead. */
+@media (max-width: 820px) {
+  .landing-header {
+    position: static;
+    left: auto;
+    transform: none;
+    width: 100%;
+    max-width: none;
+  }
+
+  .landing-page {
+    padding-top: var(--spacing-lg);
+  }
+
+  .header-links {
+    margin-inline: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .cards-grid {
     grid-template-columns: repeat(2, 1fr);
