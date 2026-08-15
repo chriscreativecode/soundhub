@@ -1,5 +1,5 @@
 /**
- * Voice Raiders: a 320x200 shooter in the spirit of an early DOS game, used
+ * Audio Invaders: a 320x200 shooter in the spirit of an early DOS game, used
  * here as a load test for sound groups. Firing fast is meant to overrun the
  * weapons group so you can hear and see the oldest shot being cut off.
  */
@@ -52,10 +52,29 @@ const SHIP = [
   'XX.XXXXX.XX',
 ];
 
-const RAIDER = [
+const INVADER = [
   ['..X..X..', '.XXXXXX.', 'XX.XX.XX', 'XXXXXXXX', '.X.XX.X.', 'X......X'],
   ['..X..X..', '.XXXXXX.', 'XX.XX.XX', 'XXXXXXXX', '.X.XX.X.', '.X....X.'],
 ];
+
+/**
+ * Shape of one bunker, one character per 2x2 block. The arch in the bottom
+ * middle is what lets you shoot out from underneath it.
+ */
+const BUNKER = [
+  '..XXXXXXXX..',
+  '.XXXXXXXXXX.',
+  'XXXXXXXXXXXX',
+  'XXXXXXXXXXXX',
+  'XXXX....XXXX',
+  'XXX......XXX',
+];
+
+const BUNKER_CELL = 2;
+const BUNKER_COLS = BUNKER[0].length;
+const BUNKER_ROWS = BUNKER.length;
+const BUNKER_COUNT = 4;
+const BUNKER_Y = 150;
 
 const ROW_COLORS = [COLOR.lmagenta, COLOR.lcyan, COLOR.lgreen, COLOR.yellow];
 const ROW_SCORE = [40, 30, 20, 10];
@@ -66,14 +85,14 @@ const COL_STEP = 26;
 const ROW_STEP = 15;
 const GRID_LEFT = 32;
 const GRID_TOP = 36;
-const RAIDER_W = 8;
-const RAIDER_H = 6;
+const INVADER_W = 8;
+const INVADER_H = 6;
 const SHIP_W = 11;
 const SHIP_H = 6;
 const SHIP_Y = 176;
 const FLOOR_Y = 172;
 
-interface Raider {
+interface Invader {
   col: number;
   row: number;
   x: number;
@@ -84,6 +103,12 @@ interface Raider {
 interface Shot {
   x: number;
   y: number;
+}
+
+/** A bunker is a grid of small blocks that get shot away one cluster at a time. */
+interface Bunker {
+  x: number;
+  cells: boolean[][];
 }
 
 interface Particle {
@@ -110,9 +135,10 @@ export class ArcadeGame {
   private virtual = { left: false, right: false, fire: false };
 
   private shipX = W / 2 - SHIP_W / 2;
-  private raiders: Raider[] = [];
+  private invaders: Invader[] = [];
   private shots: Shot[] = [];
   private bombs: Shot[] = [];
+  private bunkers: Bunker[] = [];
   private particles: Particle[] = [];
   private stars: { x: number; y: number; speed: number }[] = [];
 
@@ -255,11 +281,25 @@ export class ArcadeGame {
     this.reportHud();
   }
 
+  /** Fresh bunkers every wave, so a cleared screen is a clean restart. */
+  private buildBunkers(): void {
+    const width = BUNKER_COLS * BUNKER_CELL;
+    const gap = (W - BUNKER_COUNT * width) / (BUNKER_COUNT + 1);
+
+    this.bunkers = [];
+    for (let i = 0; i < BUNKER_COUNT; i++) {
+      this.bunkers.push({
+        x: Math.round(gap + i * (width + gap)),
+        cells: BUNKER.map(row => [...row].map(char => char !== '.')),
+      });
+    }
+  }
+
   private buildWave(): void {
-    this.raiders = [];
+    this.invaders = [];
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
-        this.raiders.push({
+        this.invaders.push({
           col,
           row,
           x: GRID_LEFT + col * COL_STEP,
@@ -272,6 +312,7 @@ export class ArcadeGame {
     this.stepTimer = 0;
     this.bombTimer = 1.2;
     this.alarmed = false;
+    this.buildBunkers();
   }
 
   private reportHud(): void {
@@ -323,7 +364,7 @@ export class ArcadeGame {
     for (const bomb of this.bombs) bomb.y += 72 * delta;
     this.bombs = this.bombs.filter(bomb => bomb.y < H - 10);
 
-    this.updateRaiders(delta);
+    this.updateInvaders(delta);
     this.updateCollisions();
 
     for (const particle of this.particles) {
@@ -341,8 +382,8 @@ export class ArcadeGame {
     this.hooks.play('sfx-laser');
   }
 
-  private updateRaiders(delta: number): void {
-    const alive = this.raiders.filter(raider => raider.alive);
+  private updateInvaders(delta: number): void {
+    const alive = this.invaders.filter(invader => invader.alive);
     if (alive.length === 0) {
       this.wave++;
       this.buildWave();
@@ -361,25 +402,25 @@ export class ArcadeGame {
       this.stepTimer = Math.max(0.07, pace);
       this.frameToggle ^= 1;
 
-      const hitEdge = alive.some(raider => {
-        const next = raider.x + this.direction * 4;
-        return next < 8 || next + RAIDER_W > W - 8;
+      const hitEdge = alive.some(invader => {
+        const next = invader.x + this.direction * 4;
+        return next < 8 || next + INVADER_W > W - 8;
       });
 
       if (hitEdge) {
         this.direction *= -1;
-        for (const raider of alive) raider.y += 7;
+        for (const invader of alive) invader.y += 7;
       } else {
-        for (const raider of alive) raider.x += this.direction * 4;
+        for (const invader of alive) invader.x += this.direction * 4;
       }
     }
 
-    const lowest = Math.max(...alive.map(raider => raider.y));
+    const lowest = Math.max(...alive.map(invader => invader.y));
     if (!this.alarmed && lowest > 118) {
       this.alarmed = true;
       this.hooks.play('sfx-alarm');
     }
-    if (lowest + RAIDER_H >= SHIP_Y) {
+    if (lowest + INVADER_H >= SHIP_Y) {
       this.lives = 0;
       this.gameOver();
       return;
@@ -389,23 +430,84 @@ export class ArcadeGame {
     if (this.bombTimer <= 0) {
       this.bombTimer = 0.5 + Math.random() * 1.3;
       const shooter = alive[Math.floor(Math.random() * alive.length)];
-      this.bombs.push({ x: shooter.x + RAIDER_W / 2, y: shooter.y + RAIDER_H });
+      this.bombs.push({ x: shooter.x + INVADER_W / 2, y: shooter.y + INVADER_H });
+    }
+  }
+
+  /**
+   * Punches a hole in whichever bunker covers this point.
+   * Returns true when the shot or bomb was absorbed by one.
+   */
+  private hitBunker(x: number, y: number): boolean {
+    for (const bunker of this.bunkers) {
+      const col = Math.floor((x - bunker.x) / BUNKER_CELL);
+      const row = Math.floor((y - BUNKER_Y) / BUNKER_CELL);
+      if (col < 0 || col >= BUNKER_COLS || row < 0 || row >= BUNKER_ROWS) continue;
+      // Inside the bunker's box but on a block that is already gone: it flies on
+      if (!bunker.cells[row][col]) continue;
+
+      // Take out a small cluster, so the bunker erodes instead of pinholing
+      for (let r = row - 1; r <= row + 1; r++) {
+        for (let c = col - 1; c <= col + 1; c++) {
+          if (r < 0 || r >= BUNKER_ROWS || c < 0 || c >= BUNKER_COLS) continue;
+          bunker.cells[r][c] = false;
+        }
+      }
+
+      this.burst(x, y, COLOR.gray, 6);
+      this.hooks.play('sfx-shield');
+      return true;
+    }
+    return false;
+  }
+
+  /** Invaders marching over a bunker scrape it away, silently. */
+  private crushBunkers(): void {
+    for (const invader of this.invaders) {
+      if (!invader.alive) continue;
+      if (invader.y + INVADER_H < BUNKER_Y) continue;
+
+      for (const bunker of this.bunkers) {
+        for (let row = 0; row < BUNKER_ROWS; row++) {
+          const cellY = BUNKER_Y + row * BUNKER_CELL;
+          if (cellY + BUNKER_CELL <= invader.y || cellY >= invader.y + INVADER_H) continue;
+          for (let col = 0; col < BUNKER_COLS; col++) {
+            const cellX = bunker.x + col * BUNKER_CELL;
+            if (cellX + BUNKER_CELL <= invader.x || cellX >= invader.x + INVADER_W) continue;
+            bunker.cells[row][col] = false;
+          }
+        }
+      }
     }
   }
 
   private updateCollisions(): void {
     for (let s = this.shots.length - 1; s >= 0; s--) {
+      if (this.hitBunker(this.shots[s].x, this.shots[s].y)) {
+        this.shots.splice(s, 1);
+      }
+    }
+
+    for (let b = this.bombs.length - 1; b >= 0; b--) {
+      if (this.hitBunker(this.bombs[b].x, this.bombs[b].y)) {
+        this.bombs.splice(b, 1);
+      }
+    }
+
+    this.crushBunkers();
+
+    for (let s = this.shots.length - 1; s >= 0; s--) {
       const shot = this.shots[s];
-      for (const raider of this.raiders) {
-        if (!raider.alive) continue;
+      for (const invader of this.invaders) {
+        if (!invader.alive) continue;
         if (
-          shot.x >= raider.x && shot.x <= raider.x + RAIDER_W &&
-          shot.y >= raider.y && shot.y <= raider.y + RAIDER_H
+          shot.x >= invader.x && shot.x <= invader.x + INVADER_W &&
+          shot.y >= invader.y && shot.y <= invader.y + INVADER_H
         ) {
-          raider.alive = false;
+          invader.alive = false;
           this.shots.splice(s, 1);
-          this.score += ROW_SCORE[raider.row] ?? 10;
-          this.burst(raider.x + RAIDER_W / 2, raider.y + RAIDER_H / 2, ROW_COLORS[raider.row] ?? COLOR.yellow, 10);
+          this.score += ROW_SCORE[invader.row] ?? 10;
+          this.burst(invader.x + INVADER_W / 2, invader.y + INVADER_H / 2, ROW_COLORS[invader.row] ?? COLOR.yellow, 10);
           this.hooks.play('sfx-boom');
           this.reportHud();
           break;
@@ -472,10 +574,12 @@ export class ArcadeGame {
 
     this.drawHud();
 
-    for (const raider of this.raiders) {
-      if (!raider.alive) continue;
-      this.sprite(RAIDER[this.frameToggle], raider.x, raider.y, ROW_COLORS[raider.row] ?? COLOR.lgreen);
+    for (const invader of this.invaders) {
+      if (!invader.alive) continue;
+      this.sprite(INVADER[this.frameToggle], invader.x, invader.y, ROW_COLORS[invader.row] ?? COLOR.lgreen);
     }
+
+    this.drawBunkers();
 
     ctx.fillStyle = COLOR.yellow;
     for (const shot of this.shots) ctx.fillRect(Math.round(shot.x), Math.round(shot.y), 1, 4);
@@ -498,7 +602,7 @@ export class ArcadeGame {
     this.drawGroupBar();
 
     // Anything but a running game gets the playfield dimmed, so the text on top
-    // of it stays readable against the raiders.
+    // of it stays readable against the invaders.
     if (this.state !== 'playing' || !this.ready) {
       ctx.fillStyle = 'rgba(0, 4, 16, 0.78)';
       ctx.fillRect(0, 22, W, FLOOR_Y - 22);
@@ -508,6 +612,24 @@ export class ArcadeGame {
     if (this.state === 'paused') this.drawPanel('PAUSED', 'PRESS P OR CLICK TO RESUME');
     if (this.state === 'over') this.drawPanel('GAME OVER', `SCORE ${this.pad(this.score, 5)} - PRESS ENTER`);
     if (!this.ready) this.drawPanel('LOADING', 'SYNTHESISING SOUND EFFECTS');
+  }
+
+  private drawBunkers(): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = COLOR.lgreen;
+    for (const bunker of this.bunkers) {
+      for (let row = 0; row < BUNKER_ROWS; row++) {
+        for (let col = 0; col < BUNKER_COLS; col++) {
+          if (!bunker.cells[row][col]) continue;
+          ctx.fillRect(
+            bunker.x + col * BUNKER_CELL,
+            BUNKER_Y + row * BUNKER_CELL,
+            BUNKER_CELL,
+            BUNKER_CELL,
+          );
+        }
+      }
+    }
   }
 
   private drawHud(): void {
@@ -543,7 +665,7 @@ export class ArcadeGame {
   }
 
   private drawAttract(): void {
-    this.text('VOICE RAIDERS', W / 2, 48, COLOR.lgreen, 'center', 2);
+    this.text('AUDIO INVADERS', W / 2, 48, COLOR.lgreen, 'center', 2);
 
     this.text('EVERY SHOT IS ITS OWN SOUND INSTANCE', W / 2, 78, COLOR.lcyan, 'center');
     this.text('FILL THE WEAPONS GROUP AND THE OLDEST STOPS', W / 2, 90, COLOR.gray, 'center');

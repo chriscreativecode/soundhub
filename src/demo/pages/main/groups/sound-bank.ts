@@ -212,6 +212,15 @@ export const GAME_SOUNDS: SoundRecipe[] = [
     ],
   },
   {
+    id: 'sfx-shield', label: 'Shield hit', emoji: '🧱', duration: 0.3,
+    layers: [
+      // Short, dry and mid-range, so a crumbling bunker never masks the
+      // explosion of the raider that fired the shot
+      { type: 'noise', gain: 0.3, duration: 0.14, filter: { type: 'bandpass', freq: 1600, freqEnd: 700, q: 1.4 } },
+      { type: 'square', freq: 320, freqEnd: 150, gain: 0.16, duration: 0.1 },
+    ],
+  },
+  {
     id: 'sfx-alarm', label: 'Alarm', emoji: '🚨', duration: 0.75,
     layers: [
       { type: 'square', freq: 880, gain: 0.22, duration: 0.16 },
