@@ -11,147 +11,102 @@ import { EqualizerComponent } from '../../../components/equalizer-component/equa
 import { SoundManager } from '../../../../sound-manager/sound-manager';
 import { SoundEventsEnum } from '../../../../sound-manager/sound-events.enum';
 import { LocalStorageManagerManager } from '../../../services/local-storage-manager';
+import { GroupPanel, GroupPanelSound } from './group-panel';
+import { ArcadeGame, GameState, GroupUsage } from './arcade-game';
+import { GAME_SOUNDS, LAB_SOUNDS, renderRecipe, soundDuration } from './sound-bank';
 
-// ── WAV generation ──────────────────────────────────────────────────────────
-
-function writeWavString(view: DataView, offset: number, str: string): void {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i));
-  }
-}
-
-function audioBufferToWavBlobUrl(buffer: AudioBuffer): string {
-  const numChannels = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const bitDepth = 16;
-  const dataLength = buffer.length * numChannels * (bitDepth / 8);
-  const ab = new ArrayBuffer(44 + dataLength);
-  const view = new DataView(ab);
-
-  writeWavString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataLength, true);
-  writeWavString(view, 8, 'WAVE');
-  writeWavString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
-  view.setUint16(32, numChannels * (bitDepth / 8), true);
-  view.setUint16(34, bitDepth, true);
-  writeWavString(view, 36, 'data');
-  view.setUint32(40, dataLength, true);
-
-  let offset = 44;
-  for (let i = 0; i < buffer.length; i++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-      offset += 2;
-    }
-  }
-
-  return URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
-}
-
-interface SynthOptions {
-  freqStart: number;
-  freqEnd?: number;
-  type: OscillatorType;
-  duration: number;
-  attack?: number;
-  release?: number;
-  volume?: number;
-}
-
-async function createSynthSound(opts: SynthOptions): Promise<string> {
-  const { freqStart, freqEnd, type, duration, attack = 0.01, release = 0.1, volume = 0.65 } = opts;
-  const sampleRate = 44100;
-  const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * duration), sampleRate);
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.type = type;
-  osc.frequency.setValueAtTime(freqStart, 0);
-  if (freqEnd !== undefined) {
-    osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), duration);
-  }
-
-  gain.gain.setValueAtTime(0, 0);
-  gain.gain.linearRampToValueAtTime(volume, attack);
-  const sustainEnd = Math.max(attack + 0.001, duration - release);
-  gain.gain.setValueAtTime(volume, sustainEnd);
-  gain.gain.linearRampToValueAtTime(0, duration);
-
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(0);
-  osc.stop(duration);
-
-  const buffer = await ctx.startRendering();
-  return audioBufferToWavBlobUrl(buffer);
-}
-
-// ── Group & sound definitions ────────────────────────────────────────────────
-
-const EFFECTS_GROUP = 'effects';
-const AMBIENT_GROUP = 'ambient';
-const EFFECTS_MAX = 2;
-const AMBIENT_MAX = 3;
-const EFFECTS_COLOR = '#8b5cf6';
-const AMBIENT_COLOR = '#10b981';
-
-interface SoundDef {
+interface GroupConfig {
   id: string;
-  label: string;
-  emoji: string;
-  groupId: string;
-  opts: SynthOptions;
+  title: string;
+  note: string;
+  color: string;
+  max: number;
+  limitRange: [number, number];
+  sounds?: GroupPanelSound[];
+  compact?: boolean;
+  showLog?: boolean;
 }
 
-const SOUND_DEFS: SoundDef[] = [
+const labSound = (id: string): GroupPanelSound => {
+  const recipe = LAB_SOUNDS.find(sound => sound.id === id)!;
+  return { id: recipe.id, label: recipe.label, emoji: recipe.emoji };
+};
+
+const LAB_GROUPS: GroupConfig[] = [
   {
-    id: 'laser', label: 'Laser', emoji: '⚡', groupId: EFFECTS_GROUP,
-    opts: { freqStart: 880, freqEnd: 220, type: 'square', duration: 0.4, attack: 0.005, release: 0.05 },
+    id: 'effects',
+    title: 'Short effects',
+    note: 'Fast, stacking sounds. Two at a time is plenty.',
+    color: '#8b5cf6',
+    max: 2,
+    limitRange: [1, 6],
+    sounds: ['laser', 'blip', 'pop', 'ping'].map(labSound),
+    showLog: true,
   },
   {
-    id: 'blip', label: 'Blip', emoji: '🔵', groupId: EFFECTS_GROUP,
-    opts: { freqStart: 660, type: 'square', duration: 0.15, attack: 0.005, release: 0.05 },
-  },
-  {
-    id: 'pop', label: 'Pop', emoji: '💥', groupId: EFFECTS_GROUP,
-    opts: { freqStart: 330, freqEnd: 80, type: 'triangle', duration: 0.2, attack: 0.005, release: 0.1 },
-  },
-  {
-    id: 'ping', label: 'Ping', emoji: '🔔', groupId: EFFECTS_GROUP,
-    opts: { freqStart: 1320, type: 'sine', duration: 0.6, attack: 0.005, release: 0.4 },
-  },
-  {
-    id: 'drone', label: 'Drone', emoji: '🌊', groupId: AMBIENT_GROUP,
-    opts: { freqStart: 55, type: 'sine', duration: 2.5, attack: 0.3, release: 0.5 },
-  },
-  {
-    id: 'mid-tone', label: 'Mid Tone', emoji: '🎵', groupId: AMBIENT_GROUP,
-    opts: { freqStart: 165, type: 'sine', duration: 2.0, attack: 0.15, release: 0.5 },
-  },
-  {
-    id: 'high-pad', label: 'High Pad', emoji: '✨', groupId: AMBIENT_GROUP,
-    opts: { freqStart: 330, type: 'sine', duration: 3.0, attack: 0.2, release: 0.8 },
+    id: 'ambient',
+    title: 'Long pads',
+    note: 'Slow tones that hold for seconds, so slots stay busy.',
+    color: '#10b981',
+    max: 3,
+    limitRange: [1, 6],
+    sounds: ['drone', 'mid-tone', 'high-pad'].map(labSound),
+    showLog: true,
   },
 ];
 
-// ── Demo class ───────────────────────────────────────────────────────────────
+const GAME_GROUPS: GroupConfig[] = [
+  {
+    id: 'weapons',
+    title: 'Laser shots',
+    note: 'Set this to 1 and rapid fire turns into a stutter.',
+    color: '#ffd83d',
+    max: 3,
+    limitRange: [1, 8],
+    compact: true,
+  },
+  {
+    id: 'impacts',
+    title: 'Explosions',
+    note: 'Raiders blowing up and your ship taking a hit.',
+    color: '#ff5555',
+    max: 4,
+    limitRange: [1, 8],
+    compact: true,
+  },
+  {
+    id: 'alerts',
+    title: 'Alarms and jingles',
+    note: 'One at a time, so a jingle never doubles up.',
+    color: '#55ffff',
+    max: 1,
+    limitRange: [1, 3],
+    compact: true,
+  },
+];
+
+const GAME_SOUND_GROUP: Record<string, string> = {
+  'sfx-laser': 'weapons',
+  'sfx-boom': 'impacts',
+  'sfx-hit': 'impacts',
+  'sfx-alarm': 'alerts',
+  'sfx-wave': 'alerts',
+  'sfx-over': 'alerts',
+  'sfx-blip': 'alerts',
+};
 
 export class GroupsDemo {
   private soundManager!: SoundManager;
-  private instanceToGroup = new Map<string, string>();
+  private panels = new Map<string, GroupPanel>();
+  private instanceGroup = new Map<string, string>();
   private blobUrls: string[] = [];
-  private loaded = false;
+  private game: ArcadeGame | null = null;
   private equalizer: EqualizerComponent | null = null;
+  private loaded = false;
 
   constructor() {
     this.initTheme();
-    this.init();
+    void this.init();
   }
 
   private async init(): Promise<void> {
@@ -161,195 +116,223 @@ export class GroupsDemo {
       debug: false,
     });
 
-    this.soundManager.createSoundGroup(EFFECTS_GROUP, { maxInstances: EFFECTS_MAX });
-    this.soundManager.createSoundGroup(AMBIENT_GROUP, { maxInstances: AMBIENT_MAX });
+    for (const group of [...LAB_GROUPS, ...GAME_GROUPS]) {
+      this.soundManager.createSoundGroup(group.id, { maxInstances: group.max });
+    }
 
-    this.render();
+    this.buildLab();
+    this.buildArcade();
     this.initAudioController();
     this.initEqualizer();
     this.setupEventListeners();
-    this.setLoadingState(true);
+    this.startTicker();
 
-    await this.generateAndLoadSounds();
+    await this.loadSounds();
 
-    this.setLoadingState(false);
     this.loaded = true;
+    this.panels.forEach(panel => panel.setSoundsEnabled(true));
+    this.game?.setReady(true);
     this.buildInfoPanel();
   }
 
-  // ── Sound generation ───────────────────────────────────────────────────────
+  // ── Sounds ─────────────────────────────────────────────────────────────────
 
-  private async generateAndLoadSounds(): Promise<void> {
-    const soundsToLoad: { id: string; url: string }[] = [];
-    for (const def of SOUND_DEFS) {
-      const url = await createSynthSound(def.opts);
+  private async loadSounds(): Promise<void> {
+    const sounds: { id: string; url: string }[] = [];
+    for (const recipe of [...LAB_SOUNDS, ...GAME_SOUNDS]) {
+      const url = await renderRecipe(recipe);
       this.blobUrls.push(url);
-      soundsToLoad.push({ id: def.id, url });
+      sounds.push({ id: recipe.id, url });
     }
-    await this.soundManager.loadSounds(soundsToLoad);
+    await this.soundManager.loadSounds(sounds);
   }
 
-  // ── Rendering ──────────────────────────────────────────────────────────────
+  /**
+   * The one call this whole page is about. SoundManager stops the oldest
+   * instance itself once the group is full; the panel is told first so the UI
+   * can point at the voice that is about to go.
+   */
+  private playInGroup(soundId: string, groupId: string): void {
+    if (!this.loaded) return;
 
-  private initAudioController(): void {
-    const controllerEl = document.getElementById('groupsAudioController');
-    if (controllerEl) {
-      new AudioControllerComponent(controllerEl, {
-        waveFillColors: ['#10b981', '#8b5cf6'],
-      });
+    const group = this.soundManager.getGroup(groupId);
+    const panel = this.panels.get(groupId);
+    if (group?.maxInstances && group.sounds.size >= group.maxInstances) {
+      panel?.markEvicted([...group.sounds][0]);
     }
-  }
 
-  private initEqualizer(): void {
-    const controllerEl = document.getElementById('groupsAudioController');
-    if (controllerEl) {
-      const audioCtx = this.soundManager.getContext();
-      const analyser = audioCtx.createAnalyser();
-      this.soundManager.getMasterOutput().connect(analyser);
-      this.equalizer = new EqualizerComponent(controllerEl, analyser);
-    }
-  }
+    const instance = this.soundManager.play(soundId, { createNewInstance: true, groupId });
+    if (!instance) return;
 
-  private render(): void {
-    const container = document.getElementById('groupsContainer');
-    if (!container) return;
-
-    const effectsSounds = SOUND_DEFS.filter(s => s.groupId === EFFECTS_GROUP);
-    const ambientSounds = SOUND_DEFS.filter(s => s.groupId === AMBIENT_GROUP);
-
-    container.innerHTML = `
-      <div class="groups-grid">
-        ${this.renderGroupCard(EFFECTS_GROUP, 'Effects', EFFECTS_MAX, EFFECTS_COLOR, effectsSounds)}
-        ${this.renderGroupCard(AMBIENT_GROUP, 'Ambient', AMBIENT_MAX, AMBIENT_COLOR, ambientSounds)}
-      </div>
-    `;
-
-    container.querySelectorAll<HTMLButtonElement>('[data-sound-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (!this.loaded) return;
-        this.playSound(btn.dataset.soundId!, btn.dataset.groupId!);
-      });
-    });
-
-    container.querySelectorAll<HTMLButtonElement>('[data-stop-group]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.stopGroup(btn.dataset.stopGroup!);
-      });
-    });
-  }
-
-  private renderGroupCard(
-    groupId: string,
-    title: string,
-    maxInstances: number,
-    color: string,
-    sounds: SoundDef[],
-  ): string {
-    const slots = Array.from({ length: maxInstances }, (_, i) =>
-      `<div class="group-slot" data-group="${groupId}" data-slot="${i}" style="--slot-color:${color}"></div>`
-    ).join('');
-
-    const buttons = sounds.map(s =>
-      `<button class="sound-btn" data-sound-id="${s.id}" data-group-id="${s.groupId}" style="--btn-color:${color}" disabled>
-        <span class="sound-btn__emoji">${s.emoji}</span>
-        <span class="sound-btn__label">${s.label}</span>
-      </button>`
-    ).join('');
-
-    return `
-      <div class="group-card control-group" data-group-card="${groupId}" style="--group-color:${color}">
-        <div class="group-card__header">
-          <span class="group-card__title">${title}</span>
-          <span class="group-card__badge">max ${maxInstances} instances</span>
-        </div>
-        <div class="group-slots-row">
-          <span class="group-slots-label">Active</span>
-          <div class="group-slots" data-slots-group="${groupId}">${slots}</div>
-        </div>
-        <div class="group-sounds">${buttons}</div>
-        <button class="stop-all-btn" data-stop-group="${groupId}" style="--btn-color:${color}">■ Stop All</button>
-      </div>
-    `;
-  }
-
-  // ── Playback ───────────────────────────────────────────────────────────────
-
-  private playSound(soundId: string, groupId: string): void {
-    const result = this.soundManager.play(soundId, {
-      createNewInstance: true,
-      groupId,
-    });
-    if (result) {
-      this.instanceToGroup.set(result.id, groupId);
-      this.updateSlots(groupId);
-    }
+    this.instanceGroup.set(instance.id, groupId);
+    panel?.addVoice({ id: instance.id, label: soundId, duration: soundDuration(soundId) });
   }
 
   private stopGroup(groupId: string): void {
     const group = this.soundManager.getGroup(groupId);
     if (!group) return;
-    [...group.sounds].forEach(id => this.soundManager.stop(id));
+    const ids = [...group.sounds];
+    ids.forEach(id => this.soundManager.stop(id));
+    this.panels.get(groupId)?.logStopAll(ids.length);
   }
-
-  // ── Event listeners ────────────────────────────────────────────────────────
 
   private setupEventListeners(): void {
-    this.soundManager.addEventListener(SoundEventsEnum.ENDED, (event: any) => {
-      this.handleInstanceDone(event.instanceId ?? event.soundId);
-    });
+    const done = (event: { soundId?: string; instanceId?: string }) => {
+      const instanceId = event.instanceId ?? event.soundId;
+      if (!instanceId) return;
+      const groupId = this.instanceGroup.get(instanceId);
+      if (!groupId) return;
+      this.soundManager.removeFromSoundGroup(groupId, instanceId);
+      this.instanceGroup.delete(instanceId);
+      this.panels.get(groupId)?.removeVoice(instanceId);
+    };
 
-    this.soundManager.addEventListener(SoundEventsEnum.STOPPED, (event: any) => {
-      this.handleInstanceDone(event.soundId);
-    });
+    this.soundManager.addEventListener(SoundEventsEnum.ENDED, done as never);
+    this.soundManager.addEventListener(SoundEventsEnum.STOPPED, done as never);
   }
 
-  private handleInstanceDone(instanceId: string): void {
-    if (!instanceId) return;
-    const groupId = this.instanceToGroup.get(instanceId);
-    if (!groupId) return;
-    this.soundManager.removeFromSoundGroup(groupId, instanceId);
-    this.instanceToGroup.delete(instanceId);
-    this.updateSlots(groupId);
+  private startTicker(): void {
+    const tick = (now: number) => {
+      this.panels.forEach(panel => panel.tick(now));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
 
-  // ── Slot UI ────────────────────────────────────────────────────────────────
+  // ── Voice lab ──────────────────────────────────────────────────────────────
 
-  private updateSlots(groupId: string): void {
-    const activeCount = [...this.instanceToGroup.values()].filter(g => g === groupId).length;
-    const slots = document.querySelectorAll<HTMLElement>(`[data-slots-group="${groupId}"] .group-slot`);
+  private buildLab(): void {
+    const host = document.getElementById('voiceLab');
+    if (!host) return;
 
-    slots.forEach((slot, i) => {
-      const wasActive = slot.classList.contains('active');
-      const isNowActive = i < activeCount;
-
-      if (wasActive && !isNowActive) {
-        slot.classList.remove('active');
-        slot.classList.add('slot-deactivating');
-        setTimeout(() => slot.classList.remove('slot-deactivating'), 350);
-      } else if (!wasActive && isNowActive) {
-        slot.classList.remove('slot-deactivating');
-        slot.classList.add('active');
-      }
-    });
-  }
-
-  private setLoadingState(loading: boolean): void {
-    const buttons = document.querySelectorAll<HTMLButtonElement>('.sound-btn');
-    buttons.forEach(btn => (btn.disabled = loading));
-
-    const existing = document.getElementById('loadingOverlay');
-    if (loading && !existing) {
-      const overlay = document.createElement('div');
-      overlay.id = 'loadingOverlay';
-      overlay.className = 'loading-overlay';
-      overlay.textContent = 'Generating synthesizer sounds…';
-      document.getElementById('groupsContainer')?.appendChild(overlay);
-    } else if (!loading && existing) {
-      existing.remove();
+    for (const config of LAB_GROUPS) {
+      const panel = this.createPanel(config);
+      this.panels.set(config.id, panel);
+      host.appendChild(panel.el);
     }
   }
 
-  // ── Info panel ─────────────────────────────────────────────────────────────
+  private createPanel(config: GroupConfig): GroupPanel {
+    return new GroupPanel({
+      groupId: config.id,
+      title: config.title,
+      note: config.note,
+      color: config.color,
+      max: config.max,
+      limitRange: config.limitRange,
+      sounds: config.sounds,
+      showLog: config.showLog,
+      compact: config.compact,
+      onPlay: soundId => this.playInGroup(soundId, config.id),
+      onStopAll: () => this.stopGroup(config.id),
+      onMaxChange: max => {
+        const group = this.soundManager.getGroup(config.id);
+        if (group) group.maxInstances = max;
+      },
+    });
+  }
+
+  // ── Arcade ─────────────────────────────────────────────────────────────────
+
+  private buildArcade(): void {
+    const host = document.getElementById('arcade');
+    if (!host) return;
+
+    host.innerHTML = `
+      <div class="section-head">
+        <h2 class="section-title">Voice Raiders</h2>
+        <p class="section-sub">
+          A tiny DOS-era shooter wired to three groups. Fire fast and the weapons group runs out of
+          slots, exactly like the lab above.
+        </p>
+      </div>
+      <div class="arcade__body">
+        <div class="arcade__screen">
+          <div class="crt">
+            <canvas class="crt__canvas" id="arcadeCanvas" width="320" height="200"
+              aria-label="Voice Raiders arcade game"></canvas>
+            <div class="crt__scanlines" aria-hidden="true"></div>
+          </div>
+          <div class="arcade__controls">
+            <button class="pad-btn" type="button" data-pad="left" aria-label="Move left">&#9664;</button>
+            <button class="pad-btn" type="button" data-pad="right" aria-label="Move right">&#9654;</button>
+            <button class="pad-btn pad-btn--fire" type="button" data-pad="fire">FIRE</button>
+            <button class="pad-btn pad-btn--wide" type="button" data-start>Start / Pause</button>
+          </div>
+          <p class="arcade__keys">
+            <kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> move,
+            <kbd>Space</kbd> fire, <kbd>P</kbd> pause, <kbd>Enter</kbd> start.
+            Click the screen first so the game gets your keys.
+          </p>
+        </div>
+        <div class="arcade__side" id="arcadeGroups"></div>
+      </div>
+    `;
+
+    const canvas = host.querySelector<HTMLCanvasElement>('#arcadeCanvas')!;
+    const side = host.querySelector<HTMLElement>('#arcadeGroups')!;
+
+    for (const config of GAME_GROUPS) {
+      const panel = this.createPanel(config);
+      this.panels.set(config.id, panel);
+      side.appendChild(panel.el);
+    }
+
+    this.game = new ArcadeGame(canvas, {
+      play: soundId => this.playInGroup(soundId, GAME_SOUND_GROUP[soundId] ?? 'alerts'),
+      stopCombatGroups: () => {
+        this.stopGroup('weapons');
+        this.stopGroup('impacts');
+      },
+      usage: () => this.groupUsage(),
+      onState: (state: GameState) => host.classList.toggle('is-playing', state === 'playing'),
+    });
+
+    host.querySelectorAll<HTMLButtonElement>('[data-pad]').forEach(button => {
+      const key = button.dataset.pad as 'left' | 'right' | 'fire';
+      const set = (down: boolean) => (event: Event) => {
+        event.preventDefault();
+        this.game?.setVirtualKey(key, down);
+      };
+      button.addEventListener('pointerdown', set(true));
+      button.addEventListener('pointerup', set(false));
+      button.addEventListener('pointerleave', set(false));
+      button.addEventListener('pointercancel', set(false));
+    });
+
+    host.querySelector<HTMLButtonElement>('[data-start]')?.addEventListener('click', () => {
+      if (this.game?.getState() === 'playing') this.game.togglePause();
+      else this.game?.startOrResume();
+    });
+  }
+
+  private groupUsage(): GroupUsage[] {
+    return GAME_GROUPS.map(config => {
+      const group = this.soundManager.getGroup(config.id);
+      return {
+        label: config.id,
+        used: group?.sounds.size ?? 0,
+        max: group?.maxInstances ?? config.max,
+        color: config.color,
+      };
+    });
+  }
+
+  // ── Chrome ─────────────────────────────────────────────────────────────────
+
+  private initAudioController(): void {
+    const controllerEl = document.getElementById('groupsAudioController');
+    if (!controllerEl) return;
+    new AudioControllerComponent(controllerEl, { waveFillColors: ['#10b981', '#8b5cf6'] });
+  }
+
+  private initEqualizer(): void {
+    const controllerEl = document.getElementById('groupsAudioController');
+    if (!controllerEl) return;
+    const analyser = this.soundManager.getContext().createAnalyser();
+    this.soundManager.getMasterOutput().connect(analyser);
+    this.equalizer = new EqualizerComponent(controllerEl, analyser);
+  }
 
   private buildInfoPanel(): void {
     const infoPanel = document.getElementById('groupsInfo');
@@ -359,60 +342,47 @@ export class GroupsDemo {
 
 const sm = new SoundManager();
 
-// 1️⃣ Create groups with independent instance limits
-sm.createSoundGroup('effects', { maxInstances: 2 });
-sm.createSoundGroup('ambient', { maxInstances: 3 });
+// A group per kind of sound, each with its own voice limit
+sm.createSoundGroup('weapons', { maxInstances: 3 });
+sm.createSoundGroup('impacts', { maxInstances: 4 });
 
-// 2️⃣ Load sounds
 await sm.loadSounds([
-  { id: 'laser', url: laserUrl },
-  { id: 'drone', url: droneUrl },
-  // ...
+  { id: 'laser', url: '/sounds/laser.wav' },
+  { id: 'boom', url: '/sounds/boom.wav' },
 ]);
 
-// 3️⃣ Play into a group — when maxInstances is reached,
-//    the oldest instance stops automatically to make room
-const instance = sm.play('laser', {
-  createNewInstance: true,
-  groupId: 'effects',
-});
+// Remember which group an instance went into
+const live = new Map<string, string>();
 
-// 4️⃣ Track instance → group so you can clean up on end
-const instanceToGroup = new Map();
-if (instance) instanceToGroup.set(instance.id, 'effects');
+function fire() {
+  // Every shot is its own instance. Once 3 of them are playing,
+  // SoundManager stops the oldest to make room for this one.
+  const shot = sm.play('laser', { createNewInstance: true, groupId: 'weapons' });
+  if (shot) live.set(shot.id, 'weapons');
+}
 
+// Give the slot back when an instance finishes
 sm.addEventListener(SoundEventsEnum.ENDED, (event) => {
-  const groupId = instanceToGroup.get(event.instanceId);
-  if (groupId) {
-    sm.removeFromSoundGroup(groupId, event.instanceId);
-    instanceToGroup.delete(event.instanceId);
-  }
+  const groupId = live.get(event.instanceId);
+  if (!groupId) return;
+  sm.removeFromSoundGroup(groupId, event.instanceId);
+  live.delete(event.instanceId);
 });
 
-// 5️⃣ Stop all sounds in a group at once
-const group = sm.getGroup('effects');
-if (group) {
-  [...group.sounds].forEach(id => sm.stop(id));
-}`;
+// Silence a whole group in one go
+const weapons = sm.getGroup('weapons');
+if (weapons) [...weapons.sounds].forEach(id => sm.stop(id));`;
 
     infoPanel.innerHTML = `
-      <h3>🎛️ Sound Groups</h3>
+      <h3>The code behind this page</h3>
       <p>
-        <strong>Sound groups</strong> let you organise sounds into named collections
-        with a shared <code>maxInstances</code> limit.<br/>When the limit is reached,
-        the <em>oldest playing instance stops automatically</em> to make room for
-        the new one no manual bookkeeping needed.
+        This is the whole pattern. <code>createSoundGroup</code> sets the limit,
+        <code>play()</code> takes a <code>groupId</code>, and the group stops its oldest instance
+        as soon as a new one would push it over the limit. Nothing else to keep track of.
       </p>
       <p>
-        Try it: rapidly click the Effects buttons until both slots are filled, then
-        click again to see the oldest instance cut off as a new one starts.<br/>
-        The Effects group allows <strong>2 simultaneous instances</strong> and
-        Ambient allows <strong>3</strong> each group is completely independent.
-      </p>
-      <p>
-        A typical use case is game audio: a <em>weapons</em> group capped at
-        3 simultaneous shots, or a <em>footsteps</em> group that never stacks
-        more than 2 steps.<br/>The "Stop All" button shows collective group control.
+        The bookkeeping worth copying is the <code>ENDED</code> listener: an instance that finished
+        playing still counts against the limit until you remove it from the group.
       </p>
       <div class="info-code-block">
         <pre><code class="language-typescript">${this.escapeHtml(codeSnippet)}</code></pre>
@@ -446,8 +416,8 @@ if (group) {
     }
     const isDark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);
     body.classList.toggle('dark-theme', isDark);
-    if (toggle) toggle.checked = isDark;
     if (toggle) {
+      toggle.checked = isDark;
       toggle.addEventListener('change', function () {
         body.classList.toggle('dark-theme', this.checked);
         LocalStorageManagerManager.setItem('sound-manager-ts-demo-theme', this.checked ? 'dark' : 'light');

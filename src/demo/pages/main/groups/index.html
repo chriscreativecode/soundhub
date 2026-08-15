@@ -113,15 +113,54 @@
         </div>
       </div>
       <div class="mc-subtitle">
-        <span class="tagline groups-tagline"><span class="groups-emoji">🎛️</span> Sound Groups: Instance Limits & Collective Control</span>
+        <p class="tagline groups-tagline">A group holds only so many voices</p>
+        <p class="mc-lede">
+          Put your sounds in a named group, give the group a <code>maxInstances</code> limit, and play as
+          much as you like. Once the group is full, the oldest instance stops so the new one can start.
+          Watch the slots below fill up, then take the arcade game for a spin and hear what happens when
+          you fire faster than the limit allows.
+        </p>
       </div>
     </div>
 
-    <!-- Groups content + Info layout -->
-    <div class="groups-page-content">
-      <!-- Groups cards (populated by JS) -->
-      <div id="groupsContainer"></div>
-    </div>
+    <!-- How a group works -->
+    <section class="control-group groups-steps">
+      <ol class="steps">
+        <li class="steps__item">
+          <span class="steps__num">1</span>
+          <div>
+            <h3 class="steps__title">Create the group</h3>
+            <code class="steps__code">sm.createSoundGroup('weapons', { maxInstances: 3 })</code>
+          </div>
+        </li>
+        <li class="steps__item">
+          <span class="steps__num">2</span>
+          <div>
+            <h3 class="steps__title">Play into it</h3>
+            <code class="steps__code">sm.play('laser', { createNewInstance: true, groupId: 'weapons' })</code>
+          </div>
+        </li>
+        <li class="steps__item">
+          <span class="steps__num">3</span>
+          <div>
+            <h3 class="steps__title">The limit does the rest</h3>
+            <code class="steps__code">4th shot &rarr; oldest instance stops</code>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Voice lab (populated by JS) -->
+    <section class="voice-lab">
+      <div class="section-head">
+        <h2 class="section-title">Voice lab</h2>
+        <p class="section-sub">Two groups, two limits. Hammer the buttons and watch a slot get taken over.</p>
+      </div>
+      <div class="voice-lab__grid" id="voiceLab"></div>
+    </section>
+
+    <!-- Arcade game (populated by JS) -->
+    <section class="control-group arcade" id="arcade"></section>
 
     <!-- Info panel (populated by JS) -->
     <div id="groupsInfo" class="control-group groups-info"></div>
