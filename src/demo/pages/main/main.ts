@@ -2,6 +2,7 @@ import "./../../shared.css";
 import "./landing.css";
 import { AudioControllerComponent } from "../../components/audio-controller-component/audio-controller.component";
 import { WaveFieldComponent } from "../../components/wave-field-component/wave-field.component";
+import { ShareBarComponent } from "../../components/share-bar-component/share-bar.component";
 
 declare function gtag(...args: any[]): void;
 import { LocalStorageManagerManager } from "../../services/local-storage-manager";
@@ -57,6 +58,11 @@ if (themeToggle) {
 // Drifting waveform field behind the page. Built after the theme class is on
 // body, so its first frame already picks the right palette.
 new WaveFieldComponent();
+
+const shareSite = document.getElementById('shareSite');
+if (shareSite) {
+  new ShareBarComponent(shareSite);
+}
 
 const qsTabs = document.querySelectorAll<HTMLButtonElement>('.qs-tab');
 qsTabs.forEach(tab => {

@@ -15,13 +15,36 @@
   gap: 14px;
 }
 
+/* The bar carries its own heading and lead rather than borrowing a page's
+   section classes, so it drops onto any page in the site unchanged. */
 .share__intro { min-width: 0; }
+
+.share__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.share__text {
+  margin: 4px 0 0;
+  max-width: 72ch;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
 
 .share__buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Not every browser has a share sheet to open. The button ships hidden and the
+   component reveals it only where navigator.share exists, which is the mobile
+   browsers plus Chrome and Edge on Windows and Safari on macOS. */
+.share-btn--system { display: none; }
+.share--can-system .share-btn--system { display: inline-flex; }
 
 .share-btn {
   --brand: var(--color-primary);
@@ -51,8 +74,10 @@
   fill: currentColor;
 }
 
-/* The copy button's icon is drawn in strokes, not filled like the brand marks */
-.share-btn--copy svg {
+/* The two non-network buttons use the site's own drawn icons, which are
+   strokes rather than the filled brand marks */
+.share-btn--copy svg,
+.share-btn--system svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -87,7 +112,10 @@
 .share-btn--linkedin { --brand: #0a66c2; --brand-ink: #fff; }
 .share-btn--reddit   { --brand: #ff4500; --brand-ink: #2a0d00; }
 .share-btn--whatsapp { --brand: #25d366; --brand-ink: #04261a; }
-.share-btn--copy     { --brand: var(--groups-accent, var(--color-primary)); --brand-ink: #04261a; }
+/* The two site actions share the page's own accent, which sets them apart
+   from the five networks without inventing a colour for them. */
+.share-btn--copy,
+.share-btn--system   { --brand: var(--groups-accent, var(--color-primary)); --brand-ink: #04261a; }
 
 /* Confirmed state holds until the timeout, so it must beat :hover */
 .share .share-btn--copied,
