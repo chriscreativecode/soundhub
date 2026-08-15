@@ -1,5 +1,23 @@
-/* ── Audio controller SVG wrapper ─────────────────────────────────────────── */
+/* ── Audio controller ─────────────────────────────────────────────────────
+   A small amplifier faceplate. Every colour comes from a custom property, so
+   a page tints the whole unit by setting --ac-accent on the container. */
 .audio-controller {
+  /* A page sets --ac-page-accent on :root to tint the unit. It cannot set
+     --ac-accent directly, because this rule is loaded last and would win. */
+  --ac-accent: var(--ac-page-accent, var(--color-primary, #4a6bff));
+
+  --ac-body-top: #6f7684;
+  --ac-body-mid: #4d5361;
+  --ac-body-bottom: #2f3440;
+  --ac-edge: rgba(0, 0, 0, 0.55);
+  --ac-shine: rgba(255, 255, 255, 0.3);
+
+  --ac-screen-top: #0b1016;
+  --ac-screen-bottom: #05080c;
+  --ac-grid: color-mix(in srgb, var(--ac-accent) 22%, transparent);
+  --ac-metal: #9aa2b1;
+  --ac-metal-dark: #3a3f4b;
+
   width: 100px;
   margin-right: 0.25rem;
   flex-shrink: 0;
@@ -7,62 +25,226 @@
 
 .audio-controller svg {
   width: 100%;
-  border-radius: 0.25rem;
   height: auto;
   display: block;
+  border-radius: 0.35rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
-/* ── SVG wave animation (header graphic) ──────────────────────────────────── */
+/* Gradient stops are styled rather than set as attributes, so they can read
+   the custom properties above */
+.ac-body-top    { stop-color: var(--ac-body-top); }
+.ac-body-mid    { stop-color: var(--ac-body-mid); }
+.ac-body-bottom { stop-color: var(--ac-body-bottom); }
+
+.ac-screen-top    { stop-color: var(--ac-screen-top); }
+.ac-screen-bottom { stop-color: var(--ac-screen-bottom); }
+
+.ac-haze-in  { stop-color: var(--ac-accent); stop-opacity: 0.16; }
+.ac-haze-out { stop-color: var(--ac-accent); stop-opacity: 0; }
+
+.ac-glass-in  { stop-color: #ffffff; stop-opacity: 0.13; }
+.ac-glass-out { stop-color: #ffffff; stop-opacity: 0; }
+
+.ac-knob-in  { stop-color: #c8cedb; }
+.ac-knob-out { stop-color: #454b58; }
+
+.ac-handle-top    { stop-color: #e2e6ee; }
+.ac-handle-bottom { stop-color: #8b93a3; }
+
+/* ── Case ──────────────────────────────────────────────────────────────── */
+.ac-case-edge {
+  stroke: var(--ac-edge);
+  stroke-width: 5;
+}
+
+/* A single lit strip along the top edge reads as a bevel */
+.ac-case-shine {
+  fill: var(--ac-shine);
+}
+
+/* ── Display ───────────────────────────────────────────────────────────── */
+.ac-bezel {
+  fill: #14171d;
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 3;
+}
+
+.ac-screen-edge {
+  stroke: color-mix(in srgb, var(--ac-accent) 35%, transparent);
+  stroke-width: 3;
+}
+
+.ac-grid path {
+  stroke: var(--ac-grid);
+  stroke-width: 2;
+}
+
+.ac-baseline {
+  stroke: color-mix(in srgb, var(--ac-accent) 60%, transparent);
+  stroke-width: 3;
+}
+
+.ac-glass { pointer-events: none; }
+
+.ac-scanlines path {
+  stroke: rgba(0, 0, 0, 0.22);
+  stroke-width: 3;
+}
+
+/* ── Wave bars ─────────────────────────────────────────────────────────── */
+.wave-bar {
+  fill: var(--ac-bar, var(--ac-accent));
+  transform-origin: bottom;
+  animation: wave 0.8s infinite ease-in-out;
+  transform: scaleY(var(--initial-scale));
+}
+
+/* Every other bar sits back a little, which gives the display some depth */
+.wave-bar:nth-child(even) {
+  opacity: 0.62;
+}
+
+/* ── Level meter ───────────────────────────────────────────────────────── */
+.ac-meter-seg {
+  fill: var(--ac-accent);
+  opacity: 0.18;
+  animation: acMeter 1.6s infinite ease-in-out;
+}
+
+/* ── Knob ──────────────────────────────────────────────────────────────── */
+.ac-knob-base {
+  fill: var(--ac-metal-dark);
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 3;
+}
+
+.ac-knob-ring {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 3;
+}
+
+.ac-knob-ticks path {
+  stroke: color-mix(in srgb, var(--ac-accent) 55%, var(--ac-metal));
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.ac-knob-pointer {
+  stroke: var(--ac-accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.ac-knob-cap {
+  fill: #1a1e26;
+}
+
 .control-knob {
-  transform-origin: 77px 75px;
   animation: rotateKnob 8s infinite ease-in-out;
+}
+
+/* ── Faders ────────────────────────────────────────────────────────────── */
+.ac-slot {
+  fill: rgba(0, 0, 0, 0.45);
+}
+
+.slider-track {
+  stroke: color-mix(in srgb, var(--ac-accent) 45%, transparent);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.ac-handle {
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 3;
+}
+
+.ac-handle-grip {
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 3;
+}
+
+.ac-handle-shine {
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 2;
 }
 
 .bass-handle   { animation: moveBass   5s infinite ease-in-out; }
 .mid-handle    { animation: moveMid    7s infinite ease-in-out; animation-delay: 1s; }
 .treble-handle { animation: moveTreble 6s infinite ease-in-out; animation-delay: 2s; }
 
-.wave-bar {
-  fill: #999;
-  transform-origin: bottom;
-  animation: wave 0.8s infinite ease-in-out;
-  transform: scaleY(var(--initial-scale));
+/* ── Power light ───────────────────────────────────────────────────────── */
+.ac-led {
+  fill: var(--ac-accent);
+  animation: acLed 2.4s infinite ease-in-out;
 }
 
-.wave-bar:nth-child(odd) {
-  fill: #555;
+.ac-led-halo {
+  fill: var(--ac-accent);
+  opacity: 0.2;
+  animation: acLedHalo 2.4s infinite ease-in-out;
 }
 
+/* ── Animation ─────────────────────────────────────────────────────────── */
 @keyframes rotateKnob {
-  0%,100% { transform: translate(518px,356.5px) rotate(0deg); }
-  20%     { transform: translate(518px,356.5px) rotate(130deg); }
-  40%     { transform: translate(518px,356.5px) rotate(-10deg); }
-  60%     { transform: translate(518px,356.5px) rotate(45deg); }
-  80%     { transform: translate(518px,356.5px) rotate(-90deg); }
+  0%, 100% { transform: rotate(0deg); }
+  20%      { transform: rotate(130deg); }
+  40%      { transform: rotate(-10deg); }
+  60%      { transform: rotate(45deg); }
+  80%      { transform: rotate(-90deg); }
 }
 
 @keyframes moveBass {
-  0%,100% { transform: translateY(0); }
-  25%     { transform: translateY(-30px); }
-  50%     { transform: translateY(80px); }
-  75%     { transform: translateY(-20px); }
+  0%, 100% { transform: translateY(0); }
+  25%      { transform: translateY(-30px); }
+  50%      { transform: translateY(80px); }
+  75%      { transform: translateY(-20px); }
 }
 
 @keyframes moveMid {
-  0%,100% { transform: translateY(0); }
-  25%     { transform: translateY(-40px); }
-  50%     { transform: translateY(40px); }
-  75%     { transform: translateY(-30px); }
+  0%, 100% { transform: translateY(0); }
+  25%      { transform: translateY(-40px); }
+  50%      { transform: translateY(40px); }
+  75%      { transform: translateY(-30px); }
 }
 
 @keyframes moveTreble {
-  0%,100% { transform: translateY(0); }
-  25%     { transform: translateY(-80px); }
-  50%     { transform: translateY(10px); }
-  75%     { transform: translateY(-20px); }
+  0%, 100% { transform: translateY(0); }
+  25%      { transform: translateY(-80px); }
+  50%      { transform: translateY(10px); }
+  75%      { transform: translateY(-20px); }
 }
 
 @keyframes wave {
-  0%,100% { transform: scaleY(var(--initial-scale)); }
-  50%     { transform: scaleY(var(--peak-scale)); }
+  0%, 100% { transform: scaleY(var(--initial-scale)); }
+  50%      { transform: scaleY(var(--peak-scale)); }
+}
+
+@keyframes acMeter {
+  0%, 100% { opacity: 0.18; }
+  45%      { opacity: 1; }
+}
+
+@keyframes acLed {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+@keyframes acLedHalo {
+  0%, 100% { opacity: 0.12; }
+  50%      { opacity: 0.32; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-bar,
+  .control-knob,
+  .bass-handle,
+  .mid-handle,
+  .treble-handle,
+  .ac-meter-seg,
+  .ac-led,
+  .ac-led-halo {
+    animation: none;
+  }
 }

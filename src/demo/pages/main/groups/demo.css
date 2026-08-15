@@ -1,8 +1,11 @@
 :root {
+  /* Tints the header audio controller */
+  --ac-page-accent: var(--groups-accent);
   --groups-accent: #10b981;
   --groups-purple: #8b5cf6;
   --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
 }
+
 
 /* ── Page layout ──────────────────────────────────────────────────────────── */
 .mc-page {

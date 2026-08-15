@@ -1,7 +1,10 @@
 :root {
+  /* Tints the header audio controller */
+  --ac-page-accent: var(--speaker-color);
   --color-text-secondary: #6b7280;
   --speaker-color: #0ea5e9;
 }
+
 
 .spatial-page {
   font-family: Arial, sans-serif;

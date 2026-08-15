@@ -6,6 +6,8 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
+  /* Tints the header audio controller */
+  --ac-page-accent: var(--piano-accent);
   /* Keyboard geometry. The white keys divide the available width, so the board
      is fluid; below the minimum it scrolls inside the case instead of shrinking
      into something you cannot hit. */
@@ -40,6 +42,7 @@
 
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Fira Code", Consolas, monospace;
 }
+
 
 /* ── Page shell ──────────────────────────────────────────────────────────── */
 .mc-page {

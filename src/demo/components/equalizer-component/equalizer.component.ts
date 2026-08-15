@@ -141,12 +141,9 @@ export class EqualizerComponent {
 
       // Normalize to 0-1 and scale to bar height (max ~140px within 150-290 Y range)
       const norm = value / 255;
-      let barHeight: number;
-      if (isActive) {
-        barHeight = Math.max(2, norm * 140);
-      } else {
-        barHeight = 1; // barely visible when silent
-      }
+      // Silence still leaves a row of lit stubs, so the display reads as
+      // powered on rather than blank
+      const barHeight = isActive ? Math.max(4, norm * 140) : 4;
 
       const bar = this.bars[i];
 
