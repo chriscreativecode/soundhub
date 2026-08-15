@@ -104,7 +104,9 @@ export class SoundControl {
     private container: HTMLElement,
     private isSprite: boolean = false,
     /** Lets the page drop this channel from its own bookkeeping when removed */
-    private onDestroyed?: (id: string) => void
+    private onDestroyed?: (id: string) => void,
+    /** Lets the toolbar's single expand / collapse button follow the list */
+    private onExpandedChange?: () => void
   ) {
     this.element = this.createControl();
     this.soundManagerConfig = this.soundManager.getConfig();
@@ -179,6 +181,22 @@ export class SoundControl {
     return !this.bodyElement.hidden;
   }
 
+  /**
+   * Moves the grid marker to a position this strip did not set itself, which
+   * is how a soundscape shows where it dropped this channel. Visual only: the
+   * library already holds the position, and re-sending it would fight the
+   * scene.
+   */
+  public showSpatialPosition(position: { x: number; y: number; z: number }): void {
+    this.spatialGrid.updatePosition(
+      (position.x + 1) * 50,
+      position.y,
+      (position.z + 1) * 50,
+      true,
+      true
+    );
+  }
+
   /** Hides rather than destroys, so state survives a change of filter. */
   public setVisible(visible: boolean): void {
     this.element.hidden = !visible;
@@ -196,6 +214,7 @@ export class SoundControl {
     this.setExpanded(false);
     this.disclosureButton.addEventListener("click", () => {
       this.setExpanded(!this.isExpanded());
+      this.onExpandedChange?.();
     });
   }
 

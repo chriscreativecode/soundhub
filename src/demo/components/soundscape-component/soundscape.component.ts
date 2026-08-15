@@ -1,6 +1,8 @@
+import { SoundEvent } from "../../../sound-manager/sound-event.interface";
 import { SoundEventsEnum } from "../../../sound-manager/sound-events.enum";
 import { SoundManager } from "../../../sound-manager/sound-manager";
-import { Soundscape } from "../../pages/main/general/soundscapes";
+import { SoundPanType } from "../../../sound-manager/sound-pan-type.enum";
+import { describePosition, Soundscape, SpatialPosition } from "../../pages/main/general/soundscapes";
 import { getSoundMeta } from "../../pages/main/general/sound-catalog";
 import { svgIcon } from "../shared/icon-utils";
 /* @ts-ignore */
@@ -11,31 +13,42 @@ declare function gtag(...args: any[]): void;
 /**
  * Scene launcher.
  *
- * One button starts several channels at once, each with its own volume, place
- * in the stereo field and playback rate, all fading up together. It is the
- * fastest way to show what the library is actually for: not playing a file,
- * but running a mix.
+ * One button starts several channels at once, each with its own volume, its own
+ * point in 3D space and its own playback rate, all fading up together. It is
+ * the fastest way to show what the library is actually for: not playing a file,
+ * but placing a mix around the listener.
  */
 export class SoundscapeComponent {
   private root: HTMLElement;
   private activeId: string | null = null;
   private buttons = new Map<string, HTMLButtonElement>();
   private stopButton!: HTMLButtonElement;
-  private stopHandler: () => void;
+  private stopHandler: (event: SoundEvent) => void;
+  /** Ids this component put in 3D, so it can hand them back as stereo later. */
+  private placedLayers: string[] = [];
 
   constructor(
     container: HTMLElement,
     private soundManager: SoundManager,
     private scenes: Soundscape[],
-    private isLoaded: (id: string) => boolean
+    private isLoaded: (id: string) => boolean,
+    /** So each channel strip can show where the scene just put it */
+    private onLayersPlaced?: (placements: { id: string; position: SpatialPosition }[]) => void
   ) {
     this.root = container;
     this.render();
     this.bind();
 
     // Anything that halts everything ends the scene, including the master
-    // transport, so the active pill never lies about what is running.
-    this.stopHandler = () => this.setActive(null);
+    // transport, so the active pill never lies about what is running. The
+    // library has already cleared the spatial nodes by then.
+    // A single strip resetting itself is not the scene ending, so only the
+    // manager-wide reset counts here.
+    this.stopHandler = (event: SoundEvent) => {
+      if (event.soundId) return;
+      this.placedLayers = [];
+      this.setActive(null);
+    };
     this.soundManager.addEventListener(SoundEventsEnum.RESET, this.stopHandler);
   }
 
@@ -63,7 +76,12 @@ export class SoundscapeComponent {
       .map((scene) => {
         const layers = this.playableLayers(scene);
         const disabled = layers.length === 0;
-        const names = layers.map((layer) => getSoundMeta(layer.id).label).join(" · ");
+        const placements = layers
+          .map(
+            (layer) =>
+              `<span class="scene__layer"><b>${getSoundMeta(layer.id).label}</b>${describePosition(layer.position)}</span>`
+          )
+          .join("");
 
         return `
           <button type="button" class="scene" data-scene="${scene.id}" ${disabled ? "disabled" : ""}
@@ -72,7 +90,7 @@ export class SoundscapeComponent {
             <span class="scene__text">
               <span class="scene__name">${scene.name}</span>
               <span class="scene__blurb">${scene.blurb}</span>
-              <span class="scene__layers">${names || "unavailable"}</span>
+              <span class="scene__layers">${placements || "<span class=\"scene__layer\">unavailable</span>"}</span>
             </span>
             <span class="scene__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           </button>`;
@@ -85,8 +103,9 @@ export class SoundscapeComponent {
           <div>
             <h2 class="soundscapes__title" id="soundscapesTitle">Soundscapes</h2>
             <p class="soundscapes__lead">
-              One click layers several channels at once, each with its own volume, panning and
-              playback rate. Open the console below to see the exact calls it makes.
+              One click layers several channels at once, each with its own volume, playback rate and
+              position in 3D space around you. Put headphones on: the brook really is behind you.
+              Open the console below to see the exact calls it makes.
             </p>
           </div>
           <button type="button" class="scene-stop" data-stop-scene disabled>
@@ -125,11 +144,13 @@ export class SoundscapeComponent {
 
     // A scene replaces whatever was running; two scenes at once is mud.
     this.soundManager.stopAllSounds();
+    this.releasePlacedLayers();
 
     layers.forEach((layer) => {
       this.soundManager.play(layer.id, {
         volume: layer.volume,
-        pan: layer.pan,
+        panType: SoundPanType.Spatial,
+        panSpatialPosition: layer.position,
         playbackRate: layer.playbackRate ?? 1,
         loop: true,
         maxLoops: -1,
@@ -138,6 +159,8 @@ export class SoundscapeComponent {
       });
     });
 
+    this.placedLayers = layers.map((layer) => layer.id);
+    this.onLayersPlaced?.(layers.map((layer) => ({ id: layer.id, position: layer.position })));
     this.setActive(id);
 
     if (typeof gtag === "function") {
@@ -147,7 +170,20 @@ export class SoundscapeComponent {
 
   private stopScene(): void {
     this.soundManager.stopAllSounds();
+    this.releasePlacedLayers();
     this.setActive(null);
+  }
+
+  /**
+   * Hands the layers back the way they were found. A scene swaps a channel's
+   * stereo panner for a panner node, and leaving that in place would mean the
+   * pan slider on that strip silently does nothing after the scene ends.
+   * `resetSound` tears the spatial node down and puts stereo panning back.
+   */
+  private releasePlacedLayers(): void {
+    const placed = this.placedLayers;
+    this.placedLayers = [];
+    placed.forEach((soundId) => this.soundManager.resetSound(soundId));
   }
 
   private setActive(id: string | null): void {
