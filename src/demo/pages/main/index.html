@@ -414,6 +414,7 @@ sm.play("click");</code></pre>
 
         <!-- 3D Spatial Audio -->
         <a href="./spatial/" class="landing-card" style="--card-color:#0ea5e9">
+          <span class="card-badge card-badge--updated"><span class="card-badge__pulse"></span>Updated</span>
           <div class="card-header">
             <div class="card-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -422,7 +423,14 @@ sm.play("click");</code></pre>
             </div>
             <h2 class="card-title">3D Spatial Audio Demo</h2>
           </div>
-          <p class="card-description">Test your surround sound speaker setup. Position audio in 3D space front, back, left, right ideal for TV and home theatre configurations.</p>
+          <p class="card-description">Give a sound an x, y and z position and hear it circle the listener, or place it yourself with the mouse. Put your headphones on: the browser renders 3D audio binaurally and mixes it down to two channels.</p>
+
+          <!-- The orbit this demo opens with -->
+          <div class="card-orbit" aria-hidden="true">
+            <span class="card-orbit__ring"></span>
+            <span class="card-orbit__listener">👤</span>
+            <span class="card-orbit__source"></span>
+          </div>
           <span class="card-cta">Open Demo <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="card-cta-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg></span>
         </a>
 
