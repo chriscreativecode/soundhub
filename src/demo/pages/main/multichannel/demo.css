@@ -65,26 +65,6 @@
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .mc-header { padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg); }
 
-.demo-nav {
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.nav-back-link {
-  font-size: 0.85rem;
-  color: var(--color-primary);
-  text-decoration: none;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 4px;
-  transition: opacity 0.2s;
-}
-.nav-back-link:hover { opacity: 0.8; text-decoration: underline; }
-.nav-back-link:focus-visible { outline: 2px solid var(--piano-accent); outline-offset: 3px; }
-
 .title-container { display: flex; align-items: center; gap: var(--spacing-sm); }
 .main-title-container { display: flex; align-items: center; gap: var(--spacing-sm); flex: 1; min-width: 0; }
 

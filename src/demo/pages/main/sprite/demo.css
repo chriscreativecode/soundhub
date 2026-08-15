@@ -23,24 +23,6 @@
 /* ── Header ──────────────────────────────────────────────────────────── */
 .sprite-header { padding: var(--spacing-md); flex: none; }
 
-.demo-nav {
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.nav-back-link {
-  font-size: 0.85rem;
-  color: var(--color-primary);
-  text-decoration: none;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: opacity 0.2s;
-}
-.nav-back-link:hover { opacity: 0.8; text-decoration: underline; }
-
 .title-container { display: flex; align-items: center; gap: var(--spacing-sm); }
 .main-title-container { display: flex; align-items: center; gap: var(--spacing-sm); flex: 1; }
 .header-info { display: flex; flex-direction: column; gap: 0.5rem; }
