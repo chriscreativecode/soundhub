@@ -251,53 +251,123 @@ body.dark-theme .intro-note {
 body.dark-theme .intro-note h3,
 body.dark-theme .intro-details summary { color: #ffc266; }
 
-.sound-selector-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  flex-wrap: wrap;
-}
-.sound-selector-label { font-size: 0.875rem; font-weight: 500; color: var(--color-text); white-space: nowrap; }
-.sound-select-dropdown {
-  background: var(--color-surface-secondary);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  padding: 6px 12px;
-  border-radius: var(--border-radius);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 200px;
-  appearance: auto;
-}
-.sound-select-dropdown:focus {
-  outline: none;
-  border-color: var(--speaker-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--speaker-color) 30%, transparent);
+/* ── Setup panel ──────────────────────────────────────────────────────────
+   The two dropdowns used to sit in a thin strip that read as a caption.
+   They decide what you hear, so they get the weight of a real step. */
+.control-group.spatial-setup {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 20px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--speaker-color) 9%, var(--color-surface)),
+    var(--color-surface) 60%
+  );
 }
 
-/* Audio mode selector */
-.audio-mode-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text);
-  white-space: nowrap;
+/* The accent runs as a bar rather than a border, because the dark theme
+   strips borders off every top-level control group */
+.control-group.spatial-setup::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--speaker-color);
 }
-.audio-mode-select {
+
+.spatial-setup__header { margin-bottom: 14px; }
+
+.spatial-setup__step {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--speaker-color);
+  margin-bottom: 4px;
+}
+
+.spatial-setup__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.spatial-setup__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.setup-field:focus-within {
+  border-color: var(--speaker-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--speaker-color) 18%, transparent);
+}
+
+.setup-field__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.setup-field__icon { font-size: 1.05rem; }
+
+.setup-field__select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
   background: var(--color-surface-secondary);
   color: var(--color-text);
-  border: 1px solid var(--color-border);
-  padding: 6px 12px;
-  border-radius: var(--border-radius);
-  font-size: 0.875rem;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  min-width: 180px;
   appearance: auto;
+  transition: border-color 0.2s, background 0.2s;
 }
-.audio-mode-select:focus {
+
+.setup-field__select:hover { border-color: var(--speaker-color); }
+
+.setup-field__select:focus {
   outline: none;
   border-color: var(--speaker-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--speaker-color) 30%, transparent);
+}
+
+.setup-field__hint {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+body.dark-theme .control-group.spatial-setup {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--speaker-color) 26%, #14161f),
+    #14161f 65%
+  );
+}
+
+body.dark-theme .setup-field {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* Room layout */
@@ -754,27 +824,22 @@ input:checked + .toggle-slider:before {
 .active-coords { font-size: 0.8rem; color: var(--color-text-secondary); font-family: monospace; }
 .channel-note { font-size: 0.75rem; color: var(--color-text-secondary); font-family: monospace; }
 
-.selector-row-divider {
-  display: inline-block;
-  width: 1px;
-  height: 22px;
-  background: var(--color-border);
-  margin: 0 4px;
-  flex-shrink: 0;
-}
 .channel-info {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
   background: var(--color-surface-secondary);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
-  padding: 4px 12px;
+  border-radius: 10px;
+  padding: 6px 12px;
   font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.45;
   color: var(--color-text-secondary);
-  white-space: nowrap;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
+
+.channel-info:empty { display: none; }
 .channel-info--ok {
   background: color-mix(in srgb, #22c55e 12%, var(--color-surface-secondary));
   border-color: color-mix(in srgb, #22c55e 40%, transparent);
