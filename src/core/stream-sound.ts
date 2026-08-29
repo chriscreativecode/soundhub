@@ -34,10 +34,10 @@ export interface StreamOptions {
 /**
  * A sound backed by a media element rather than a buffer.
  *
- * The element is routed through MediaElementAudioSourceNode into the same
- * chain a buffered sound uses — gain, panning, then the master bus — so master
- * volume, master pan and the limiter apply to streams exactly as they do to
- * everything else.
+ * The element is routed through MediaElementAudioSourceNode into the same chain
+ * a buffered sound uses: gain, then panning, then the master bus. Master volume,
+ * master pan and the limiter therefore apply to streams the same way they apply
+ * to everything else.
  *
  * @internal
  */

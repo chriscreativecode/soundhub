@@ -1,8 +1,8 @@
 /**
- * soundhub.js — example page.
+ * soundhub.js example page.
  *
- * Imports the library straight from source so the page doubles as a smoke test:
- * if the public API changes shape, this file stops compiling.
+ * Imports the library straight from source, so the page doubles as a smoke
+ * test. If the public API changes shape, this file stops compiling.
  */
 import './demo.css';
 import { SoundHub, SoundEventsEnum, SoundPanType } from '../src/index';
@@ -111,7 +111,7 @@ const appendLog = (event: SoundEvent): void => {
   while (logEl.childElementCount > 200) logEl.lastElementChild?.remove();
 };
 
-// One listener per event type — the whole surface of the library on one bus.
+// One listener per event type. The whole surface of the library on one bus.
 Object.values(SoundEventsEnum).forEach((type) => {
   hub.addEventListener(type as SoundEventsEnum, appendLog);
 });

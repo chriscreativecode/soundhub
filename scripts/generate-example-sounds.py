@@ -48,7 +48,7 @@ def decay(n, k=5.0, attack=0.005):
     return env
 
 def lowpass(signal, alpha=0.05):
-    """One-pole filter — enough to take the fizz off white noise."""
+    """One-pole filter. Enough to take the fizz off white noise."""
     out = np.empty_like(signal)
     acc = 0.0
     for i, s in enumerate(signal):
@@ -94,35 +94,35 @@ def blip(freq, dur, k=6.0, duty=0.5):
 def sprite_sheet():
     track = np.zeros(int(30 * SR))
 
-    # nextLevel 0.0 – 2.0
+    # nextLevel 0.0 to 2.0
     for i, f in enumerate([523, 659, 784, 1047]):
         place(track, 0.05 + i * 0.2, blip(f, 0.22, 4), 0.5)
     place(track, 0.9, blip(1319, 0.9, 3), 0.5)
 
-    # powerUp 2.5 – 4.5
+    # powerUp 2.5 to 4.5
     place(track, 2.6, sweep(220, 1800, 1.4) * decay(int(1.4 * SR), 2.5), 0.45)
     place(track, 3.9, blip(2093, 0.4, 4), 0.35)
 
-    # jump 4.5 – 5.5
+    # jump 4.5 to 5.5
     place(track, 4.6, sweep(420, 1000, 0.16) * decay(int(0.16 * SR), 5), 0.55)
 
-    # fail 6.0 – 8.5
+    # fail 6.0 to 8.5
     for i, f in enumerate([392, 330, 262, 196]):
         place(track, 6.1 + i * 0.5, blip(f, 0.55, 3, duty=0.35), 0.5)
 
-    # catch 8.5 – 9.2
+    # catch 8.5 to 9.2
     place(track, 8.6, blip(1245, 0.14, 9), 0.55)
 
-    # danger 16.5 – 18.5
+    # danger 16.5 to 18.5
     for i in range(6):
         place(track, 16.6 + i * 0.3, blip(880 if i % 2 == 0 else 622, 0.22, 6), 0.45)
 
-    # victory 20.5 – 22.5
+    # victory 20.5 to 22.5
     for i, f in enumerate([523, 659, 784, 1047, 784, 1047]):
         place(track, 20.6 + i * 0.16, blip(f, 0.3, 4), 0.42)
     place(track, 21.7, blip(1568, 0.7, 2.5), 0.45)
 
-    # attack 28.0 – 29.5
+    # attack 28.0 to 29.5
     place(track, 28.1, lowpass(noise(0.5), 0.4) * decay(int(0.5 * SR), 7), 0.6)
     place(track, 28.1, sweep(900, 90, 0.5) * decay(int(0.5 * SR), 4), 0.4)
 
