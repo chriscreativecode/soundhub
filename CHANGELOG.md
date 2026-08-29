@@ -9,6 +9,18 @@ adds something backwards-compatible, a major asks you to change your code.
 
 ### Added
 
+- `once(type, callback, filter?)` — listen for the next matching event and stop.
+- `addEventListener` now takes a filter and returns its own unsubscribe function.
+  The filter gained `soundId`, which is the field every event carries; before
+  this it only matched `originalId` and `instanceId`, so filtering did nothing
+  for most events and every callback had to start with an id check. The
+  interface never declared the filter parameter at all, though the
+  implementation had always accepted one.
+- `setMediaSession(id, info?)` and `clearMediaSession()` — put a sound on the
+  operating system's media controls: title, artist and artwork on the lock
+  screen, and working play, pause, skip and scrub handlers. Playback state and
+  scrubber position stay in step as the sound plays.
+- `SoundEventFilter` and `MediaSessionInfo` are exported for typing.
 - `loadStream(id, url, options?)` — load a long file as a stream instead of
   decoding it into memory. An hour-long podcast no longer costs hundreds of
   megabytes and a wait before the first sound. Playback, seeking, volume, fades,
