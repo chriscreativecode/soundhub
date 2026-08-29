@@ -1,8 +1,8 @@
 /**
- * soundhub.js — public entry point.
+ * soundhub.js public entry point.
  *
  * The main class is SoundHub. `SoundManager` is kept as a deprecated alias so
- * projects migrating from sound-manager-ts keep compiling; it will be removed
+ * projects migrating from sound-manager-ts keep compiling. It will be removed
  * in v7.
  */
 

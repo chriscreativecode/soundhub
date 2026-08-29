@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>soundhub.js — example</title>
+    <title>soundhub.js example</title>
   </head>
   <body>
     <header class="page-head">
       <h1>soundhub<span>.js</span></h1>
-      <p>A single page that exercises the public API: sprites, multichannel playback, progress, groups, fades, panning and spatial audio — with every event on the bus printed live.</p>
+      <p>A single page that exercises the public API: sprites, multichannel playback, progress, groups, fades, panning and spatial audio, with every event on the bus printed live.</p>
     </header>
 
     <div id="loading" class="loading">Loading sounds…</div>
@@ -30,11 +30,11 @@
           <button id="stopAll">Stop everything</button>
           <label class="check"><input type="checkbox" id="limiter" checked /> Master limiter</label>
         </div>
-        <p class="hint">The limiter sits just before the output. Turn it off, then fire twenty lasers at once — that crackle is clipping.</p>
+        <p class="hint">The limiter sits just before the output. Turn it off, then fire twenty lasers at once. That crackle is clipping.</p>
         <dl class="stats">
-          <div><dt>Context</dt><dd id="statContext">–</dd></div>
-          <div><dt>Sounds loaded</dt><dd id="statCount">–</dd></div>
-          <div><dt>Ready</dt><dd id="statReady">–</dd></div>
+          <div><dt>Context</dt><dd id="statContext">-</dd></div>
+          <div><dt>Sounds loaded</dt><dd id="statCount">-</dd></div>
+          <div><dt>Ready</dt><dd id="statReady">-</dd></div>
         </dl>
       </section>
 
@@ -54,7 +54,7 @@
           <button id="laserBurst">Fire 12 at once</button>
           <button id="laserStop">Stop all lasers</button>
         </div>
-        <p class="hint">Live instances: <strong id="laserCount">0</strong> — capped at 16 by the group's <code>maxInstances</code>.</p>
+        <p class="hint">Live instances: <strong id="laserCount">0</strong>, capped at 16 by the group's <code>maxInstances</code>.</p>
       </section>
 
       <!-- Transport & progress ----------------------------------------->
@@ -90,13 +90,13 @@
           <button id="birds">Forest birds</button>
           <button id="ambienceStop">Stop group</button>
         </div>
-        <p class="hint">In group: <strong id="groupMembers">–</strong></p>
+        <p class="hint">In group: <strong id="groupMembers">-</strong></p>
       </section>
 
       <!-- Spatial ------------------------------------------------------>
       <section class="card">
         <h2>Spatial audio</h2>
-        <p class="hint">A looping helicopter on a 3D panner. Drag it around — headphones help.</p>
+        <p class="hint">A looping helicopter on a 3D panner. Drag it around. Headphones help.</p>
         <div class="row">
           <button id="heliPlay" class="primary">Start helicopter</button>
           <button id="heliStop">Stop</button>

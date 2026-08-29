@@ -3703,8 +3703,8 @@ export class SoundHub implements SoundHubInterface {
    *
    * Without a filter you hear every sound, which means writing
    * `if (event.soundId !== 'x') return` at the top of the callback. The filter
-   * does that for you: `{ soundId: 'music' }` for one sound, `{ originalId:
-   * 'laser' }` to catch every overlapping instance of it at once.
+   * does that for you. Use `{ soundId: 'music' }` for one sound, or
+   * `{ originalId: 'laser' }` to catch every overlapping instance of it.
    *
    * Returns a function that removes this listener again, which is easier to
    * hold on to than reconstructing the same callback and filter for
@@ -3730,9 +3730,9 @@ export class SoundHub implements SoundHubInterface {
   /**
    * Listen for the next matching event and then stop listening.
    *
-   * Handy for the one-shot cases that would otherwise leak a listener: waiting
-   * for a track to finish before starting the next one, or for a fade to
-   * complete before tearing something down.
+   * Handy for one-shot cases that would otherwise leak a listener, such as
+   * waiting for a track to finish before starting the next one, or for a fade
+   * to complete before tearing something down.
    */
   public once(
     type: SoundEventsEnum,
@@ -3831,27 +3831,27 @@ export class SoundHub implements SoundHubInterface {
 
   // Streaming ------------------------------------------------------------------------------------------------------
   //
-  // Everything above this line decodes a whole file into an AudioBuffer, which
-  // is what makes precise scheduling, sprites and instance stacking possible.
-  // It is also why an hour-long recording is a bad fit: the decoded audio has
-  // to sit in memory in full before the first sample plays.
+  // Everything above this line decodes a whole file into an AudioBuffer. That
+  // is what precise scheduling, sprites and instance stacking need, and it is
+  // also why an hour-long recording is a bad fit: the decoded audio has to sit
+  // in memory in full before the first sample plays.
   //
   // A stream is the other trade. An HTMLAudioElement does the fetching and
   // decoding as it goes, and MediaElementAudioSourceNode drops the result into
   // the same graph, so master volume, panning and the limiter still apply.
-  // What you give up is everything that needs random access to samples:
-  // sprites, overlapping instances of one id, and gapless looping.
+  // What you give up is anything that needs random access to samples: sprites,
+  // overlapping instances of one id, and gapless looping.
 
   /**
    * Load a long audio file as a stream instead of a buffer.
    *
-   * Use this for podcasts, audiobooks, radio, DJ sets, background music that
-   * runs for an hour — anything where waiting for a full download and holding
-   * the decoded audio in memory would be wasteful.
+   * Use this for podcasts, audiobooks, radio and background music that runs
+   * for an hour. Anywhere waiting for a full download and then holding the
+   * decoded audio in memory would be wasteful.
    *
    * Playback, seeking, volume, fades, panning, playback rate, looping, state
    * and progress events all work the way they do for a buffered sound. Sprites
-   * and `createNewInstance` do not: those need the samples in memory.
+   * and `createNewInstance` do not, because those need the samples in memory.
    */
   public async loadStream(id: string, url: string, options: StreamOptions = {}): Promise<void> {
     if (this.sounds.has(id) || this.streams.has(id)) {
@@ -4196,10 +4196,10 @@ export class SoundHub implements SoundHubInterface {
   /**
    * Hand one sound to the operating system's media controls.
    *
-   * This is what puts an episode title on a phone's lock screen, draws the
-   * artwork, and makes the play/pause key on a keyboard and the buttons on a
-   * headset do the right thing. For a podcast it is not a flourish; people
-   * expect their phone to behave like a podcast player.
+   * This puts an episode title on a phone's lock screen, draws the artwork,
+   * and makes the play/pause key on a keyboard and the buttons on a headset do
+   * the right thing. Listeners expect a long recording to behave like a podcast
+   * player, and without this they get a silent notification and dead buttons.
    *
    * Works for a streamed sound and a buffered one alike. Call it again with
    * different metadata when the track changes, and clearMediaSession() when
@@ -4280,8 +4280,8 @@ export class SoundHub implements SoundHubInterface {
   }
 
   /**
-   * Keeps the lock screen in step: whether it shows a play or a pause button,
-   * and where the scrubber sits.
+   * Keeps the lock screen in step. Decides whether it shows a play or a pause
+   * button, and where the scrubber sits.
    */
   private updateMediaSessionState(id: string): void {
     if (this.mediaSessionId !== id) return;
