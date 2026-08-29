@@ -52,8 +52,8 @@ the day-to-day code looks like:
 
 **One typed event bus.** Thirty-plus event types in a single enum
 (`SoundEventsEnum.STARTED`, `.FADE_OUT_COMPLETED`, `.SPATIAL_POSITION_CHANGED`, …),
-each carrying the sound id. Your UI subscribes once, not once per sound — and a
-filter keeps each listener to the sound it cares about:
+each carrying the sound id. Your UI subscribes once instead of once per sound,
+and a filter keeps each listener to the sound it cares about:
 
 ```ts
 const off = hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
@@ -90,9 +90,9 @@ auto-resume on focus).
 **Long files stream.** Short sounds are decoded into memory, which is what makes
 precise scheduling, sprites and instance stacking possible. An hour-long podcast
 loaded that way would cost hundreds of megabytes and a long wait before the first
-sound. So `loadStream` takes the other route — the browser fetches as it plays —
-while the audio still runs through the same graph, so master volume, panning and
-the limiter apply either way.
+sound. So `loadStream` takes the other route: the browser fetches as it plays.
+The audio still runs through the same graph, so master volume, panning and the
+limiter apply either way.
 
 ```ts
 await hub.loadStream('episode-42', '/audio/episode-42.mp3');
@@ -110,12 +110,12 @@ no `loop_completed` event fires. `getStreamElement(id)` hands you the media elem
 for the rest, such as buffered ranges for a loading bar.
 
 **The lock screen works.** `setMediaSession` puts a title, artist and artwork on
-the operating system's media controls and wires up the hardware keys — play,
+the operating system's media controls and wires up the hardware keys for play,
 pause, skip back fifteen, skip forward thirty, and the scrubber:
 
 ```ts
 hub.setMediaSession('episode-42', {
-  title: 'Episode 42 — Naming things',
+  title: 'Episode 42: naming things',
   artist: 'The Podcast',
   artwork: [{ src: '/cover-512.png', sizes: '512x512', type: 'image/png' }],
   onNextTrack: () => playEpisode(43),
@@ -127,7 +127,7 @@ sound plays; `clearMediaSession()` takes it off again.
 
 ## Examples
 
-The `examples/` folder holds a single page that exercises the whole public API —
+The `examples/` folder holds a single page that exercises the whole public API:
 sprites, overlapping instances, progress and seeking, groups, fades, panning,
 spatial audio, and a live view of the event bus.
 
@@ -137,8 +137,8 @@ npm run dev
 ```
 
 Every sound in `examples/sounds/` is synthesised by
-`scripts/generate-example-sounds.py` — no samples, no third-party audio — so the
-example audio carries the same MIT licence as the rest of the project.
+`scripts/generate-example-sounds.py`. Nothing there is sampled or downloaded, so
+the example audio carries the same MIT licence as the rest of the project.
 
 ## API
 
