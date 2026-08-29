@@ -1,0 +1,68 @@
+{
+  "name": "soundhub",
+  "version": "6.0.0",
+  "license": "MIT",
+  "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus. Web Audio API, 14 KB, zero dependencies.",
+  "author": {
+    "name": "Chris Schardijn",
+    "email": "chriscreativecode@gmail.com",
+    "url": "https://www.chriscreativecode.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chriscreativecode/soundhub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chriscreativecode/soundhub/issues"
+  },
+  "homepage": "https://soundhub.chriscreativecode.com/",
+  "keywords": [
+    "audio",
+    "web-audio",
+    "web-audio-api",
+    "sound",
+    "sound-effects",
+    "audio-library",
+    "audio-player",
+    "game-audio",
+    "spatial-audio",
+    "audio-sprites",
+    "typescript",
+    "browser-audio"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/soundhub.umd.js",
+  "module": "./dist/soundhub.es.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/soundhub.es.js",
+      "require": "./dist/soundhub.umd.js"
+    }
+  },
+  "files": [
+    "dist/soundhub.umd.js",
+    "dist/soundhub.es.js",
+    "dist/types",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite --mode examples",
+    "build": "npm run typecheck && vite build --mode lib",
+    "build:examples": "vite build --mode examples",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.10",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.4",
+    "vite-plugin-dts": "^4.5.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

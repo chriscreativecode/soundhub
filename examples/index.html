@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>soundhub.js — example</title>
+  </head>
+  <body>
+    <header class="page-head">
+      <h1>soundhub<span>.js</span></h1>
+      <p>A single page that exercises the public API: sprites, multichannel playback, progress, groups, fades, panning and spatial audio — with every event on the bus printed live.</p>
+    </header>
+
+    <div id="loading" class="loading">Loading sounds…</div>
+
+    <main id="app" hidden>
+      <!-- Master ------------------------------------------------------->
+      <section class="card">
+        <h2>Master</h2>
+        <div class="row">
+          <label>Volume <output id="masterVolOut">100%</output>
+            <input type="range" id="masterVol" min="0" max="1" step="0.01" value="1" />
+          </label>
+          <label>Pan <output id="masterPanOut">0</output>
+            <input type="range" id="masterPan" min="-1" max="1" step="0.05" value="0" />
+          </label>
+        </div>
+        <div class="row">
+          <button id="masterMute">Toggle mute</button>
+          <button id="stopAll">Stop everything</button>
+          <label class="check"><input type="checkbox" id="limiter" checked /> Master limiter</label>
+        </div>
+        <p class="hint">The limiter sits just before the output. Turn it off, then fire twenty lasers at once — that crackle is clipping.</p>
+        <dl class="stats">
+          <div><dt>Context</dt><dd id="statContext">–</dd></div>
+          <div><dt>Sounds loaded</dt><dd id="statCount">–</dd></div>
+          <div><dt>Ready</dt><dd id="statReady">–</dd></div>
+        </dl>
+      </section>
+
+      <!-- Sprites ------------------------------------------------------>
+      <section class="card">
+        <h2>Sprites</h2>
+        <p class="hint">One 30-second mp3, eight regions. A sprite is nothing more than a start and an end time inside the same buffer.</p>
+        <div class="grid" id="spriteGrid"></div>
+      </section>
+
+      <!-- Multichannel ------------------------------------------------->
+      <section class="card">
+        <h2>Multichannel</h2>
+        <p class="hint">Every click starts a new instance of the same buffer, so they overlap instead of restarting.</p>
+        <div class="row">
+          <button id="laser" class="primary">Fire laser</button>
+          <button id="laserBurst">Fire 12 at once</button>
+          <button id="laserStop">Stop all lasers</button>
+        </div>
+        <p class="hint">Live instances: <strong id="laserCount">0</strong> — capped at 16 by the group's <code>maxInstances</code>.</p>
+      </section>
+
+      <!-- Transport & progress ----------------------------------------->
+      <section class="card">
+        <h2>Progress &amp; transport</h2>
+        <div class="row">
+          <button id="musicPlay" class="primary">Play</button>
+          <button id="musicPause">Pause</button>
+          <button id="musicResume">Resume</button>
+          <button id="musicStop">Stop</button>
+          <button id="musicFadeIn">Fade in 3s</button>
+          <button id="musicFadeOut">Fade out 3s</button>
+        </div>
+        <input type="range" id="seek" class="seek" min="0" max="1000" step="1" value="0" />
+        <div class="row between">
+          <span class="time" id="timeNow">0:00</span>
+          <span class="badge" id="musicState">stopped</span>
+          <span class="time" id="timeTotal">0:00</span>
+        </div>
+        <div class="row">
+          <label>Playback rate <output id="rateOut">1.00×</output>
+            <input type="range" id="rate" min="0.5" max="2" step="0.05" value="1" />
+          </label>
+        </div>
+      </section>
+
+      <!-- Groups ------------------------------------------------------->
+      <section class="card">
+        <h2>Groups</h2>
+        <p class="hint">Both beds are played into one <code>ambience</code> group that carries its own play options (looping, volume 0.4).</p>
+        <div class="row">
+          <button id="rain">Rain</button>
+          <button id="birds">Forest birds</button>
+          <button id="ambienceStop">Stop group</button>
+        </div>
+        <p class="hint">In group: <strong id="groupMembers">–</strong></p>
+      </section>
+
+      <!-- Spatial ------------------------------------------------------>
+      <section class="card">
+        <h2>Spatial audio</h2>
+        <p class="hint">A looping helicopter on a 3D panner. Drag it around — headphones help.</p>
+        <div class="row">
+          <button id="heliPlay" class="primary">Start helicopter</button>
+          <button id="heliStop">Stop</button>
+          <button id="heliOrbit">Auto-orbit</button>
+        </div>
+        <div class="row">
+          <label>X (left ↔ right) <output id="heliXOut">0</output>
+            <input type="range" id="heliX" min="-10" max="10" step="0.1" value="0" />
+          </label>
+          <label>Z (front ↔ back) <output id="heliZOut">0</output>
+            <input type="range" id="heliZ" min="-10" max="10" step="0.1" value="0" />
+          </label>
+        </div>
+      </section>
+
+      <!-- Event bus ---------------------------------------------------->
+      <section class="card wide">
+        <h2>Event bus</h2>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="showProgress" /> include progress events</label>
+          <button id="logClear">Clear</button>
+        </div>
+        <ol class="log" id="log"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="./demo.ts"></script>
+  </body>
+</html>

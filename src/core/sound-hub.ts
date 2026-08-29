@@ -1,0 +1,3688 @@
+
+import { AudioNodeConnector } from "./audio-node-connector";
+import { PlayOptions } from "./play-sound-options.interface";
+import { SoundEvent } from "./sound-event.interface";
+import { SoundEventsEnum } from "./sound-events.enum";
+import { SoundGroup } from "./sound-group";
+import { DEFAULT_CONFIG, SoundHubConfig } from "./sound-hub-config";
+import { SoundHubInterface } from "./sound-hub.interface";
+import { SoundPanType } from "./sound-pan-type.enum";
+import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "./sound-panner-config";
+import { SoundResetOptions } from "./sound-reset-options.interface";
+import { SoundStateInfo } from "./sound-state-info.interface";
+import { SoundState } from "./sound-state.interface";
+import { Sound } from "./sound.interface";
+import { Ticker } from "./ticker";
+
+interface EventListener {
+  callback: (event: SoundEvent) => void;
+  filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp };
+}
+
+export class SoundHub implements SoundHubInterface {
+  private readonly config: SoundHubConfig;
+  private readonly context!: AudioContext;
+  private sounds: Map<string, Sound> = new Map();
+  private masterGainNode!: GainNode;
+  private masterStereoPanner!: StereoPannerNode;
+  private masterPannerNode!: PannerNode | null;
+  private masterLimiterNode: DynamicsCompressorNode | null = null;
+  private previousGlobalVolume: number = 1;
+  private isMuted: boolean = false;
+  private previousGlobalPan: number = 0;
+  private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
+  private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
+  private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
+  private activeFadeCallbacks: Map<string, () => void> = new Map();
+  private isHandlingError: boolean = false;
+  private audioNodeConnector: AudioNodeConnector = new AudioNodeConnector();
+  private ticker: Ticker;
+  private lastError: Error | null = null;
+  private masterSpatialPosition: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
+  private _spatialAudioSupported: boolean | null = null;
+  private readonly DEFAULT_PRECISION: number = 2;
+  private soundGroups: Map<string, SoundGroup> = new Map();
+  private instanceCounters: Map<string, number> = new Map();
+  private unlockHandlers: {
+    touchstart: (this: Document, ev: TouchEvent) => void;
+    touchend: (this: Document, ev: TouchEvent) => void;
+    click: (this: Document, ev: MouseEvent) => void;
+  } | null = null;
+  private visibilityHandler: (() => void) | null = null;
+  private contextResumeHandler: (() => void) | null = null;
+  private static readonly RESUME_EVENTS = ["click", "touchstart", "keydown"] as const;
+  private static readonly GLOBAL_FADE_ID = "fade_global";
+
+  private VERSION = "6.0.0";
+
+  constructor(config: SoundHubConfig = {}) {
+    this.ticker = new Ticker();
+
+    // Normalise a copy. Writing the sanitised values back into the caller's
+    // object mutated an argument they may reuse for another SoundHub.
+    const userConfig: SoundHubConfig = { ...config };
+
+    this.config = {
+      debug: false,
+      ...userConfig,
+    };
+    Object.values(SoundEventsEnum).forEach((type) => {
+      this.eventListeners.set(type as SoundEventsEnum, new Set());
+    });
+
+    if (userConfig.defaultVolume !== undefined) {
+      userConfig.defaultVolume = this.setValidatedVolume(userConfig.defaultVolume);
+    }
+    if (userConfig.fadeInDuration !== undefined && userConfig.fadeInDuration < 0) {
+      userConfig.fadeInDuration = 0;
+    }
+    if (userConfig.fadeOutDuration !== undefined && userConfig.fadeOutDuration < 0) {
+      userConfig.fadeOutDuration = 0;
+    }
+    if (userConfig.spatialAudio && !this.isSpatialAudioSupported()) {
+      this.debugLog("Spatial audio requested but not supported, disabling feature");
+      userConfig.spatialAudio = false;
+    }
+
+    this.config = { ...DEFAULT_CONFIG, ...userConfig };
+
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      this.context = new AudioContext({ latencyHint: "interactive" });
+
+      // Create and connect nodes in the correct order
+      this.masterGainNode = this.context.createGain();
+      this.masterStereoPanner = this.context.createStereoPanner();
+      this.masterPannerNode = null;
+      this.masterLimiterNode = this.config.masterLimiter ? this.createMasterLimiter() : null;
+
+      // Connect in chain: masterGainNode -> masterStereoPanner -> [limiter] -> destination
+      this.rewireMasterChain();
+
+      this.masterStereoPanner.pan.value = this.config.defaultPan ?? 0;
+      this.previousGlobalPan = this.config.defaultPan ?? 0;
+
+      this.masterGainNode.gain.value = this.config.defaultVolume!;
+      this.previousGlobalVolume = this.config.defaultVolume!;
+
+      this.setupAudioUnlock();
+
+      this.initialize();
+    } catch (error) {
+      this.handleError("constructor, initialize", error);
+    }
+  }
+
+  private initialize(): void {
+    this.showConsoleInfo();
+    this.setupContextResumeHandlers();
+    if (this.config.autoMuteOnHidden) {
+      this.setupVisibilityHandling();
+    }
+
+    if (this.config.spatialAudio) {
+      this.initializeSpatialAudio();
+    }
+
+    this.debugLog("Initialized with config:", this.config);
+  }
+
+  private debugLog(...args: any[]): void {
+    if (this.config.debug) {
+      console.log("[SoundHub]", ...args);
+    }
+  }
+
+  private setupVisibilityHandling(): void {
+    // Keep the reference so destroy() can detach it. An anonymous listener would
+    // keep this SoundHub (and its AudioContext) alive on `document` forever.
+    this.removeVisibilityHandling();
+
+    this.visibilityHandler = () => {
+      if (document.hidden) {
+        this.debugLog("Page hidden, auto-muting sounds");
+        this.muteAllSounds();
+      } else if (this.config.autoResumeOnFocus) {
+        this.debugLog("Page visible, auto-resuming sounds");
+        this.unmuteAllSounds();
+      }
+    };
+
+    document.addEventListener("visibilitychange", this.visibilityHandler);
+  }
+
+  private removeVisibilityHandling(): void {
+    if (!this.visibilityHandler) return;
+    document.removeEventListener("visibilitychange", this.visibilityHandler);
+    this.visibilityHandler = null;
+  }
+
+  private initializeSpatialAudio(): void {
+    if (!this.isSpatialAudioSupported()) {
+      this.debugLog("Spatial audio not supported, disabling feature");
+      this.config.spatialAudio = false;
+      return;
+    }
+
+    try {
+      // Create a listener for spatial audio
+      const listener = this.context.listener;
+
+      // Set default listener position (at the center)
+      listener.positionX.setValueAtTime(0, this.context.currentTime);
+      listener.positionY.setValueAtTime(0, this.context.currentTime);
+      listener.positionZ.setValueAtTime(0, this.context.currentTime);
+
+      // Set orientation (optional)
+      // Forward Orientation
+      listener.forwardX.setValueAtTime(0, this.context.currentTime);
+      listener.forwardY.setValueAtTime(0, this.context.currentTime);
+      listener.forwardZ.setValueAtTime(-1, this.context.currentTime);
+
+      // Up Orientation
+      listener.upX.setValueAtTime(0, this.context.currentTime);
+      listener.upY.setValueAtTime(1, this.context.currentTime);
+      listener.upZ.setValueAtTime(0, this.context.currentTime);
+
+      this.debugLog("Spatial audio initialized");
+    } catch (error) {
+      this.handleError("initializing spatial audio", error);
+    }
+  }
+
+  private setupAudioUnlock() {
+    if (!this.config.autoUnlock) return;
+
+    // Clean up any existing listeners first
+    this.removeUnlockListeners();
+
+    // Only set up unlock handlers if we're in a mobile-like environment
+    if (!this.isMobileLikeEnvironment()) return;
+
+    // Track if we've already unlocked
+    let isUnlocked = false;
+
+    const unlock = async () => {
+      if (isUnlocked || this.context.state !== 'suspended') return;
+
+      try {
+        // Create and play a silent buffer
+        const buffer = this.context.createBuffer(1, 1, 22050);
+        const source = this.context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.context.destination);
+
+        // Very short duration to minimize processing
+        source.start(0, 0, 0.1);
+
+        // Try to resume the context
+        await this.context.resume();
+
+        // Mark as unlocked and clean up
+        isUnlocked = true;
+        this.removeUnlockListeners();
+
+        this.debugLog('Audio context successfully unlocked');
+      } catch (error) {
+        this.debugLog('Audio unlock attempt failed:', error);
+      }
+    };
+
+    // Create properly typed handler functions
+    const touchHandler = () => unlock();
+    const clickHandler = () => unlock();
+
+    // Initialize and store handlers
+    this.unlockHandlers = {
+      touchstart: touchHandler,
+      touchend: touchHandler,
+      click: clickHandler
+    };
+
+    // Add event listeners with proper typing
+    const options: AddEventListenerOptions = { passive: true, capture: true };
+    document.addEventListener('touchstart', this.unlockHandlers.touchstart, options);
+    document.addEventListener('touchend', this.unlockHandlers.touchend, options);
+    document.addEventListener('click', this.unlockHandlers.click, options);
+
+    // Also try to unlock immediately in case we're already in an interaction
+    unlock();
+  }
+
+  private removeUnlockListeners() {
+    if (!this.unlockHandlers) return;
+
+    // Remove all event listeners
+    document.removeEventListener('touchstart', this.unlockHandlers.touchstart, true);
+    document.removeEventListener('touchend', this.unlockHandlers.touchend, true);
+    document.removeEventListener('click', this.unlockHandlers.click, true);
+
+    // Clear the references
+    this.unlockHandlers = null;
+  }
+
+  private isMobileLikeEnvironment(): boolean {
+    // Check for touch support or mobile user agents
+    return 'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+
+  private setupContextResumeHandlers(): void {
+    this.removeContextResumeHandlers();
+
+    // Deliberately not registered with { once: true }: a resume() that rejects
+    // would consume the listener and leave the context suspended forever. We
+    // detach explicitly once the context is actually running.
+    const resumeContext = () => {
+      if (this.context.state !== "suspended") {
+        this.removeContextResumeHandlers();
+        return;
+      }
+
+      this.context.resume().then(
+        () => {
+          this.debugLog("AudioContext resumed after user interaction");
+          this.removeContextResumeHandlers();
+        },
+        (error) => {
+          this.debugLog("Failed to resume AudioContext:", error);
+        }
+      );
+    };
+
+    this.contextResumeHandler = resumeContext;
+    SoundHub.RESUME_EVENTS.forEach((eventType) => {
+      document.addEventListener(eventType, resumeContext);
+    });
+
+    this.debugLog("Context resume handlers set up, waiting for user interaction");
+  }
+
+  private removeContextResumeHandlers(): void {
+    if (!this.contextResumeHandler) return;
+    const handler = this.contextResumeHandler;
+    SoundHub.RESUME_EVENTS.forEach((eventType) => {
+      document.removeEventListener(eventType, handler);
+    });
+    this.contextResumeHandler = null;
+  }
+
+  private setupAudioSource(sound: Sound): AudioBufferSourceNode {
+    const playbackRate = sound.playOptions?.playbackRate ?? 1;
+    const source = this.context.createBufferSource();
+    source.buffer = sound.buffer;
+    sound.source = source;
+    source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
+
+    // A seamless loop is handled by the source node itself. Restarting the
+    // source from the ended callback always leaves a small gap, which is
+    // inaudible under noise but obvious on a tone, so a bed or a drone can ask
+    // for the loop to happen inside the audio graph instead.
+    if (sound.playOptions?.loop && sound.playOptions?.seamlessLoop) {
+      const loopStart = sound.playOptions.startTime ?? 0;
+      const duration = sound.playOptions.duration;
+
+      source.loop = true;
+      source.loopStart = loopStart;
+      source.loopEnd =
+        duration !== undefined && duration > 0
+          ? loopStart + duration
+          : sound.buffer?.duration ?? 0;
+    }
+
+    // Apply panning settings if needed
+    if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
+      this.setPan(sound.id, sound.playOptions.pan, true);
+    }
+
+    // Apply spatial position if needed
+    if (sound.playOptions?.panSpatialPosition &&
+      (sound.playOptions.panSpatialPosition.x !== 0 ||
+        sound.playOptions.panSpatialPosition.y !== 0 ||
+        sound.playOptions.panSpatialPosition.z !== 0)) {
+
+      const pos = sound.playOptions.panSpatialPosition;
+      this.setSpatialPosition(pos.x, pos.y, pos.z, sound.id, undefined, true);
+    }
+
+    this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+    this.activeSources.set(sound.id, source);
+
+    source.onended = () => {
+      this.debugLog(`Sound ${sound.id} ended naturally`);
+      if (sound.state === SoundState.Playing) {
+        if (sound.playOptions?.loop) {
+          this.handleLoopIteration(sound);
+        } else {
+          this.handleSoundEnded(sound);
+        }
+      }
+    };
+
+    return source;
+  }
+
+  private handleLoopIteration(sound: Sound): void {
+    this.debugLog(`Restarting loop for sound ${sound.id}`);
+
+    // Guard: skip loop restart if looping was disabled or sound was stopped/paused in the meantime
+    if (!sound.playOptions?.loop) {
+      this.debugLog(`Loop was disabled for ${sound.id}, handling as ended`);
+      this.handleSoundEnded(sound);
+      return;
+    }
+
+    if (sound.state !== SoundState.Playing) {
+      this.debugLog(`Sound ${sound.id} is no longer playing (state: ${sound.state}), skipping loop iteration`);
+      this.handleSoundEnded(sound);
+      return;
+    }
+
+    // Check if we've reached max loops (0 or -1 means infinite)
+    if (
+      sound.playOptions?.maxLoops !== undefined &&
+      sound.playOptions?.maxLoops > 0 &&
+      (sound.currentLoopCount ?? 0) >= sound.playOptions?.maxLoops - 1  // Subtract 1 to account for initial play
+    ) {
+      this.debugLog(`Max loops reached for ${sound.id}, stopping`);
+      sound.currentLoopCount = 0;
+      this.stop(sound.id);
+      return;
+    }
+
+    // Increment the loop count
+    sound.currentLoopCount = (sound.currentLoopCount ?? 0) + 1;
+
+    this.debugLog(`Loop count: ${sound.currentLoopCount}`);
+
+    // Restart the current instance
+    const startTime = (sound.playOptions?.startTime ?? 0) / (sound.playOptions?.playbackRate ?? 1);
+    if (sound.playOptions?.createNewInstance) {
+      sound.playOptions.createNewInstance = false;
+    }
+
+    this.seek(sound.id, startTime, true);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.LOOP_COMPLETED,
+      soundId: sound.id,
+      timestamp: this.context.currentTime,
+      sound,
+    });
+  }
+
+  private handleSoundEnded(sound: Sound): void {
+    // If the sound is already stopped, do nothing
+    if (sound.state === SoundState.Stopped) {
+      return;
+    }
+    if (sound.playOptions?.pauseAtDurationReached && sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
+      this.pause(sound.id);
+      sound.startTime = undefined;
+      sound.pausedAt = sound.playOptions?.startTime ?? 0;
+      sound.currentTime = 0;
+      return;
+    }
+
+    sound.state = SoundState.Stopped;
+    sound.startTime = undefined;
+    sound.pausedAt = sound.playOptions?.startTime ?? 0;
+    sound.currentTime = 0;
+
+    if (sound.playOptions?.createNewInstance) {
+      // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
+      // because of the disconnectNodes method in the cleanupSound method
+      this.cleanupExistingSource(sound.id);
+    } else {
+      this.cleanupSound(sound.id);
+    }
+
+    this.stopProgressTracking(sound.id);
+
+    // Clean up the sound
+    if (sound.playOptions?.createNewInstance) {
+      this.removeEventListenersForInstance(sound.id);
+    }
+
+    const originalId = sound.id.includes(':') ? sound.id.split(':')[0] : sound.id;
+    this.dispatchEvent({
+      type: SoundEventsEnum.ENDED,
+      soundId: sound.id,
+      originalId,
+      instanceId: sound.id,
+      timestamp: this.context.currentTime,
+      sound,
+    });
+  }
+
+  private scheduleFadeOut(id: string, fadeOutStartTime: number, fadeOutDuration: number): void {
+    const sound = this.sounds.get(id);
+    if (!sound) return;
+
+    const fadeOutTime = this.context.currentTime + fadeOutStartTime;
+
+    const fadeOutCallback = () => {
+      this.fadeOut(id, fadeOutDuration);
+    };
+
+    this.ticker.addCallback(`fadeOut_${id}`, () => {
+      if (this.context.currentTime >= fadeOutTime) {
+        fadeOutCallback();
+        this.ticker.removeCallback(`fadeOut_${id}`);
+      }
+    });
+  }
+
+  private cancelScheduledFadeOut(id: string): void {
+    this.ticker.removeCallback(`fadeOut_${id}`);
+  }
+
+  private cancelFadeAnimation(id: string): void {
+    // Remove the fade callback from ticker
+    this.ticker.removeCallback(`fade_${id}`);
+
+    // Execute and remove any stored fade callback
+    const fadeCallback = this.activeFadeCallbacks.get(id);
+    if (fadeCallback) {
+      fadeCallback(); // Execute callback to clean up
+      this.activeFadeCallbacks.delete(id);
+    }
+
+    // Cancel any scheduled gain changes
+    const sound = this.sounds.get(id);
+    if (sound?.gainNode) {
+      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+    }
+
+    // Reset fade states
+    if (sound) {
+      sound.isFadingIn = false;
+      sound.isFadingOut = false;
+    }
+  }
+
+  /**
+   * Returns a loaded sound or throws. It used to log and return undefined behind
+   * a non-null assertion, which turned every unknown id into a TypeError on the
+   * next property access. Callers either sit inside a try/catch that reports the
+   * failure, or guard with hasSound()/getSound().
+   */
+  private getValidatedSound(id: string): Sound {
+    const sound = this.sounds.get(id);
+    if (!sound?.buffer) {
+      const error = new Error(`Sound not found or not loaded properly: ${id}`);
+      this.handleError("validating sound", error, id);
+      throw error;
+    }
+    return sound;
+  }
+
+  private createEmptySoundState(): SoundStateInfo {
+    return {
+      progress: 0,
+      startTime: 0,
+      currentTime: 0,
+      elapsedTime: 0,
+      adjustedElapsedTime: 0,
+      duration: 0,
+      rawDuration: 0,
+      state: SoundState.Stopped,
+      volume: this.config.defaultVolume ?? 1,
+      playbackRate: this.config.defaultPlaybackRate ?? 1,
+      pan: 0,
+      panSpatialPosition: { x: 0, y: 0, z: 0 },
+    };
+  }
+
+  private setValidatedVolume(volume: number): number {
+    return Math.max(0, Math.min(1, volume));
+  }
+
+  private cleanupSound(id: string): void {
+    const sound = this.sounds.get(id);
+    if (!sound) return;
+
+    this.debugLog(`Cleaning up sound ${id}`);
+
+    this.cancelScheduledFadeOut(id);
+    this.cancelFadeAnimation(id);
+
+    this.stopProgressTracking(id);
+
+    this.removeEventListenersForInstance(id);
+
+    this.audioNodeConnector.disconnectNodes(sound);
+
+  }
+
+  /**
+   * Tears down every loaded sound and its audio nodes. The master chain is left
+   * intact on purpose so the manager stays usable afterwards (reset() relies on
+   * that); destroy() is what dismantles the master nodes.
+   */
+  private cleanup(): void {
+    // Tear the sounds down while the map is still populated. This used to run
+    // after sounds.clear(), which made the node disconnects dead code and leaked
+    // every gain/panner node still attached to the master chain.
+    this.sounds.forEach((sound, id) => {
+      this.cleanupSound(id);
+
+      if (sound.source) {
+        try {
+          sound.source.onended = null;
+          sound.source.stop();
+        } catch (e) {
+          // Ignore errors if the source was never started or already stopped
+        }
+        sound.source.disconnect();
+        sound.source = null;
+      }
+      if (sound.pannerNode) {
+        sound.pannerNode.disconnect();
+        sound.pannerNode = null;
+      }
+      if (sound.stereoPanner) {
+        sound.stereoPanner.disconnect();
+        sound.stereoPanner = null;
+      }
+      sound.gainNode.disconnect();
+    });
+
+    // Stop and disconnect any source that outlived its sound entry
+    this.activeSources.forEach((source) => {
+      if (source) {
+        try {
+          source.onended = null;
+          source.stop();
+          source.disconnect();
+        } catch (e) {
+          // Ignore errors if source is already stopped
+        }
+      }
+    });
+
+    this.activeSources.clear();
+    this.sounds.clear();
+    this.instanceCounters.clear();
+    this.ticker.clear();
+    this.cleanupGlobalPan();
+  }
+
+  private handleError(operation: string, error: unknown, id?: string): void {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const context = id ? ` (Sound ID: ${id})` : "";
+    const message = `[SoundHub] Error ${operation}${context}: ${errorMessage}`;
+    this.lastError = error instanceof Error ? error : new Error(errorMessage);
+
+    // Just log the error without throwing
+    if (this.config.debug) {
+      console.error(message, error);
+    } else {
+      console.error(message);
+    }
+
+    // Only dispatch error event if we're not already handling an error
+    if (!this.isHandlingError) {
+      this.isHandlingError = true;
+      try {
+        this.dispatchEvent({
+          type: SoundEventsEnum.ERROR,
+          timestamp: this.context.currentTime,
+          error: new Error(message),
+        });
+      } finally {
+        this.isHandlingError = false;
+      }
+    }
+  }
+
+  private cleanupExistingSource(id: string): void {
+    try {
+      let sound = this.getValidatedSound(id);
+      if (!sound.source) return;
+
+      // Check if the sound has been restarted
+      const currentTime = this.context.currentTime;
+      const soundStartTime = sound.startTime || 0;
+      const hasBeenRestarted = currentTime - soundStartTime < (sound.buffer?.duration || 0);
+
+      // Only skip cleanup for playing sounds that have been restarted with createNewInstance
+      // For paused sounds, we should always stop the source
+      if (sound.state === SoundState.Playing &&
+        hasBeenRestarted &&
+        sound.playOptions?.createNewInstance) {
+        return;
+      }
+
+      // Remove the onended handler before stopping to prevent it from firing
+      if (sound.source.onended) {
+        sound.source.onended = null;
+      }
+
+      // Always stop the source if we've reached this point
+      // Check if the source has been started before attempting to stop it
+      if (sound.startTime !== undefined) {
+        sound.source.stop();
+      }
+      sound.source.disconnect();
+      this.activeSources.delete(id);
+      sound.source = null;
+    } catch (error) {
+      this.debugLog(`Error cleaning up source for ${id}: ${error}`);
+    }
+  }
+
+  private getInstanceCounter(id: string): number {
+    // Extract the base ID (without any instance suffixes)
+    const baseId = id.split(':')[0]; // Use ':' as separator
+
+    // Get or initialize the counter for the base ID
+    let counter = this.instanceCounters.get(baseId) || 0;
+
+    // Never hand out an id that is still registered: a reset counter would
+    // otherwise overwrite a live instance in the sounds map, orphaning its
+    // still-playing source.
+    do {
+      counter++;
+    } while (this.sounds.has(`${baseId}:${counter}`));
+
+    this.instanceCounters.set(baseId, counter);
+
+    return counter;
+  }
+
+  private resetCounterForSound(id: string): void {
+    const baseId = id.split(':')[0];
+    this.instanceCounters.delete(baseId);
+    this.debugLog(`Counter reset for sound ${baseId}`);
+  }
+
+  /**
+   * Builds the opt-in master limiter. A DynamicsCompressorNode configured with a
+   * hard knee and a high ratio behaves as a limiter: everything below the
+   * threshold passes through untouched, peaks above it are held back instead of
+   * being hard-clipped by the destination.
+   */
+  private createMasterLimiter(): DynamicsCompressorNode {
+    const limiter = this.context.createDynamicsCompressor();
+    const now = this.context.currentTime;
+
+    limiter.threshold.setValueAtTime(-3, now); // dBFS, leaves a little headroom
+    limiter.knee.setValueAtTime(0, now);       // Hard knee, so it limits rather than compresses
+    limiter.ratio.setValueAtTime(20, now);     // Effectively a brick wall
+    limiter.attack.setValueAtTime(0.003, now); // Fast enough to catch note transients
+    limiter.release.setValueAtTime(0.25, now);
+
+    return limiter;
+  }
+
+  /**
+   * (Re)builds the master output chain. The stereo panner always stays in the
+   * graph, so enabling or clearing master spatial audio can never drop it and
+   * silently disable setGlobalPan(). The limiter, when enabled, always sits last
+   * so it catches everything, master panning included.
+   *
+   * masterGainNode -> [masterPannerNode] -> masterStereoPanner -> [limiter] -> destination
+   */
+  private rewireMasterChain(): void {
+    this.masterGainNode.disconnect();
+    this.masterStereoPanner.disconnect();
+    this.masterLimiterNode?.disconnect();
+
+    if (this.masterPannerNode) {
+      this.masterPannerNode.disconnect();
+      this.masterGainNode.connect(this.masterPannerNode);
+      this.masterPannerNode.connect(this.masterStereoPanner);
+    } else {
+      this.masterGainNode.connect(this.masterStereoPanner);
+    }
+
+    if (this.masterLimiterNode) {
+      this.masterStereoPanner.connect(this.masterLimiterNode);
+      this.masterLimiterNode.connect(this.context.destination);
+    } else {
+      this.masterStereoPanner.connect(this.context.destination);
+    }
+  }
+
+  /**
+   * Turns the master limiter on or off at runtime. Safe to call while sounds are
+   * playing; only the output chain is rewired, playback is not interrupted.
+   */
+  public setMasterLimiter(enabled: boolean): void {
+    try {
+      if (enabled === !!this.masterLimiterNode) return;
+
+      if (enabled) {
+        this.masterLimiterNode = this.createMasterLimiter();
+      } else {
+        this.masterLimiterNode?.disconnect();
+        this.masterLimiterNode = null;
+      }
+
+      this.config.masterLimiter = enabled;
+      this.rewireMasterChain();
+      this.debugLog(`Master limiter ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      this.handleError("toggling master limiter", error);
+    }
+  }
+
+  public isMasterLimiterEnabled(): boolean {
+    return this.masterLimiterNode !== null;
+  }
+
+  /**
+   * The live limiter node, or null when disabled. Exposed so you can fine-tune
+   * threshold, ratio, attack and release, or read `reduction` to show how much
+   * gain reduction is being applied.
+   */
+  public getMasterLimiterNode(): DynamicsCompressorNode | null {
+    return this.masterLimiterNode;
+  }
+
+  private reconnectAudioNodes(id: string): void {
+    const sound = this.sounds.get(id);
+    if (!sound || !sound.source) return;
+    this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+  }
+
+  // Playback control-----------------------------------------------------------------------------------------------------------
+  public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
+
+    if (this.context.state === 'suspended' && this.config.autoUnlock) {
+      this.setupAudioUnlock();
+    }
+
+    try {
+      // Throws for an unknown or unloaded id, handled by the catch below
+      const originalSound = this.getValidatedSound(id);
+
+      let mergedPlayOptions = { ...originalSound.playOptions, ...options };
+      const createNewInstance = mergedPlayOptions.createNewInstance ?? this.config.createNewInstance ?? false;
+
+      let actualId = id;
+      let instance: Sound | undefined;
+
+      // Add to group if groupId is specified in options
+      let groupId: string | undefined = options.groupId || originalSound.groupId;
+      if (groupId) {
+        let group = this.soundGroups.get(groupId);
+        if (!group) {
+          this.debugLog(`Group ${groupId} not found.`);
+          return;
+        }
+
+        this.debugLog(`Group ${groupId} has ${group.sounds.size} instances. Max instances: ${group.maxInstances}`);
+
+        // Enforce maxInstances before creating the new instance
+        if (group.maxInstances && group.sounds.size >= group.maxInstances) {
+          const oldestSoundId = Array.from(group.sounds)[0];
+          this.debugLog(`Max instances reached. Stopping oldest instance: ${oldestSoundId}`);
+          this.stop(oldestSoundId);
+          group.sounds.delete(oldestSoundId);
+          this.debugLog(`Stopped and removed oldest instance ${oldestSoundId} from group ${groupId}.`);
+        }
+      }
+
+      if (createNewInstance) {
+        const baseId = id.split(':')[0];
+        const instanceNumber = this.getInstanceCounter(baseId);
+        actualId = `${baseId}:${instanceNumber}`;
+        this.debugLog(`Creating new instance with ID: ${actualId}`);
+
+        // Create a DEEP copy of the original sound's playOptions
+        const newPlayOptions = JSON.parse(JSON.stringify({
+          ...originalSound.playOptions,
+          ...options,
+          createNewInstance: false,
+        }));
+
+        // Create a new gain node for this instance
+        const gainNode = this.context.createGain();
+
+        // Set the volume based on options, original sound, or default
+        const volume = options.volume ?? originalSound.volume ?? this.config.defaultVolume ?? 1;
+        gainNode.gain.value = volume;
+
+        // Create the instance with its own properties
+        instance = {
+          ...originalSound,
+          id: actualId,
+          gainNode: gainNode,
+          state: SoundState.Stopped,
+          currentTime: 0,
+          startTime: newPlayOptions?.startTime ?? 0,
+          pausedAt: 0,
+          currentLoopCount: 0,
+          playOptions: newPlayOptions,
+          volume: volume,
+          originalVolume: volume,
+          pan: 0,
+          panSpatialPosition: { x: 0, y: 0, z: 0 },
+          panType: newPlayOptions.panType ?? SoundPanType.Stereo,
+          source: null,
+          stereoPanner: null,
+          pannerNode: null
+        };
+
+        this.sounds.set(actualId, instance);
+
+        // Add the new instance to the group
+        if (groupId) {
+          this.addToSoundGroup(groupId, actualId);
+          this.debugLog(`Added new instance ${actualId} to group ${groupId}.`);
+        }
+      }
+
+      const sound = instance || originalSound;
+      if (!sound) {
+        this.debugLog(`Failed to create sound instance for ${id}`);
+        return;
+      }
+
+      // Update the sound playOptions if we're not creating a new instance
+      if (instance === undefined) {
+        sound.playOptions = mergedPlayOptions;
+      }
+
+      this.cleanupExistingSource(sound.id);
+
+      // Rest of your existing play logic...
+      const source: AudioBufferSourceNode = this.setupAudioSource(sound);
+      if (!source) {
+        this.debugLog(`Failed to create audio source for sound ${id}`);
+        return;
+      }
+
+      const playbackRate = sound.playOptions?.playbackRate || 1;
+      let startOffset = 0;
+      if (sound.pausedAt !== undefined && sound.pausedAt !== 0) {
+        startOffset = sound.pausedAt;
+      } else if (sound.playOptions?.startTime !== undefined) {
+        startOffset = sound.playOptions.startTime;
+      }
+
+      sound.startTime = this.context.currentTime - (startOffset / playbackRate);
+
+      sound.state = SoundState.Playing;
+
+      if (sound.playOptions?.volume !== undefined) {
+        this.setSoundVolume(sound.id, sound.playOptions.volume, true);
+      }
+      if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
+        this.setPan(sound.id, sound.playOptions.pan, true);
+      }
+      if (sound.playOptions?.panSpatialPosition !== undefined && sound.panType === SoundPanType.Spatial) {
+        this.setSpatialPosition(sound.playOptions.panSpatialPosition.x, sound.playOptions.panSpatialPosition.y, sound.playOptions.panSpatialPosition.z, sound.id, undefined, true);
+      }
+      if (sound.playOptions?.fadeInDuration !== undefined) {
+        this.fadeIn(
+          sound.id,
+          sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1,
+          undefined, // startVolume (defaults to 0 or current volume)
+          sound.playOptions?.volume // Use PlayOptions.volume as the end volume
+        )
+      }
+      if (sound.playOptions?.fadeOutDuration !== undefined) {
+        this.fadeOut(sound.id, sound.playOptions.fadeOutDuration ?? this.config?.fadeOutDuration ?? 1);
+      }
+      if (sound.playOptions?.playbackRate !== undefined) {
+        this.setPlaybackRate(sound.id, playbackRate, true);
+      }
+      if (sound.playOptions?.loop !== undefined) {
+        this.setLoop(sound.id, sound.playOptions.loop, sound.playOptions.maxLoops);
+      }
+
+      // Handle fadeOutBeforeEndDuration
+      if (sound.playOptions?.fadeOutBeforeEndDuration !== undefined) {
+        this.cancelScheduledFadeOut(sound.id);
+        const fadeOutBeforeEndDuration = sound.playOptions.fadeOutBeforeEndDuration;
+        const soundDuration = sound.playOptions.duration ?? sound.buffer?.duration ?? 0;
+        const remainingDuration = soundDuration - (sound.pausedAt || 0);
+        const fadeOutStartTime = remainingDuration - fadeOutBeforeEndDuration;
+
+        if (fadeOutStartTime > 0) {
+          this.scheduleFadeOut(sound.id, fadeOutStartTime, sound.playOptions.fadeOutBeforeEndDuration ?? 1);
+        }
+      }
+
+      // A seamless loop expresses its region with loopStart / loopEnd, so it
+      // must not also be given a stop time: that would end the loop after one
+      // pass instead of letting it run until the sound is stopped.
+      const playForDuration =
+        sound.playOptions?.duration !== undefined &&
+        sound.playOptions.duration > 0 &&
+        !(sound.playOptions.loop && sound.playOptions.seamlessLoop);
+
+      source.start(0, startOffset, playForDuration ? sound.playOptions!.duration! * playbackRate : undefined);
+
+      if (sound.playOptions?.trackProgress === true) {
+        this.startProgressTracking(sound.id);
+      }
+
+      if (!skipDispatchEvent) {
+        const originalId = sound.id.includes(':') ? sound.id.split(':')[0] : sound.id;
+        this.dispatchEvent({
+          type: SoundEventsEnum.STARTED,
+          soundId: sound.id,
+          originalId,
+          instanceId: sound.id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
+
+      return sound;
+
+    } catch (error) {
+      this.handleError("playing sound", error, id);
+    }
+  }
+
+  public playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent: boolean = false): void {
+    const spriteId = `${id}_${spriteKey}`;
+    this.play(spriteId, options, skipDispatchEvent);
+  }
+
+  public pause(id: string, skipDispatchEvent: boolean = false): void {
+    try {
+      const sound = this.getValidatedSound(id);
+
+      if (!this.isPlaying(id) || this.isPaused(id)) return;
+
+      // Cancel any scheduled fade-out
+      this.cancelScheduledFadeOut(id);
+
+      // Get the current playback position from the sound's state
+      const playbackRate = sound.playOptions?.playbackRate ?? 1;
+
+      // Calculate the raw elapsed time since start
+      const rawElapsedTime = (this.context.currentTime - (sound.startTime || 0)) * playbackRate;
+
+      // Store raw time values
+      sound.currentTime = rawElapsedTime;
+      sound.pausedAt = rawElapsedTime;
+
+      this.debugLog(`Pausing sound ${id}:
+        Raw elapsed time: ${rawElapsedTime}
+        Adjusted time: ${rawElapsedTime / playbackRate}
+        StartTime: ${sound.startTime}
+        CurrentTime: ${sound.currentTime}
+        PausedAt: ${sound.pausedAt}
+        PlaybackRate: ${playbackRate}
+    `);
+
+      sound.state = SoundState.Paused;
+
+      this.stopProgressTracking(id);
+
+      this.cleanupExistingSource(id);
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.PAUSED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
+    } catch (error) {
+      this.handleError("pausing sound", error, id);
+    }
+  }
+
+  public resume(id: string, skipDispatchEvent: boolean = false): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      this.play(id, sound?.playOptions);
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.RESUMED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
+      this.debugLog(`Resumed sound ${id}:`);
+    } catch (error) {
+      this.handleError("resuming sound", error, id);
+    }
+  }
+
+  public stop(id: string, skipDispatchEvent: boolean = false): void {
+    try {
+      const sound = this.sounds.get(id);
+      if (!sound) {
+        this.debugLog(`Sound ${id} not found for stopping`);
+        return;
+      }
+
+      // Cancel any ongoing operations first
+      this.cancelScheduledFadeOut(id);
+      this.cancelFadeAnimation(id);
+      this.stopProgressTracking(id);
+
+      // Stop and cleanup the source first
+      this.cleanupExistingSource(id);
+
+      // Reset state after source cleanup
+      sound.state = SoundState.Stopped;
+      sound.startTime = sound.playOptions?.startTime ?? 0;
+      sound.pausedAt = 0;
+      sound.currentTime = 0;
+
+      this.removeEventListenersForInstance(id);
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.STOPPED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound
+        });
+      }
+
+    } catch (error) {
+      console.error(`Error stopping sound ${id}:`, error);
+      // Avoid recursive error handling
+      this.dispatchEvent({
+        type: SoundEventsEnum.ERROR,
+        timestamp: this.context.currentTime,
+        error: new Error(`Failed to stop sound ${id}: ${error}`),
+      });
+    }
+  }
+
+  public seek(id: string, time: number, skipDispatchEvent: boolean = false): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      const { duration, currentTime } = this.getSoundState(id);
+      // Check if the seek position is at the end of the sound
+      if (time >= duration) {
+        // If the sound is already stopped, do nothing
+        if (sound.state === SoundState.Stopped) {
+          return;
+        }
+        // Handle looping if enabled
+        if (sound.state === SoundState.Playing && sound.playOptions?.loop) {
+          this.handleLoopIteration(sound);
+        } else {
+          this.handleSoundEnded(sound);
+        }
+        return;
+      }
+
+      const rawDuration = sound.buffer?.duration || 0;
+      const playbackRate = sound.playOptions?.playbackRate || 1;
+
+
+      // Convert UI time (adjusted) back to raw time for internal storage
+      const rawTime = time * playbackRate;
+
+      // Clamp time to valid range (using raw duration)
+      const clampedTime = Math.max(0, Math.min(rawTime, rawDuration));
+
+      // Store the raw time position
+      sound.currentTime = clampedTime;
+      sound.pausedAt = clampedTime;
+
+      if (sound.state === SoundState.Playing) {
+        this.cleanupExistingSource(id);
+        sound.startTime = this.context.currentTime - (clampedTime / playbackRate);
+
+        this.play(id, sound.playOptions);
+      }
+
+      if (skipDispatchEvent) return;
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.SEEKED,
+        soundId: id,
+        currentTime: currentTime,
+        timestamp: this.context.currentTime,
+        sound,
+      });
+    } catch (error) {
+      this.handleError("seeking sound", error, id);
+    }
+  }
+
+  public stopAllSounds(): void {
+    try {
+      // Iterate the sounds map, not activeSources: pause() removes the entry from
+      // activeSources, so paused sounds were silently skipped and stayed paused.
+      const ids = new Set<string>([
+        ...Array.from(this.sounds.keys()),
+        ...Array.from(this.activeSources.keys())
+      ]);
+
+      ids.forEach((id) => {
+        const sound = this.sounds.get(id);
+        if (!sound || sound.state !== SoundState.Stopped) {
+          this.stop(id);
+        }
+      });
+
+      this.debugLog("All sounds stopped");
+    } catch (error) {
+      this.handleError("stopping all sounds", error);
+    }
+  }
+
+  public pauseAllSounds(): void {
+    this.sounds.forEach((sound, id) => {
+      if (sound.state === SoundState.Playing) {
+        this.pause(id);
+      }
+    });
+  }
+
+  public resumeAllSounds(): void {
+    this.sounds.forEach((sound, id) => {
+      if (sound.state == SoundState.Paused) {
+        this.resume(id);
+      }
+    });
+  }
+
+  // End Playback control-----------------------------------------------------------------------------------------------------------
+
+  // Fade managment ----------------------------------------------------------------------------------------------------------------
+
+  public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
+    let sound: Sound;
+    try {
+      sound = this.getValidatedSound(id);
+    } catch {
+      return; // getValidatedSound already reported the failure
+    }
+
+    // Remember this before the flags are reset below, otherwise the
+    // "continue from the current volume" branch further down is unreachable.
+    const wasFadingOut = sound.isFadingOut === true;
+
+    // Cancel any ongoing fade animation
+    this.cancelFadeAnimation(id);
+
+    // Reset fade states
+    sound.isFadingOut = false;
+    sound.isFadingIn = true;
+
+    // Get the current volume
+    const currentVolume = this.roundValue(sound.gainNode.gain.value, 2);
+
+    // Target (end volume) — only apply the 0→1 guard when endVolume was not explicitly provided,
+    // so that an explicit fadeIn(..., 0) is honoured.
+    let targetEndVolume: number;
+    if (endVolume !== undefined) {
+      targetEndVolume = endVolume;
+    } else {
+      targetEndVolume = sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
+      if (targetEndVolume === 0) targetEndVolume = 1;
+    }
+
+    // Determine the start volume based on different conditions
+    let effectiveStartVolume: number;
+
+    if (startVolume !== undefined) {
+      // If startVolume is explicitly provided, use it
+      effectiveStartVolume = startVolume;
+    } else if (wasFadingOut) {
+      // If we're coming from a fadeOut, use the current volume
+      effectiveStartVolume = currentVolume;
+    } else if (currentVolume >= targetEndVolume) {
+      // If current volume is at or above target, start from fadeInStartVolume or from 0
+      effectiveStartVolume = sound.playOptions?.fadeInStartVolume ?? 0;
+    } else {
+      effectiveStartVolume = currentVolume;
+    }
+
+    sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+
+    sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
+
+    if (sound.state !== SoundState.Playing) {
+      this.play(id, { volume: effectiveStartVolume });
+    }
+
+    this.fadeSound(id, effectiveStartVolume, targetEndVolume, duration, () => {
+      // Update after sound callback is complete
+      sound.volume = targetEndVolume;
+      if (sound.playOptions) {
+        sound.playOptions.volume = targetEndVolume;
+      }
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.FADE_IN_COMPLETED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
+    });
+  }
+
+  public fadeOut(
+    id: string,
+    duration: number = this.config.fadeOutDuration!,
+    startVolume?: number,
+    endVolume?: number,
+    stopAfterFade: boolean = false,
+    skipDispatchEvent: boolean = false
+  ): void {
+    let sound: Sound;
+    try {
+      sound = this.getValidatedSound(id);
+    } catch {
+      return; // getValidatedSound already reported the failure
+    }
+
+    this.cancelFadeAnimation(id);
+
+    sound.isFadingIn = false;
+    sound.isFadingOut = true;
+
+    const currentVolume = this.roundValue(sound.gainNode.gain.value, 2);
+    const effectiveStartVolume = startVolume ?? currentVolume;
+    const targetEndVolume = endVolume ?? sound.playOptions?.fadeOutEndVolume ?? 0;
+
+    sound.previousVolume = currentVolume;
+
+    sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
+
+    if (sound.state !== SoundState.Playing) {
+      this.play(id, { volume: effectiveStartVolume });
+    }
+    // Start the fade
+    this.fadeSound(id, effectiveStartVolume, targetEndVolume, duration, () => {
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.FADE_OUT_COMPLETED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          sound,
+        });
+      }
+      // Check the resolved target, not the raw parameter: fadeOut(id, 2) fades to
+      // 0 via fadeOutEndVolume, but `endVolume` is undefined so stopAfterFade
+      // used to be ignored.
+      if (targetEndVolume === 0 && stopAfterFade) {
+        this.stop(id);
+      }
+    });
+  }
+
+  private fadeSound(
+    id: string,
+    startVolume: number,
+    targetVolume: number,
+    duration: number,
+    onComplete?: () => void
+  ): void {
+    try {
+      // Cancel any existing fade
+      this.cancelFadeAnimation(id);
+      const sound = this.getValidatedSound(id);
+
+      sound.volume = startVolume;
+
+      // Cancel any previously scheduled changes to the gain value
+      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+
+      // Shorten the fade duration slightly to ensure it completes before the sound ends
+      const fadeDuration = Math.max(0, duration - 0.02); // Reduce by 20ms
+
+      const startTime = this.context.currentTime;
+      const endTime = startTime + fadeDuration;
+
+      // Store the new fade callback
+      const fadeCompleteCallback = () => {
+        sound.isFadingIn = false;
+        sound.isFadingOut = false;
+        sound.volume = this.roundValue(targetVolume);
+        sound.gainNode.gain.setValueAtTime(targetVolume, this.context.currentTime);
+        onComplete?.();
+        this.dispatchEvent({
+          type: SoundEventsEnum.VOLUME_CHANGED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          volume: sound.volume,
+          sound
+        });
+
+        this.activeFadeCallbacks.delete(id);
+      };
+      this.activeFadeCallbacks.set(id, fadeCompleteCallback);
+
+      const fadeId = `fade_${id}`;
+      const updateFade = () => {
+        const currentTime = this.context.currentTime;
+
+        if (currentTime >= endTime) {
+          // Clean up
+          this.ticker.removeCallback(fadeId);
+          fadeCompleteCallback();
+          return;
+        }
+
+        // Calculate current volume based on progress
+        const progress = (currentTime - startTime) / fadeDuration;
+        const currentVolume = startVolume + (targetVolume - startVolume) * progress;
+
+        sound.gainNode.gain.setValueAtTime(currentVolume, currentTime);
+        sound.volume = this.roundValue(currentVolume);
+
+        sound.playOptions = {
+          ...sound.playOptions,
+          volume: sound.volume,
+        };
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.VOLUME_CHANGED,
+          soundId: id,
+          timestamp: currentTime,
+          volume: sound.volume,
+          sound
+        });
+      };
+
+      // Add fade update to ticker
+      this.ticker.addCallback(fadeId, updateFade);
+
+      this.debugLog(`Fade scheduled for sound ${id}:
+        Start time: ${startTime}
+        Duration: ${fadeDuration}
+        Start volume: ${startVolume}
+        Target volume: ${targetVolume}
+      `);
+
+    } catch (error) {
+      this.handleError("fading sound", error, id);
+    }
+  }
+
+  public fadeGlobalIn(duration: number = this.config.fadeInDuration!, startVolume?: number, endVolume?: number): void {
+    try {
+      const initialVolume = startVolume ?? 0;
+      const targetVolume = endVolume ?? (this.masterGainNode.gain.value || this.previousGlobalVolume);
+
+      // Cancel any scheduled changes
+      this.masterGainNode.gain.cancelScheduledValues(this.context.currentTime);
+
+      const startTime = this.context.currentTime;
+      const fadeDuration = duration;
+      const endTime = startTime + fadeDuration;
+
+      // Shared id with fadeGlobalOut: registering it replaces any master fade
+      // already running, instead of leaving two loops fighting over master gain.
+      const fadeId = SoundHub.GLOBAL_FADE_ID;
+      const updateGlobalFade = () => {
+        const currentTime = this.context.currentTime;
+
+        if (currentTime >= endTime) {
+          this.masterGainNode.gain.setValueAtTime(targetVolume, currentTime);
+          this.isMuted = false;
+
+          this.dispatchEvent({
+            type: SoundEventsEnum.FADE_MASTER_IN_COMPLETED,
+            timestamp: currentTime,
+            volume: targetVolume,
+          });
+
+          this.ticker.removeCallback(fadeId);
+          return;
+        }
+
+        const progress = (currentTime - startTime) / fadeDuration;
+        const currentVolume = initialVolume + (targetVolume - initialVolume) * progress;
+
+        this.masterGainNode.gain.setValueAtTime(currentVolume, currentTime);
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
+          timestamp: currentTime,
+          volume: currentVolume,
+          isMaster: true,
+        });
+      };
+
+      this.ticker.addCallback(fadeId, updateGlobalFade);
+
+    } catch (error) {
+      this.handleError("fading in master volume", error);
+    }
+  }
+
+  public fadeGlobalOut(
+    duration: number = this.config.fadeOutDuration!,
+    startVolume?: number,
+    endVolume: number = 0
+  ): void {
+    if (duration <= 0) {
+      this.debugLog(`Invalid fade duration: ${duration}`);
+      return;
+    }
+
+    try {
+      const initialVolume = startVolume ?? this.roundValue(this.masterGainNode.gain.value, 2);
+      this.previousGlobalVolume = initialVolume;
+
+      const startTime = this.context.currentTime;
+      const fadeDuration = duration;
+      const endTime = startTime + fadeDuration;
+
+      // Shared id with fadeGlobalIn, see the note there
+      const fadeId = SoundHub.GLOBAL_FADE_ID;
+      const updateGlobalFade = () => {
+        const currentTime = this.context.currentTime;
+
+        if (currentTime >= endTime) {
+          this.masterGainNode.gain.setValueAtTime(endVolume, currentTime);
+          this.isMuted = endVolume === 0;
+
+          this.dispatchEvent({
+            type: SoundEventsEnum.FADE_MASTER_OUT_COMPLETED,
+            timestamp: currentTime,
+            volume: endVolume,
+          });
+
+          this.ticker.removeCallback(fadeId);
+          return;
+        }
+
+        const progress = (currentTime - startTime) / fadeDuration;
+        const currentVolume = initialVolume + (endVolume - initialVolume) * progress;
+
+        this.masterGainNode.gain.setValueAtTime(currentVolume, currentTime);
+
+        this.dispatchEvent({
+          type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
+          timestamp: currentTime,
+          volume: currentVolume,
+          isMaster: true,
+        });
+      };
+
+      this.ticker.addCallback(fadeId, updateGlobalFade);
+
+    } catch (error) {
+      this.handleError("fading out master volume", error);
+    }
+  }
+
+  // End Fading ------------------------------------------------------------------------------------------------------------------------
+
+  // Volume control-----------------------------------------------------------------------------------------------------------------
+
+  public getVolume(id: string): number {
+    return this.getSoundVolume(id);
+  }
+
+  public setSoundVolume(id: string, volume: number, skipDispatchEvent: boolean = false): void {
+    try {
+      // Cancel any ongoing fade animation
+      this.cancelFadeAnimation(id);
+      const sound = this.getValidatedSound(id);
+
+      const validatedVolume = this.setValidatedVolume(volume);
+      sound.volume = this.roundValue(validatedVolume);
+      sound.originalVolume = validatedVolume;
+      sound.playOptions = {
+        ...sound.playOptions,
+        volume: validatedVolume,
+      };
+
+      sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+      sound.gainNode.gain.setValueAtTime(validatedVolume, this.context.currentTime);
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.VOLUME_CHANGED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          volume: sound.volume,
+          sound
+        });
+      }
+
+    } catch (error) {
+      this.handleError("setting volume", error, id);
+    }
+  }
+
+  public getSoundVolume(id: string): number {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.originalVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
+    } catch (error) {
+      this.handleError("getting volume", error, id);
+      return 0;
+    }
+  }
+
+  public setGlobalVolume(volume: number): void {
+    this.previousGlobalVolume = this.setValidatedVolume(volume);
+    if (!this.isMuted) {
+      this.masterGainNode.gain.value = this.previousGlobalVolume;
+    }
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.MASTER_VOLUME_CHANGED,
+      timestamp: this.context.currentTime,
+      volume: this.previousGlobalVolume,
+      isMaster: true,
+    });
+  }
+
+  public getGlobalVolume(): number {
+    return this.isMuted ? 0 : this.roundValue(this.masterGainNode.gain.value, 2);
+  }
+
+  // End Volume control-------------------------------------------------------------------------------------------------------------
+
+  // Mute control-------------------------------------------------------------------------------------------------------------------
+
+  public muteAllSounds(): void {
+    this.previousGlobalVolume = this.roundValue(this.masterGainNode.gain.value, 2);
+    this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
+    this.isMuted = true;
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.MUTE_GLOBAL,
+      timestamp: this.context.currentTime,
+      isMuted: true,
+      volume: 0,
+    });
+  }
+
+  public unmuteAllSounds(): void {
+    this.masterGainNode.gain.setValueAtTime(this.previousGlobalVolume, this.context.currentTime);
+    this.isMuted = false;
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.UNMUTE_GLOBAL,
+      timestamp: this.context.currentTime,
+      isMuted: false,
+      volume: this.previousGlobalVolume,
+    });
+  }
+
+  public mute(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+
+      sound.previousVolume = sound.volume;
+      sound.volume = 0;
+      sound.gainNode.gain.setValueAtTime(0, this.context.currentTime);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.MUTED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        volume: 0,
+        isMuted: true,
+        sound
+      });
+    } catch (error) {
+      this.handleError("muting sound", error, id);
+    }
+  }
+
+  public unmute(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      // Restore the previous volume
+      const volumeToRestore = sound.previousVolume ?? this.config.defaultVolume ?? 1;
+      sound.volume = volumeToRestore;
+      sound.gainNode.gain.setValueAtTime(volumeToRestore, this.context.currentTime);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.UNMUTED,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        volume: volumeToRestore,
+        isMuted: false,
+        sound
+      });
+    } catch (error) {
+      this.handleError("unmuting sound", error, id);
+    }
+  }
+
+  public toggleMute(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      if ((sound?.volume ?? sound?.originalVolume ?? sound.playOptions?.volume ?? 1) > 0) {
+        this.mute(id);
+      } else {
+        this.unmute(id);
+      }
+    } catch (error) {
+      this.handleError("toggling mute", error, id);
+    }
+  }
+
+  public toggleGlobalMute(): void {
+    if (this.isMuted) {
+      this.unmuteAllSounds();
+    } else {
+      this.muteAllSounds();
+    }
+  }
+
+  // End Mute control-----------------------------------------------------------------------------------------------------------------------------
+
+  // Loop control --------------------------------------------------------------------------------------------------------------------------------
+  public setLoop(id: string, loop: boolean, maxLoops: number = -1): void {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for setting loop`);
+      return;
+    }
+
+    sound.playOptions = { ...sound.playOptions, loop, maxLoops };
+
+    // A seamless loop lives on the source node, so switching looping off has
+    // to reach the node that is already playing.
+    if (sound.playOptions.seamlessLoop && sound.source) {
+      sound.source.loop = loop;
+    }
+
+    this.debugLog(`Loop set for sound ${id}: ${loop}`);
+  }
+
+  public getLoop(id: string): boolean {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for getting loop`);
+      return false;
+    }
+
+    return sound.playOptions?.loop ?? false;
+  }
+
+  // End loop control-----------------------------------------------------------------------------------------------------------------------------
+
+  // Sound loading and management-----------------------------------------------------------------------------------------------------------------
+
+
+  private shouldUseProxy(url: string): boolean {
+    if (!this.config.corsProxy) return false;
+    if (this.isLocalUrl(url)) return false;
+    return true;
+  }
+  
+  private isLocalUrl(url: string): boolean {
+    return url.startsWith('/') || 
+           url.startsWith('./') || 
+           url.startsWith('../') ||
+           url.startsWith('blob:') ||
+           url.startsWith('data:') ||
+           !/^https?:/i.test(url);
+  }
+  
+  private getProxyUrl(url: string): string {
+    if (!this.shouldUseProxy(url)) return url;
+    
+    const proxy = this.config.corsProxy!;
+    
+    // Handle different proxy formats
+    if (proxy.includes('cors-anywhere')) {
+      // Special handling for cors-anywhere which needs raw URL
+      return `${proxy}${url}`; // Don't encode the target URL
+    }
+    
+    if (proxy.includes('?')) {
+      // For proxies that expect encoded URLs in query params
+      const paramName = proxy.includes('url=') ? '' : 'url=';
+      return `${proxy}${paramName}${encodeURIComponent(url)}`;
+    }
+    
+    return `${proxy}${url}`;
+  }
+  
+  private async loadWithWebAudio(id: string, url: string, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
+    const canProxy = this.shouldUseProxy(url);
+    const configuredStrategy = this.config.fetchStrategy ?? 'direct-first';
+
+    let strategies: ('direct' | 'proxy')[];
+    if (configuredStrategy === 'direct-only') {
+      strategies = ['direct'];
+    } else if (configuredStrategy === 'proxy-first') {
+      strategies = canProxy ? ['proxy', 'direct'] : ['direct'];
+    } else {
+      strategies = canProxy ? ['direct', 'proxy'] : ['direct'];
+    }
+
+    let lastError: unknown = null;
+
+    for (const strategy of strategies) {
+      try {
+        // Only the proxy attempt rewrites the URL. A configured corsProxy used to
+        // hijack every strategy, which made direct-only and the direct fallback
+        // of proxy-first go through the proxy anyway.
+        const fetchUrl = strategy === 'proxy' ? this.getProxyUrl(url) : url;
+
+        this.debugLog(`Trying ${strategy} strategy for ${id}`, {
+          originalUrl: url,
+          fetchUrl: fetchUrl
+        });
+
+        const response = await this.fetchWithRetry(fetchUrl, {
+          mode: 'cors',
+          credentials: 'omit',
+          cache: this.config.audioCache ? 'default' : 'no-cache',
+          headers: {
+            'Accept': 'audio/mpeg, audio/*'
+          }
+        }, signal);
+
+        return await this.processAudioResponse(id, response);
+      } catch (error) {
+        if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          throw error;
+        }
+
+        lastError = error;
+        this.debugLog(`${strategy} strategy failed for ${id}`, {
+          error: error instanceof Error ? error.message : String(error),
+          url: url
+        });
+      }
+    }
+
+    throw new Error(
+      `Failed to load sound ${id}: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+    );
+  }
+  
+  private async fetchWithRetry(url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
+    const { fetchRetries = 2, retryDelay = 0.5, fetchTimeout = 10 } = this.config;
+    let lastError: Error | null = null;
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
+    // Determine credential strategies to try
+    const credentialStrategies = this.config.credentialStrategy === 'auto'
+      ? (this.config.crossOrigin === "use-credentials" ? ['include', 'omit'] : ['omit'])
+      : [this.config.credentialStrategy || 'omit'];
+
+    for (const credentials of credentialStrategies) {
+      for (let attempt = 0; attempt <= fetchRetries; attempt++) {
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), fetchTimeout * 1000);
+        const combinedSignal = signal
+          ? AbortSignal.any([signal, controller.signal])
+          : controller.signal;
+
+        try {
+          const options = {
+            ...init,
+            credentials: credentials as RequestCredentials,
+            signal: combinedSignal
+          };
+
+          this.debugLog(`Attempt ${attempt + 1} with credentials=${credentials}`);
+          const response = await fetch(url, options);
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          // Validate CORS headers
+          if (init.mode === 'cors') {
+            const corsHeader = response.headers.get('access-control-allow-origin');
+            if (credentials === 'include' && corsHeader === '*') {
+              throw new Error('Invalid CORS: Credentialed request with wildcard origin');
+            }
+          }
+
+          this.debugLog(`Success after ${Date.now() - startTime}ms`);
+          return response;
+
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (signal?.aborted) throw error;
+          lastError = error instanceof Error ? error : new Error(String(error));
+          this.debugLog(`Attempt ${attempt + 1} failed: ${lastError.message}`);
+        }
+
+        if (attempt < fetchRetries) {
+          if (signal?.aborted) {
+            throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+          }
+          await new Promise(resolve => setTimeout(resolve, retryDelay * 1000));
+        }
+      }
+    }
+
+    throw lastError || new Error('Failed after all retries');
+  }
+
+  /**
+   * Content types that plausibly carry audio. Being strict about `audio/*` here
+   * rejected perfectly valid files: S3 and several CDNs serve audio as
+   * application/octet-stream, and m4a/mp4 audio commonly arrives as video/*.
+   * decodeAudioData is the real gate; this check only catches obvious mistakes
+   * such as an HTML error page returned with status 200.
+   */
+  private isPlausibleAudioContentType(contentType: string | null): boolean {
+    if (!contentType) return true; // No header at all, let the decoder decide
+
+    const type = contentType.split(';')[0].trim().toLowerCase();
+
+    return type.startsWith('audio/')
+      || type.startsWith('video/')
+      || type === 'application/ogg'
+      || type === 'application/octet-stream'
+      || type === 'binary/octet-stream';
+  }
+
+  private async processAudioResponse(id: string, response: Response, enforceContentType: boolean = true): Promise<void> {
+    // Verify content type is plausibly audio
+    const contentType = response.headers.get('content-type');
+    if (enforceContentType && !this.isPlausibleAudioContentType(contentType)) {
+      throw new Error(`Invalid content type: ${contentType}`);
+    }
+
+    // Check file size if configured
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && this.config.maxAudioSize && parseInt(contentLength) > this.config.maxAudioSize) {
+      throw new Error(`Audio file too large: ${contentLength} bytes (max ${this.config.maxAudioSize} bytes), change the maxAudioSize config in your SoundHubConfig`);
+    }
+    const fileSize = contentLength ? parseInt(contentLength) : undefined;
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+    this.createSoundNode(id, audioBuffer, fileSize);
+    this.debugLog(`Sound ${id} loaded successfully`);
+  }
+
+  private async loadWithHtml5Audio(id: string, url: string, signal?: AbortSignal): Promise<void> {
+    if (!this.config.html5AudioFallback) {
+      throw new Error('HTML5 Audio fallback is disabled in configuration');
+    }
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
+    // Step 1: let the browser's own media pipeline prove it can play this URL.
+    await new Promise<void>((resolve, reject) => {
+      const audio = new Audio();
+      audio.crossOrigin = this.config.crossOrigin === "use-credentials"
+        ? "use-credentials"
+        : "anonymous";
+      audio.preload = "auto";
+
+      const cleanup = () => {
+        audio.oncanplaythrough = null;
+        audio.onerror = null;
+        signal?.removeEventListener('abort', abortHandler);
+      };
+
+      const abortHandler = () => {
+        cleanup();
+        audio.src = '';
+        reject(signal!.reason ?? new DOMException('Aborted', 'AbortError'));
+      };
+
+      // Registered once. It used to be attached via both onerror and
+      // addEventListener, so cleanup ran twice on every failure.
+      const errorHandler = () => {
+        cleanup();
+        const message = audio.error ? audio.error.message : 'unknown';
+        audio.src = '';
+        reject(new Error(`HTML5 Audio load error: ${message}`));
+      };
+
+      audio.oncanplaythrough = () => {
+        cleanup();
+        resolve();
+      };
+
+      audio.onerror = errorHandler;
+      if (signal) signal.addEventListener('abort', abortHandler, { once: true });
+
+      audio.src = url;
+      audio.load();
+    });
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
+    // Step 2: pull the bytes in for the Web Audio graph. This does its own fetch
+    // rather than calling loadWithWebAudio again, which would only replay the
+    // strategy loop that already failed. Content type is not enforced: the media
+    // element above already established that the file is playable.
+    const response = await this.fetchWithRetry(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      cache: this.config.audioCache ? 'default' : 'no-cache'
+    }, signal);
+
+    await this.processAudioResponse(id, response, false);
+    this.debugLog(`Sound ${id} loaded with HTML5 Audio fallback`);
+  }
+
+  public async loadSounds(soundsToLoad: { id: string; url: string }[], signal?: AbortSignal): Promise<void> {
+    if (!soundsToLoad.length) return;
+
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    }
+
+    try {
+      const { maxParallelLoads = 10, webAudioPreferred = true } = this.config;
+      const batchSize = Math.max(1, maxParallelLoads);
+      const batches: { id: string; url: string }[][] = [];
+
+      // Split into batches for parallel loading
+      for (let i = 0; i < soundsToLoad.length; i += batchSize) {
+        batches.push(soundsToLoad.slice(i, i + batchSize));
+      }
+
+      for (const batch of batches) {
+        if (signal?.aborted) {
+          throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+        }
+
+        const loadPromises = batch.map(async ({ id, url }) => {
+          if (this.sounds.has(id)) {
+            this.debugLog(`Sound with id ${id} already exists. Skipping.`);
+            return;
+          }
+
+          try {
+            if (webAudioPreferred) {
+              try {
+                await this.loadWithWebAudio(id, url, signal);
+                return;
+              } catch (webAudioError) {
+                if (signal?.aborted) throw webAudioError;
+                this.debugLog(`Web Audio load failed for ${id}`, webAudioError);
+              }
+            }
+
+            await this.loadWithHtml5Audio(id, url, signal);
+          } catch (error) {
+            if (!(error instanceof DOMException && error.name === 'AbortError')) {
+              this.handleError("loading sound", error, id);
+            }
+            throw error;
+          }
+        });
+
+        const results = await Promise.allSettled(loadPromises);
+        const failedLoads = results.filter(r => r.status === 'rejected');
+
+        if (failedLoads.length) {
+          const firstRejected = (failedLoads[0] as PromiseRejectedResult).reason;
+          if (firstRejected instanceof DOMException && firstRejected.name === 'AbortError') {
+            throw firstRejected;
+          }
+          const failedIds = batch.filter((_, i) => results[i].status === 'rejected').map(s => s.id);
+          throw new Error(`Failed to load sounds: ${failedIds.join(', ')}`);
+        }
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        this.handleError("preloading sounds", error);
+      }
+      throw error;
+    }
+  }
+
+
+  private calculateAudioSize(buffer: AudioBuffer): number {
+    return buffer.numberOfChannels * buffer.length * 4;
+  }
+
+  private createSoundNode(id: string, audioBuffer: AudioBuffer, fileSize?: number): void {
+    // Create gain node for volume control
+    const gainNode = this.context.createGain();
+    gainNode.gain.value = this.config.defaultVolume ?? 1;
+    gainNode.connect(this.masterGainNode);
+
+    // Create a buffer source (we'll create a new one each time we play)
+    const source = this.context.createBufferSource();
+    source.buffer = audioBuffer;
+
+     // Calculate audio size (approximate)
+    const bufferSizeInBytes = this.calculateAudioSize(audioBuffer);
+
+    // Create the sound object
+    const sound: Sound = {
+      id,
+      buffer: audioBuffer,
+      gainNode,
+      source,
+      startTime: undefined,
+      currentTime: 0,
+      pausedAt: undefined,
+      state: SoundState.Stopped,
+      volume: this.config.defaultVolume ?? 1,
+      currentLoopCount: 0,
+      originalVolume: this.config.defaultVolume ?? 1,
+      playOptions: {
+        startTime: this.config.defaultStartTime ?? 0,
+        loop: this.config.loopSounds ?? false,
+        maxLoops: this.config.maxLoops ?? -1,
+        playbackRate: this.config.defaultPlaybackRate ?? 1,
+        pan: this.config.defaultPan ?? 0,
+        volume: this.config.defaultVolume ?? 1,
+        trackProgress: this.config.trackProgress ?? false
+      },
+      panSpatialPosition: this.config.defaultPanSpatialPosition ?? { x: 0, y: 0, z: 0 },
+      pan: this.config.defaultPan ?? 0,
+      panType: this.config.defaultPanType ?? SoundPanType.Stereo,
+    };
+
+    this.sounds.set(id, sound);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.LOADED,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      sound,
+      duration: audioBuffer.duration,
+      bufferSize: bufferSizeInBytes,
+      fileSize,
+      sampleRate: audioBuffer.sampleRate,
+      channels: audioBuffer.numberOfChannels
+    });
+  }
+
+  public async loadSound(id: string, url: string, signal?: AbortSignal): Promise<void> {
+    try {
+      await this.loadSounds([{ id, url }], signal);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        this.handleError("loading sound", error, id);
+      }
+      throw error;
+    }
+  }
+
+  public async updateSoundUrl(id: string, newUrl: string): Promise<void> {
+    try {
+      const sound = this.sounds.get(id);
+      if (!sound) {
+        this.debugLog(`Sound ${id} not found for URL update`);
+        return;
+      }
+
+      // Stop and tear down the existing sound. The entry has to leave the map as
+      // well: loadSounds() skips ids that are already registered, so leaving it in
+      // place would silently keep the old buffer and never fetch newUrl.
+      this.stop(id, true);
+      this.cleanupSound(id);
+      this.sounds.delete(id);
+
+      // Load the new sound
+      await this.loadSound(id, newUrl);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.UPDATED_URL,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        sound: this.sounds.get(id) ?? sound
+      });
+
+      this.debugLog(`Sound ${id} URL updated to ${newUrl}`);
+    } catch (error) {
+      this.handleError("updating sound URL", error, id);
+    }
+  }
+
+  public unloadSound(id: string): void {
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for unloading`);
+      return;
+    }
+
+    this.stop(id, false);
+    this.cleanupSound(id);
+
+    // Actually release the sound. Keeping the entry meant the decoded AudioBuffer
+    // stayed alive, isSoundLoaded() kept reporting true, and loadSounds() skipped
+    // the id on any later reload.
+    this.sounds.delete(id);
+    if (sound.groupId) {
+      this.soundGroups.get(sound.groupId)?.sounds.delete(id);
+    }
+    this.resetCounterForSound(id);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.UNLOADED,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      sound
+    });
+
+    this.debugLog(`Sound ${id} unloaded`);
+  }
+
+  public removeSound(id: string): void {
+    try {
+      const sound = this.sounds.get(id);
+      if (!sound) return;
+      this.unloadSound(id); // Also removes it from the sounds map
+      this.debugLog(`Removed sound ${id}`);
+    } catch (error) {
+      this.handleError("removing sound", error, id);
+    }
+  }
+
+  public isSoundLoaded(id: string): boolean {
+    const sound = this.sounds.get(id);
+    return sound?.buffer != null;
+  }
+
+  // Sound group management ----------------------------------------------------------------------------------------------------------------------
+  public createSoundGroup(
+    groupName: string,
+    options: {
+      maxInstances?: number;
+      playOptions?: PlayOptions; // Add playOptions to the group
+    } = {}
+  ): void {
+    if (this.soundGroups.has(groupName)) {
+      this.debugLog(`Group with id ${groupName} already exists.`);
+      return;
+    }
+
+    this.soundGroups.set(groupName, {
+      id: groupName,
+      sounds: new Set(),
+      maxInstances: options.maxInstances,
+      playOptions: options.playOptions,
+    });
+
+    this.debugLog(`Created group ${groupName} with options:`, options);
+  }
+
+  public addToSoundGroup(groupName: string, soundId: string): void {
+    const group = this.soundGroups.get(groupName);
+    if (!group) {
+      this.debugLog(`Group ${groupName} not found.`);
+      return;
+    }
+
+    // Check if the group has reached its max instances limit
+    if (group.maxInstances && group.sounds.size >= group.maxInstances) {
+      // Stop the oldest instance to make room for the new one
+      const oldestSoundId = Array.from(group.sounds)[0];
+      this.stop(oldestSoundId); // Stop the oldest instance
+      group.sounds.delete(oldestSoundId); // Remove it from the group
+      this.debugLog(`Stopped oldest instance ${oldestSoundId} to make room for new instance in group ${groupName}.`);
+    }
+
+    // Add the new instance to the group
+    const sound = this.sounds.get(soundId);
+    if (sound) {
+      sound.groupId = groupName;
+    }
+    if (sound && group.playOptions) {
+      // Group options have to win here. createSoundNode already fills playOptions
+      // with config-derived defaults for startTime, loop, maxLoops, playbackRate,
+      // pan, volume and trackProgress, so spreading the sound last meant those
+      // defaults always beat the group and createSoundGroup({ playOptions })
+      // had no effect. Per-call options passed to play() still take precedence,
+      // since play() merges them on top of this.
+      sound.playOptions = { ...sound.playOptions, ...group.playOptions };
+    }
+
+    group.sounds.add(soundId);
+    this.debugLog(`Added sound ${soundId} to group ${groupName}.`);
+  }
+
+  public removeFromSoundGroup(groupName: string, soundId: string): void {
+    const group = this.soundGroups.get(groupName);
+    if (!group) {
+      this.debugLog(`Group ${groupName} not found.`);
+      return;
+    }
+
+    group.sounds.delete(soundId);
+    this.debugLog(`Removed sound ${soundId} from group ${groupName}.`);
+  }
+
+  public getGroup(groupName: string): SoundGroup | undefined {
+    return this.soundGroups.get(groupName);
+  }
+
+  public removeSoundGroup(groupName: string): void {
+    const group = this.soundGroups.get(groupName);
+    if (!group) {
+      this.debugLog(`Group ${groupName} not found.`);
+      return;
+    }
+
+    // Stop and clean up all sounds in the group
+    group.sounds.forEach((soundId) => {
+      this.stop(soundId);
+      this.sounds.delete(soundId);
+    });
+
+    group.sounds.clear();
+    this.soundGroups.delete(groupName);
+
+    this.debugLog(`Cleaned up group ${groupName}.`);
+  }
+
+  //End Sound group management ----------------------------------------------------------------------------------------------------------------------
+
+
+  // Sprite control----------------------------------------------------------------------------------------------------------------------------------
+  public setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void {
+    try {
+      const originalSound = this.getValidatedSound(id);
+      if (!originalSound || !originalSound.buffer) {
+        throw new Error(`Sound ${id} not found or buffer not loaded`);
+      }
+
+      // Record the config on the owner sound so getSpriteConfig() can return it
+      // and removeSpriteSound() can resolve a key to its sprite sounds.
+      originalSound.sprite = { ...sprite };
+
+      Object.entries(sprite).forEach(([key, [start, end]]) => {
+        const spriteId = `${id}_${key}`;
+        this.debugLog(
+          `Creating sprite ${spriteId} for sound ${id}: Start=${start}s, End=${end}s, Duration=${end - start}s`
+        );
+
+        // Convert seconds to samples, clamped to the source buffer. Reading past
+        // the end yielded undefined, which lands in a Float32Array as NaN and
+        // turns the sprite into silence or noise.
+        const sampleRate = originalSound.buffer.sampleRate;
+        const totalSamples = originalSound.buffer.length;
+        const startSample = Math.max(0, Math.min(Math.floor(start * sampleRate), totalSamples));
+        const endSample = Math.max(startSample, Math.min(Math.floor(end * sampleRate), totalSamples));
+        const frameCount = endSample - startSample;
+        const duration = frameCount / sampleRate;
+
+        if (frameCount <= 0) {
+          this.debugLog(
+            `Skipping sprite ${spriteId}: range ${start}s-${end}s is empty or outside the buffer (${totalSamples / sampleRate}s)`
+          );
+          return;
+        }
+
+        // Create a new buffer for the sprite
+        const numberOfChannels = originalSound.buffer.numberOfChannels;
+        const spriteBuffer = this.context.createBuffer(numberOfChannels, frameCount, sampleRate);
+
+        // Copy the data from the original buffer to the sprite buffer
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+          const originalData = originalSound.buffer.getChannelData(channel);
+          const spriteData = spriteBuffer.getChannelData(channel);
+
+          spriteData.set(originalData.subarray(startSample, endSample));
+        }
+
+        // Create audio nodes for the sprite
+        const gainNode = this.context.createGain();
+        const volume = originalSound.volume ?? this.config.defaultVolume ?? 1;
+        gainNode.gain.value = volume;
+        gainNode.connect(this.masterGainNode);
+
+
+        // Create the sprite sound object
+        const spriteSound: Sound = {
+          id: spriteId,
+          buffer: spriteBuffer,
+          currentTime: 0,
+          source: this.context.createBufferSource(),
+          //  volume: volume,
+          originalVolume: volume,
+          state: SoundState.Stopped,
+          gainNode: gainNode,
+          // duration: duration,
+          playOptions: { ...originalSound.playOptions },
+          currentLoopCount: 0,
+          panSpatialPosition: this.config.defaultPanSpatialPosition || { x: 0, y: 0, z: 0 },
+          pan: originalSound.pan ?? this.config.defaultPan ?? 0,
+          //  pausedAt: 0, //this.context.currentTime
+          //  startTime: 0,
+        };
+
+        // Add stereoPanner if needed
+        if (originalSound.stereoPanner) {
+          const stereoPanner = this.context.createStereoPanner();
+          stereoPanner.connect(gainNode);
+          spriteSound.stereoPanner = stereoPanner;
+        }
+
+        // Store the new sprite sound
+        this.sounds.set(spriteId, spriteSound);
+
+        this.debugLog(`Created sprite sound ${spriteId}:
+                Duration: ${duration}s
+                Sample rate: ${sampleRate}
+                Channels: ${numberOfChannels}
+                Buffer length: ${spriteBuffer.length} samples
+            `);
+
+        // Dispatch event to notify that sprites have been created
+        this.dispatchEvent({
+          type: SoundEventsEnum.SPRITE_SET,
+          soundId: spriteId,
+          timestamp: this.context.currentTime,
+          sound: spriteSound
+        });
+      });
+    } catch (error) {
+      this.handleError("setting sound sprite", error, id);
+    }
+  }
+
+  public getSpriteConfig(id: string): { [key: string]: [number, number] } | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.sprite;
+    } catch (error) {
+      this.handleError("getting sprite config", error, id);
+      return undefined;
+    }
+  }
+
+  /**
+   * Removes a sprite sound and all of its instances.
+   *
+   * Accepts either a sprite key registered via setSoundSprite ("jump") or the
+   * full sprite sound id ("game-sounds_jump"). The previous substring match
+   * (`key.includes('_' + spriteKey)`) both over-matched, removing
+   * "player_double_jump" for the key "jump", and failed outright when callers
+   * passed the full sprite id.
+   */
+  public removeSpriteSound(spriteKey: string): void {
+    try {
+      // Resolve the sprite sound ids this key refers to
+      const spriteIds = new Set<string>();
+
+      if (this.sounds.has(spriteKey)) {
+        spriteIds.add(spriteKey);
+      }
+
+      this.sounds.forEach((sound, id) => {
+        if (sound.sprite && Object.prototype.hasOwnProperty.call(sound.sprite, spriteKey)) {
+          spriteIds.add(`${id}_${spriteKey}`);
+        }
+      });
+
+      // Include every live instance of those sprite sounds ("<spriteId>:<n>")
+      const spriteInstances = Array.from(this.sounds.keys()).filter(
+        key => spriteIds.has(key.split(':')[0])
+      );
+
+      if (spriteInstances.length === 0) {
+        this.debugLog(`No sprite instances found for key: ${spriteKey}`);
+        return;
+      }
+
+      // Stop and remove each sprite instance
+      spriteInstances.forEach(instanceId => {
+        this.stop(instanceId); // Stop the instance
+        this.cleanupSound(instanceId); // Clean up resources
+        this.sounds.delete(instanceId); // Remove from the sounds map
+        this.debugLog(`Removed sprite instance: ${instanceId}`);
+      });
+      this.debugLog(`All instances of sprite ${spriteKey} removed`);
+    } catch (error) {
+      this.handleError("removing sprite sound", error, spriteKey);
+    }
+  }
+
+  public removeSpriteConfig(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      if (sound) {
+        sound.sprite = undefined;
+        this.debugLog(`Removed sprite config for sound ${id}`);
+      }
+    } catch (error) {
+      this.handleError("removing sprite config", error, id);
+    }
+  }
+
+  // End Sprite control-----------------------------------------------------------------------------------------------------------------------------
+
+  // Context -------------------------------------------------------------------------------------------------------------------------------------
+  public async suspendContext(): Promise<void> {
+    try {
+      await this.context.suspend();
+      this.debugLog('Audio context suspended');
+    } catch (error) {
+      this.handleError("suspending context", error);
+    }
+  }
+
+  public async resumeContext(): Promise<void> {
+    try {
+      await this.context.resume();
+      this.debugLog('Audio context resumed');
+    } catch (error) {
+      this.handleError("resuming context", error);
+    }
+  }
+
+  public getContext(): AudioContext {
+    return this.context;
+  }
+
+  public getMasterOutput(): AudioNode {
+    return this.masterStereoPanner;
+  }
+
+  /**
+   * Entry point of the master chain, for audio you generate yourself
+   * (oscillators, a MediaElementSource, a worklet). Connecting here routes that
+   * audio through master volume, mute, panning and the limiter, exactly like a
+   * loaded sound.
+   *
+   * Use getMasterOutput() instead when you only want to observe the signal, for
+   * example with an AnalyserNode.
+   */
+  public getMasterInput(): AudioNode {
+    return this.masterGainNode;
+  }
+
+  // End Context -----------------------------------------------------------------------------------------------------------------------------------
+
+
+  // State checks-------------------------------------------------------------------------------------------------------------------
+
+  public isPlaying(id: string): boolean {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.state === SoundState.Playing;
+    } catch {
+      return false;
+    }
+  }
+
+  public isPaused(id: string): boolean {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.state == SoundState.Paused;
+    } catch {
+      return false;
+    }
+  }
+
+  public isStopped(id: string): boolean {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.state === SoundState.Stopped;
+    } catch {
+      return true;
+    }
+  }
+
+  public getSoundState(id: string): SoundStateInfo {
+    let sound: Sound;
+    try {
+      sound = this.getValidatedSound(id);
+    } catch {
+      // Unknown or unloaded id: report a neutral, stopped state rather than
+      // throwing out of a getter that UI code polls every frame.
+      return this.createEmptySoundState();
+    }
+
+    const playbackRate = sound.playOptions?.playbackRate ?? 1;
+    const rawDuration = sound.buffer?.duration ?? 0;
+    const adjustedDuration = rawDuration / playbackRate;
+
+    let currentTime = 0;
+    let elapsedTime = 0;
+
+    if (sound.state === SoundState.Playing && sound.startTime !== undefined) {
+      elapsedTime = (this.context.currentTime - sound.startTime) * playbackRate;
+      currentTime = elapsedTime;
+
+      if (sound.playOptions?.loop && rawDuration > 0) {
+        currentTime = currentTime % rawDuration;
+
+        // A loop reports where it is inside the file, not how long it has been
+        // running. A restarting loop gets that for free because every
+        // iteration resets the start time, but a seamless loop keeps one start
+        // time for the whole run, and its elapsed time would otherwise climb
+        // past the duration forever.
+        elapsedTime = currentTime;
+      }
+    } else {
+      currentTime = sound.pausedAt || sound.currentTime || 0;
+      elapsedTime = currentTime;
+    }
+    // Progress calculation using raw time values
+    const progressRatio = rawDuration > 0 ? currentTime / rawDuration : 0;
+
+    // Adjust times for UI display
+    const adjustedElapsedTime = elapsedTime / playbackRate;
+    const adjustedCurrentTime = currentTime / playbackRate;
+
+    this.debugLog(`Sound state for ${id}:
+      State: ${sound.state}
+      Progress: ${progressRatio}
+      Initial offset: ${sound.playOptions?.startTime || 0}ms
+      Sound currentTime: ${sound.currentTime}s
+      Elapsed time: ${sound.state === SoundState.Playing ? elapsedTime : 0}s
+      Current time: ${currentTime}s
+      Raw Duration: ${rawDuration}s
+      Duration playOptions: ${sound.playOptions?.duration || 0}s
+      Adjusted Duration: ${this.roundValue(elapsedTime, 4)}s
+      Playback Rate: ${playbackRate}
+      Volume: ${sound.volume}
+      Pan: ${sound.pan},
+      Pan Spatial Position: ${JSON.stringify(sound.panSpatialPosition)}
+    `);
+
+
+    return {
+      progress: this.roundValue(progressRatio, 4),
+      startTime: sound.startTime || 0,
+      currentTime: this.roundValue(adjustedCurrentTime, 4), // Adjusted for UI
+      elapsedTime: this.roundValue(adjustedElapsedTime, 4), // Adjusted for UI
+      adjustedElapsedTime: this.roundValue(elapsedTime, 4), // Raw value
+      duration: this.roundValue(adjustedDuration, 4), // Adjusted for UI
+      rawDuration: this.roundValue(rawDuration, 4),
+      state: sound.state || SoundState.Stopped,
+      volume: sound.volume ?? sound?.playOptions?.volume ?? this.config.defaultVolume ?? 1,
+      playbackRate: playbackRate,
+      pan: sound.pan ?? sound?.playOptions?.pan ?? 0,
+      panSpatialPosition: sound?.panSpatialPosition || { x: 0, y: 0, z: 0 },
+    };
+  }
+
+  // End State checks---------------------------------------------------------------------------------------------------------------
+
+
+
+  // Progress tracking management----------------------------------------------------------------------------------------------------
+
+  public getCurrentTime(id: string): number {
+    const { currentTime } = this.getSoundState(id);
+    return currentTime;
+  }
+
+  public getDuration(id: string): number {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.buffer?.duration || 0;
+    } catch (error) {
+      this.handleError("getting duration", error, id);
+      return 0;
+    }
+  }
+
+  // Returns the progress as a ratio (0-1)
+  public getProgress(id: string): number {
+    const { currentTime, duration } = this.getSoundState(id);
+    if (!duration) return 0;
+    return currentTime / duration;
+  }
+
+  // Returns the progress as a percentage (0-100)
+  public getProgressPercentage(id: string): number {
+    return this.getProgress(id) * 100;
+  }
+
+  public startProgressTracking(id: string): void {
+    // Clear any existing tracking
+    this.stopProgressTracking(id);
+
+    // Extract original ID if this is an instance
+    const originalId = id.includes(':') ? id.split(':')[0] : id;
+
+    const trackProgress = () => {
+      const sound = this.sounds.get(id);
+      if (!sound || sound.state !== SoundState.Playing) {
+        this.stopProgressTracking(id);
+        return;
+      }
+
+      const soundState = this.getSoundState(id);
+
+      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime, playbackRate } = soundState;
+      const progress = duration ? (elapsedTime / duration) : 0;
+
+
+      if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
+        if (adjustedElapsedTime >= (sound.playOptions.duration + (sound.playOptions.startTime ?? 0)) / (playbackRate || 1)) {
+          if (sound.playOptions.pauseAtDurationReached && !sound.playOptions.loop) {
+            this.pause(id);
+          } else {
+            if (sound.playOptions?.loop) {
+              this.handleLoopIteration(sound);
+            } else {
+              this.handleSoundEnded(sound);
+            }
+          }
+          return;
+        }
+      }
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.PROGRESS,
+        soundId: id,
+        originalId,
+        instanceId: id,
+        currentTime,
+        duration: duration || 0,
+        progress,
+        progressInfo: {
+          soundId: id,
+          currentTime,
+          duration: duration || 0,
+          rawDuration: rawDuration || 0,
+          progress,
+        },
+        state: soundState,
+        timestamp: this.context.currentTime,
+        volume: sound.volume,
+        sound,
+      });
+    };
+
+    // Add to ticker with specified interval
+    this.ticker.addCallback(`progress_${id}`, trackProgress, this.PROGRESS_UPDATE_INTERVAL);
+  }
+
+  public stopProgressTracking(id: string): void {
+    this.ticker.removeCallback(`progress_${id}`);
+  }
+
+  public setProgressUpdateInterval(interval: number): void {
+    this.PROGRESS_UPDATE_INTERVAL = interval;
+  }
+
+  // End Progress tracking management----------------------------------------------------------------------------------------------------
+
+  // Panning control-------------------------------------------------------------------------------------------------------------------
+
+  public setPan(id: string, value: number, skipDispatchEvent: boolean = false): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      // Clamp the pan value between -1 and 1
+      const clampedValue = Math.max(-1, Math.min(1, value));
+
+      // Remove spatial audio if active
+      if (this.isSpatialAudioActive(id)) {
+        this.debugLog(`Removed 3D spatial audio, and overwritten with stereo panner for sound ${id}`);
+        this.removeSpatialEffect(id);
+        sound.panType = SoundPanType.Stereo;
+
+        // Reset spatial position without dispatching SPATIAL_POSITION_CHANGED
+        const restoredPanSpatialPosition = { x: 0, y: 0, z: 0 };
+        sound.panSpatialPosition = restoredPanSpatialPosition;
+        if (sound.playOptions) {
+          sound.playOptions.panSpatialPosition = restoredPanSpatialPosition;
+        }
+      }
+
+      // Create or update stereoPanner
+      if (!sound.stereoPanner) {
+        sound.stereoPanner = this.context.createStereoPanner();
+      }
+
+      // Store the pan value and update the panner
+      sound.pan = clampedValue;
+
+      if (sound.playOptions) {
+        sound.playOptions.pan = clampedValue;
+      }
+
+      sound.panType = SoundPanType.Stereo;
+      if (sound.stereoPanner) {
+        sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
+      }
+
+      // Use the AudioNodeConnector to reconnect nodes
+      this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.PAN_CHANGED,
+          soundId: id,
+          timestamp: this.context?.currentTime ?? 0,
+          pan: sound.pan || 0,
+          previousPan: this.previousGlobalPan,
+          sound
+        });
+      }
+      this.debugLog(`Pan set for sound ${sound.id}: ${sound.pan}`);
+    } catch (error) {
+      this.handleError("setting pan", error, id);
+    }
+  }
+
+  public resetPan(id?: string): void {
+    if (!id) {
+      this.resetGlobalPan();
+      return;
+    }
+
+    try {
+      const sound = this.getValidatedSound(id);
+      this.setPan(id, 0, true);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.PAN_RESET,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        isMaster: false,
+        sound
+      });
+    } catch (error) {
+      this.handleError("resetting pan", error, id);
+    }
+  }
+
+  public removePan(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      if (sound.stereoPanner) {
+        const source = sound.source;
+        if (source) {
+          source.disconnect();
+          source.connect(sound.gainNode);
+        }
+        sound.stereoPanner.disconnect();
+        sound.stereoPanner = undefined;
+        sound.pan = 0;
+      }
+    } catch (error) {
+      this.handleError("removing pan", error, id);
+    }
+  }
+
+  public setGlobalPan(value: number): void {
+    try {
+      this.previousGlobalPan = this.masterStereoPanner.pan.value;
+
+      // Reset spatial position for all sounds using spatial audio
+      this.sounds.forEach((_sound, id) => {
+        if (this.isSpatialAudioActive(id)) {
+          this.removeSpatialEffect(id);
+        }
+      });
+
+      // Per-sound stereo panners are deliberately left alone. Writing the master
+      // value into each of them applied the pan twice (once per sound, once on
+      // the master node) and destroyed the individual pan settings.
+
+      // Clamp pan value between -1 and 1
+      const pannedValue = Math.max(-1, Math.min(1, value));
+      this.masterStereoPanner.pan.setValueAtTime(pannedValue, this.context.currentTime);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.MASTER_PAN_CHANGED,
+        timestamp: this.context?.currentTime ?? 0,
+        pan: pannedValue,
+        previousPan: this.previousGlobalPan,
+        isMaster: true,
+      });
+
+      this.debugLog(`Master pan set to: ${pannedValue}`);
+    } catch (error) {
+      this.handleError("setting master pan", error);
+    }
+  }
+
+  public getGlobalPan(): number {
+    return this.masterStereoPanner.pan.value;
+  }
+
+  public resetGlobalPan(): void {
+    this.setGlobalPan(0);
+    this.dispatchEvent({
+      type: SoundEventsEnum.PAN_RESET,
+      timestamp: this.context.currentTime,
+      isMaster: true,
+    });
+
+  }
+
+  public getPreviousMasterPan(): number {
+    return this.previousGlobalPan;
+  }
+
+  public cleanupGlobalPan(): void {
+    if (this.masterPannerNode) {
+      this.masterPannerNode.disconnect();
+      this.masterPannerNode = null;
+      this.rewireMasterChain();
+    }
+  }
+
+  public isStereoPanActive(id: string): boolean {
+    const sound = this.sounds.get(id);
+    return !!sound?.stereoPanner;
+  }
+
+  // End Panning control-------------------------------------------------------------------------------------------------------------------
+
+  // Spatial audio (3D audio)-----------------------------------------------------------------------------------------------------------
+  public isSpatialAudioEnabled(): boolean {
+    return this.config.spatialAudio === true && this.isSpatialAudioSupported();
+  }
+
+  public isSpatialAudioSupported(): boolean {
+    if (this._spatialAudioSupported !== null) {
+      return this._spatialAudioSupported;
+    }
+    try {
+      if (!("AudioContext" in window || "webkitAudioContext" in window)) {
+        return (this._spatialAudioSupported = false);
+      }
+      if (!("PannerNode" in window)) {
+        return (this._spatialAudioSupported = false);
+      }
+
+      // Probe our own listener, falling back to AudioListener.prototype. This
+      // used to construct a throwaway AudioContext on every first call, and
+      // close() is async so it lingered. Browsers cap the number of live
+      // contexts (Chrome allows about six), so several SoundHub instances
+      // could exhaust the budget.
+      const listener: object | undefined = this.context
+        ? this.context.listener
+        : (window as any).AudioListener?.prototype;
+
+      if (!listener) {
+        return (this._spatialAudioSupported = false);
+      }
+
+      const hasRequiredProperties =
+        "positionX" in listener &&
+        "positionY" in listener &&
+        "positionZ" in listener;
+
+      return (this._spatialAudioSupported = hasRequiredProperties);
+    } catch (error) {
+      this.debugLog("Spatial audio support check failed:", error);
+      return (this._spatialAudioSupported = false);
+    }
+  }
+
+  public setSpatialPosition(
+    x: number,
+    y: number,
+    z: number,
+    soundId?: string | null,
+    soundPannerConfig?: SoundPannerConfig,
+    skipDispatchEvent: boolean = false
+  ): void {
+    if (!this.isSpatialAudioEnabled()) {
+      this.debugLog("Spatial audio is not enabled or supported");
+      return;
+    }
+
+    x = this.roundValue(x, 2);
+    y = this.roundValue(y, 2);
+    z = this.roundValue(z, 2);
+
+    if (!soundId) {
+      this.debugLog(`Sound ${soundId} not found, global sound position will be used`);
+      this.setMasterSpatialPosition(x, y, z, soundPannerConfig);
+      return;
+    }
+
+    // Handle individual sound positioning
+    const sound = this.sounds.get(soundId);
+    if (!sound) {
+      this.debugLog(`Sound ${soundId} not found for position setting`);
+      return;
+    }
+
+    const source = sound.source;
+
+    // If stereo panning is active, reset it without dispatching PAN_CHANGED.
+    // removePan() reroutes the source straight to the gain node, so the panner
+    // has to be spliced back in below.
+    const sourceWasRerouted = !!sound.stereoPanner;
+    if (sound.stereoPanner) {
+      this.removePan(soundId);
+      this.debugLog(`Removed stereo panner, and overwritten with spatial panning for sound ${soundId}`);
+    }
+    sound.panType = SoundPanType.Spatial;
+
+    if (sound.playOptions) {
+      sound.playOptions.panSpatialPosition = { x, y, z };
+    } else {
+      sound.playOptions = { panSpatialPosition: { x, y, z } };
+    }
+
+    try {
+      // Create a panner node if it doesn't exist
+      if (!sound.pannerNode) {
+        // mergedConfig is only needed here (one-time setup), not on every position update
+        const mergedConfig: SoundPannerConfig = {
+          ...DEFAULT_PANNER_CONFIG, // Start with default config
+          ...(this.config.pannerNodeConfig || {}), // Override with sound manager config if exists
+          ...(soundPannerConfig || {}), // Override with specific config if provided
+        };
+
+        sound.pannerNode = this.context.createPanner();
+        sound.pannerNode.panningModel = mergedConfig.panningModel!;
+        sound.pannerNode.distanceModel = mergedConfig.distanceModel!;
+        sound.pannerNode.refDistance = mergedConfig.refDistance!;
+        sound.pannerNode.maxDistance = mergedConfig.maxDistance!;
+        sound.pannerNode.rolloffFactor = mergedConfig.rolloffFactor!;
+        sound.pannerNode.coneInnerAngle = mergedConfig.coneInnerAngle!;
+        sound.pannerNode.coneOuterAngle = mergedConfig.coneOuterAngle!;
+        sound.pannerNode.coneOuterGain = mergedConfig.coneOuterGain!;
+
+        // Wire the audio graph only when the panner is first created.
+        // Repeated disconnect/connect on every call triggers the onended event
+        // (see AudioNodeConnector), breaking animation loops and accumulating
+        // duplicate pannerNode→gainNode connections.
+        source?.disconnect();
+        source?.connect(sound.pannerNode);
+        sound.pannerNode.connect(sound.gainNode);
+      } else {
+        // Panner node already exists. Only re-route when removePan() above
+        // actually disconnected the source. Doing it on every call re-triggers
+        // onended and accumulates duplicate connections, which is exactly the
+        // problem the comment in the branch above warns about, and it is the path
+        // taken by every position update of a moving source.
+        if (sourceWasRerouted) {
+          source?.disconnect();
+          source?.connect(sound.pannerNode);
+          sound.pannerNode.connect(sound.gainNode);
+        }
+
+        if (soundPannerConfig && Object.keys(soundPannerConfig).length !== 0) {
+          // If panner exists and new config is provided, update only the provided values
+          Object.entries(soundPannerConfig).forEach(([key, value]) => {
+            if (value !== undefined) {
+              (sound.pannerNode as any)[key] = value;
+            }
+          });
+        }
+      }
+
+      // Update position
+      sound.pannerNode.positionX.setValueAtTime(x, this.context.currentTime);
+      sound.pannerNode.positionY.setValueAtTime(y, this.context.currentTime);
+      sound.pannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
+      sound.panSpatialPosition = { x, y, z };
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.SPATIAL_POSITION_CHANGED,
+          soundId,
+          timestamp: this.context.currentTime,
+          position: sound.panSpatialPosition,
+          pannerConfig: soundPannerConfig,
+          sound
+        });
+      }
+
+      this.debugLog(`Set position for sound ${soundId}: x=${x}, y=${y}, z=${z}`);
+    } catch (error) {
+      this.handleError("setting sound position", error);
+    }
+  }
+
+  public getSpatialPosition(soundId: string): { x: number; y: number; z: number } | null {
+    return this.sounds.get(soundId)?.panSpatialPosition ?? null;
+  }
+
+  public setMasterSpatialPosition(x: number, y: number, z: number, config: SoundPannerConfig = {}, skipDispatchEvent: boolean = false): void {
+    try {
+      // Create or update master panner node
+      if (!this.masterPannerNode) {
+        this.masterPannerNode = this.context.createPanner();
+        // Splice it into the master chain, keeping the stereo panner in place
+        this.rewireMasterChain();
+      }
+
+      // Update master panner position
+      this.masterPannerNode.positionX.setValueAtTime(x, this.context.currentTime);
+      this.masterPannerNode.positionY.setValueAtTime(y, this.context.currentTime);
+      this.masterPannerNode.positionZ.setValueAtTime(z, this.context.currentTime);
+
+      this.masterSpatialPosition = { x, y, z };
+
+      // Merge config values into masterPannerNode
+      if (config.coneInnerAngle !== undefined) {
+        this.masterPannerNode.coneInnerAngle = config.coneInnerAngle;
+      }
+      if (config.coneOuterAngle !== undefined) {
+        this.masterPannerNode.coneOuterAngle = config.coneOuterAngle;
+      }
+      if (config.coneOuterGain !== undefined) {
+        this.masterPannerNode.coneOuterGain = config.coneOuterGain;
+      }
+      if (config.distanceModel !== undefined) {
+        this.masterPannerNode.distanceModel = config.distanceModel;
+      }
+      if (config.maxDistance !== undefined) {
+        this.masterPannerNode.maxDistance = config.maxDistance;
+      }
+      if (config.panningModel !== undefined) {
+        this.masterPannerNode.panningModel = config.panningModel;
+      }
+      if (config.refDistance !== undefined) {
+        this.masterPannerNode.refDistance = config.refDistance;
+      }
+      if (config.rolloffFactor !== undefined) {
+        this.masterPannerNode.rolloffFactor = config.rolloffFactor;
+      }
+
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.GLOBAL_SPATIAL_POSITION_CHANGED,
+          timestamp: this.context.currentTime,
+          position: { x, y, z },
+        });
+      }
+      this.debugLog(`Set master spatial position: x=${x}, y=${y}, z=${z}`);
+    } catch (error) {
+      this.handleError("setting master spatial position", error);
+    }
+  }
+
+  public getMasterSpatialPosition(): { x: number; y: number; z: number } {
+    return this.masterSpatialPosition;
+  }
+
+  public removeSpatialEffect(id: string): void {
+    try {
+      const sound = this.getValidatedSound(id);
+      if (sound.pannerNode) {
+        const source = sound.source;
+        if (source) {
+          source.disconnect();
+          source.connect(sound.gainNode);
+        }
+        sound.pannerNode.disconnect();
+        sound.pannerNode = null;
+      }
+      sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+
+      // Ensure gainNode is connected to masterGainNode
+      sound.gainNode.disconnect();
+      sound.gainNode.connect(this.masterGainNode);
+
+    } catch (error) {
+      this.handleError("removing spatial effect", error, id);
+    }
+  }
+
+  public isSpatialAudioActive(id: string): boolean {
+    const sound = this.sounds.get(id);
+    return !!sound?.pannerNode;
+  }
+
+  public updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void {
+    const sound = this.sounds.get(soundId);
+    if (!sound?.pannerNode) {
+      this.debugLog(`No panner node found for sound ${soundId}`);
+      return;
+    }
+
+    try {
+      Object.entries(newConfig).forEach(([key, value]) => {
+        if (value !== undefined) {
+          (sound.pannerNode as any)[key] = value;
+        }
+      });
+
+      this.debugLog(`Updated panner config for sound ${soundId}`, newConfig);
+    } catch (error) {
+      this.handleError("updating panner configuration", error);
+    }
+  }
+
+  public resetSpatialPosition(id?: string): void {
+    if (!this.config.spatialAudio) {
+      this.debugLog("Spatial audio is not enabled");
+      return;
+    }
+
+    if (!id) {
+      this.debugLog("Resetting master spatial position");
+      this.setMasterSpatialPosition(0, 0, 0);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.SPATIAL_POSITION_RESET,
+        timestamp: this.context.currentTime,
+        isMaster: true,
+      });
+      return;
+    }
+
+    // Reset individual sound position
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for position reset`);
+      return;
+    }
+
+    if (sound.pannerNode) {
+      this.setSpatialPosition(0, 0, 0, id);
+      this.debugLog(`Reset position for sound ${id}`);
+
+      this.dispatchEvent({
+        type: SoundEventsEnum.SPATIAL_POSITION_RESET,
+        soundId: id,
+        timestamp: this.context.currentTime,
+        isMaster: false,
+        sound
+      });
+    }
+  }
+
+  public resetMasterSpatialPosition(): void {
+    try {
+      // Reset the master spatial position to (0, 0, 0)
+      if (this.masterPannerNode) {
+        this.masterSpatialPosition = { x: 0, y: 0, z: 0 };
+        this.masterPannerNode.positionX.setValueAtTime(this.masterSpatialPosition.x, this.context.currentTime);
+        this.masterPannerNode.positionY.setValueAtTime(this.masterSpatialPosition.y, this.context.currentTime);
+        this.masterPannerNode.positionZ.setValueAtTime(this.masterSpatialPosition.z, this.context.currentTime);
+
+        // Reset all spatial settings to their defaults using DEFAULT_PANNER_CONFIG
+        this.masterPannerNode.coneInnerAngle = DEFAULT_PANNER_CONFIG.coneInnerAngle ?? 360;
+        this.masterPannerNode.coneOuterAngle = DEFAULT_PANNER_CONFIG.coneOuterAngle ?? 360;
+        this.masterPannerNode.coneOuterGain = DEFAULT_PANNER_CONFIG.coneOuterGain ?? 0;
+        this.masterPannerNode.distanceModel = DEFAULT_PANNER_CONFIG.distanceModel ?? "inverse";
+        this.masterPannerNode.maxDistance = DEFAULT_PANNER_CONFIG.maxDistance ?? 10000;
+        this.masterPannerNode.panningModel = DEFAULT_PANNER_CONFIG.panningModel ?? "HRTF";
+        this.masterPannerNode.refDistance = DEFAULT_PANNER_CONFIG.refDistance ?? 1;
+        this.masterPannerNode.rolloffFactor = DEFAULT_PANNER_CONFIG.rolloffFactor ?? 0.2;
+
+        // Take the panner back out of the chain, keeping the stereo panner intact
+        this.masterPannerNode.disconnect();
+        this.masterPannerNode = null; // Clear the masterPannerNode reference
+        this.rewireMasterChain();
+      }
+
+      // Dispatch an event to notify listeners of the reset
+      this.dispatchEvent({
+        type: SoundEventsEnum.GLOBAL_SPATIAL_POSITION_CHANGED,
+        timestamp: this.context.currentTime,
+        position: this.masterSpatialPosition
+      });
+
+      this.debugLog("Reset master spatial position to (0, 0, 0) and cleared spatial settings.");
+    } catch (error) {
+      this.handleError("resetting master spatial position", error);
+    }
+  }
+
+  // End Spatial audio (3D audio)-----------------------------------------------------------------------------------------------------------
+
+  // Playback control-----------------------------------------------------------------------------------------------------------------------
+  public setPlaybackRate(id: string, rate: number, skipDispatchEvent: boolean = false): void {
+    if (!id || typeof rate !== "number" || isNaN(rate) || rate <= 0) {
+      this.debugLog("Invalid parameters for playback rate change");
+      return;
+    }
+
+    try {
+      const sound = this.getValidatedSound(id);
+      const source = sound.source;
+
+      // Capture the position under the OLD rate before overwriting it. startTime
+      // is an origin expressed in the previous rate, so reading the position back
+      // afterwards mixed the new rate with an old baseline and made the sound
+      // jump on every rate change.
+      const previousRate = sound.playOptions?.playbackRate ?? 1;
+      const rawPosition = sound.state === SoundState.Playing && sound.startTime !== undefined
+        ? (this.context.currentTime - sound.startTime) * previousRate
+        : (sound.pausedAt ?? 0);
+
+      sound.playOptions = {
+        ...sound.playOptions,
+        playbackRate: rate,
+      };
+
+      if (!source) {
+        this.debugLog(`No active source found for sound ${id}, playback rate not set`);
+        return;
+      }
+
+      // Update the playback rate
+      source.playbackRate.setValueAtTime(rate, this.context.currentTime);
+
+      if (!skipDispatchEvent) {
+        // Dispatch event
+        this.dispatchEvent({
+          type: SoundEventsEnum.PLAYBACK_RATE_CHANGED,
+          soundId: id,
+          timestamp: this.context.currentTime,
+          playbackRate: rate,
+          sound
+        });
+
+        if (sound.state === SoundState.Playing) {
+          // seek() converts UI time back to raw time using the new rate, so feed
+          // it the captured raw position expressed in the new rate.
+          this.seek(id, rawPosition / rate);
+        }
+      }
+      this.debugLog(`Playback rate set for sound ${id}: ${rate}`);
+    } catch (error) {
+      this.handleError("setting playback rate", error, id);
+    }
+  }
+
+  public getPlaybackRate(id: string): number {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.source?.playbackRate?.value ?? sound?.playOptions?.playbackRate ?? this.config.defaultPlaybackRate ?? 1;
+    } catch {
+      return this.config.defaultPlaybackRate ?? 1;
+    }
+  }
+
+  // End playback control-------------------------------------------------------------------------------------------------------------------
+
+  // Reset operations ------------------------------------------------------------------------------------------------------------
+  public reset(options: SoundResetOptions = {}): void {
+    this.debugLog("Resetting sound manager with options:", options);
+
+    // Stop all sounds first
+    this.stopAllSounds();
+
+    // Reset master controls
+    if (!options.keepVolumes) {
+      this.setGlobalVolume(this.config.defaultVolume ?? 1);
+      if (this.isMuted) {
+        this.unmuteAllSounds();
+      }
+    }
+
+    if (!options.keepPanning) {
+      this.resetGlobalPan();
+    }
+
+    if (!options.keepSpatial) {
+      this.resetMasterSpatialPosition();
+    }
+
+    // Handle loaded sounds
+    if (options.unloadSounds) {
+      // Reset each sound before cleanup
+      this.sounds.forEach((_, id) => {
+        this.resetSound(id, options);
+      });
+      // cleanup() clears the map and leaves the master chain intact, so the
+      // manager stays usable and new sounds can be loaded afterwards.
+      this.cleanup();
+    } else {
+      // Reset each sound individually
+      this.sounds.forEach((_, id) => {
+        this.resetSound(id, options);
+      });
+    }
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.RESET,
+      timestamp: this.context.currentTime,
+      resetOptions: options,
+    });
+
+    this.debugLog("Sound manager reset completed");
+  }
+
+  public resetSound(id: string, options: SoundResetOptions = {}): void {
+    const sound = this.sounds.get(id);
+
+    if (!sound) {
+      this.debugLog(`Sound ${id} not found for reset`);
+      return;
+    }
+
+    if (sound.panType === SoundPanType.Spatial) {
+      this.resetSpatialPosition(id);
+    } else {
+      if (!options.keepPanning) {
+        this.removePan(id);
+      }
+    }
+
+    this.debugLog(`Resetting sound ${id} with options:`, options);
+
+    // Stop the sound if it's playing
+    if (sound.state === SoundState.Playing) {
+      this.stop(id);
+    }
+
+    // Clean up audio routing first
+    if (!options.keepSpatial && sound.panType === SoundPanType.Spatial) {
+      // Properly remove spatial audio
+      this.removeSpatialEffect(id);
+
+      // Reset spatial position
+      sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+      if (sound.playOptions) {
+        sound.playOptions.panSpatialPosition = { x: 0, y: 0, z: 0 };
+      }
+
+      // Update panning type
+      sound.panType = SoundPanType.Stereo;
+
+      // Ensure proper stereo setup
+      if (sound.source) {
+        sound.source.disconnect();
+        sound.source.connect(sound.gainNode);
+      }
+    }
+
+    if (!options.keepPanning && sound.panType === SoundPanType.Stereo) {
+      this.removePan(id);
+    }
+
+    // Reset basic sound properties
+    sound.state = SoundState.Stopped;
+    sound.startTime = sound.playOptions?.startTime ?? 0;
+    sound.pausedAt = 0;
+    sound.currentTime = 0;
+
+    if (!options.keepPlaybackRate) {
+      this.setPlaybackRate(id, 1);
+    }
+
+    if (!options.keepVolumes) {
+      this.setSoundVolume(id, sound.playOptions?.volume ?? this.config.defaultVolume ?? 1);
+    }
+
+    // Ensure proper audio node connections
+    this.reconnectAudioNodes(id);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.RESET,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      resetOptions: options,
+      sound
+    });
+
+    this.debugLog(`Sound ${id} reset completed`);
+  }
+  // End Reset operations -------------------------------------------------------------------------------------------------------
+
+
+  // Sound / Buffer / Source / GainNode retrieval-------------------------------------------------------------------------------------------
+  public getSound(id: string): Sound | undefined {
+    return this.sounds.get(id);
+  }
+
+  public getBuffer(id: string): AudioBuffer | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.buffer || undefined;
+    } catch (error) {
+      this.handleError("getting buffer", error, id);
+      return undefined;
+    }
+  }
+
+  public getSource(id: string): AudioBufferSourceNode | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound.source || this.activeSources.get(id) || undefined;
+    } catch (error) {
+      this.handleError("getting source", error, id);
+      return undefined;
+    }
+  }
+
+  public getGainNode(id: string): GainNode | undefined {
+    try {
+      const sound = this.getValidatedSound(id);
+      return sound?.gainNode || undefined;
+    } catch (error) {
+      this.handleError("getting gain node", error, id);
+      return undefined;
+    }
+  }
+
+  // End Sound / Buffer / Source / GainNode retrieval---------------------------------------------------------------------------------------
+
+  // Utility functions----------------------------------------------------------------------------------------------------------------------
+
+  public hasSound(id: string): boolean {
+    return this.sounds.has(id) && this.sounds.get(id)?.buffer != null;
+  }
+
+  public updateSoundOptions(soundId: string, options: Partial<PlayOptions>): void {
+    const sound = this.sounds.get(soundId);
+    if (!sound) {
+      this.debugLog(`Sound ${soundId} not found for updating options`);
+      return;
+    }
+
+    sound.playOptions = { ...sound.playOptions, ...options };
+
+    // Update sound properties
+    if (options.loop !== undefined) {
+      sound.playOptions.loop = options.loop;
+    }
+    if (options.maxLoops !== undefined) {
+      sound.playOptions.maxLoops = options.maxLoops;
+      // Reset loop count when changing max loops
+      sound.currentLoopCount = 0;
+    }
+
+    this.debugLog(`Updated options for sound ${soundId}:`, options);
+
+    // Dispatch event for UI updates
+    this.dispatchEvent({
+      type: SoundEventsEnum.OPTIONS_UPDATED,
+      soundId,
+      timestamp: this.context.currentTime,
+      options,
+    });
+  }
+
+  // Check if a sound is ready to play (buffer loaded and context running)
+  public isReady(): boolean {
+    return this.context.state === 'running' && this.sounds.size > 0;
+  }
+
+  // Get the total number of sounds in the manager
+  public getSoundCount(): number {
+    return this.sounds.size;
+  }
+
+  public resetAllCounters(): void {
+    this.instanceCounters.clear();
+    this.debugLog("All instance counters reset");
+  }
+
+  public getSoundIds(): string[] {
+    return Array.from(this.sounds.keys());
+  }
+
+  public setDebugMode(debug: boolean): void {
+    this.config.debug = debug;
+  }
+
+  public getConfig(): Readonly<SoundHubConfig> {
+    return { ...this.config };
+  }
+
+  public getLastError(): Error | null {
+    return this.lastError;
+  }
+
+  public roundValue(value: number, decimals: number = this.DEFAULT_PRECISION): number {
+    if (decimals < 0) decimals = 0;
+    if (isNaN(value)) return NaN;
+    if (!isFinite(value)) return value;
+
+    const multiplier = Math.pow(10, decimals);
+    return Math.round(value * multiplier) / multiplier;
+  }
+
+  public destroy(): void {
+    try {
+      this.cleanup();
+
+      // Detach everything we attached to `document`, otherwise this instance and
+      // its AudioContext stay reachable for the lifetime of the page.
+      this.removeVisibilityHandling();
+      this.removeContextResumeHandlers();
+      this.removeUnlockListeners();
+
+      this.eventListeners.forEach((listeners) => listeners.clear());
+      this.soundGroups.clear();
+      this.activeFadeCallbacks.clear();
+
+      // Unlike cleanup(), destroy() does dismantle the master chain
+      this.masterLimiterNode?.disconnect();
+      this.masterLimiterNode = null;
+      this.masterStereoPanner.disconnect();
+      this.masterGainNode.disconnect();
+
+      this.context.close();
+      this.debugLog("SoundHub destroyed");
+    } catch (error) {
+      this.handleError("destroying sound manager", error);
+    }
+  }
+
+  // End utility methods ---------------------------------------------------------------------------------------------------------------
+
+  // Event listeners -------------------------------------------------------------------------------------------------------------------
+
+  public addEventListener(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void,
+    filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
+  ): void {
+    if (!this.eventListeners.has(type)) {
+      this.eventListeners.set(type, new Set());
+    }
+
+    this.eventListeners.get(type)!.add({ callback, filter });
+  }
+
+  /**
+   * Compares two listener filters. JSON.stringify cannot be used here: a RegExp
+   * serialises to "{}", so filters with different instancePattern values looked
+   * identical and removing one listener removed the others too.
+   */
+  private filtersMatch(
+    a?: { originalId?: string; instanceId?: string; instancePattern?: RegExp },
+    b?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
+  ): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+
+    if (a.originalId !== b.originalId) return false;
+    if (a.instanceId !== b.instanceId) return false;
+
+    const patternA = a.instancePattern;
+    const patternB = b.instancePattern;
+    if (!patternA !== !patternB) return false;
+    if (patternA && patternB) {
+      return patternA.source === patternB.source && patternA.flags === patternB.flags;
+    }
+
+    return true;
+  }
+
+  public removeEventListener(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void,
+    filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
+  ): void {
+    const listeners = this.eventListeners.get(type);
+    if (!listeners) return;
+
+    listeners.forEach((listener) => {
+      if (listener.callback === callback && this.filtersMatch(listener.filter, filter)) {
+        listeners.delete(listener);
+      }
+    });
+  }
+
+  public removeEventListenersForInstance(instanceId: string): void {
+    this.eventListeners.forEach((listeners) => {
+      listeners.forEach((listener) => {
+        if (listener.filter?.instanceId === instanceId) {
+          listeners.delete(listener);
+        }
+      });
+    });
+  }
+
+  public dispatchEvent(event: SoundEvent): void {
+    const listeners = this.eventListeners.get(event.type);
+    if (!listeners) return;
+
+    listeners.forEach(({ callback, filter }) => {
+      // Apply filter if provided
+      if (filter) {
+        if (filter.originalId && event.originalId !== filter.originalId) return;
+        if (filter.instanceId && event.instanceId !== filter.instanceId) return;
+        if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
+      }
+
+      try {
+        callback(event);
+      } catch (error) {
+        console.error(`Error in event listener for ${event.type}:`, error);
+      }
+    });
+  }
+
+  public hasEventListener(type: SoundEventsEnum): boolean {
+    return this.eventListeners.has(type) && this.eventListeners.get(type)!.size > 0;
+  }
+  // End Listeners----------------------------------------------------------------------------------------------------------------------
+
+  public getVersion(): string {
+    return this.VERSION;
+  }
+
+  private showConsoleInfo(): void {
+    console.info(
+      `%csoundhub.js\n` +
+      `%cversion ${this.VERSION}\n` +
+      `© Chris Schardijn\n` +
+      `%cVisit demo: https://soundhub.chriscreativecode.com/\n` +
+      `%cNPM package: https://www.npmjs.com/package/soundhub\n\n` +
+      `%c▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n` +
+      `█                                               █\n` +
+      `█     ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄     █\n` +
+      `█    █            ▌                  ▌     █    █\n` +
+      `█    █ ▌ █ ▌   ▌▌ ▌▌█  ▌ ▌  ▌█ ▌   █ ▌  ▌  █    █\n` +
+      `█    █ ▌▌█▌▌▌█▌▐▌▌▌▌█▌▌▌█▌▌▌▌█▌▌█▌▌█▌▌▌▌▌█▌█    █\n` +
+      `█    █ ▌ █ ▌   ▌▌ ▌▌█  ▌ ▌  ▌█ ▌   █ ▌  ▌  █    █\n` +
+      `█    █            ▌                  ▌     █    █\n` +
+      `█     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀     █\n` +
+      `█      │       │      │        ■■■■     ■ ■ ■ ■ █\n` +
+      `█     ███      │     ███      ■ ▐  ■    ■ ■ ■ ■ █\n` +
+      `█      │      ███     │       ■    ■    ■ ■ ■ ■ █\n` +
+      `█      │       │      │        ■■■■     ■ ■ ■ ■ █\n` +
+      `█                                               █\n` +
+      `▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`,
+      "font-family: monospace; font-size: 18px; font-weight: bold;",
+      "font-family: monospace; font-size: 12px;",
+      "font-family: monospace; font-size: 12px; color: #0066cc; text-decoration: underline;",
+      "font-family: monospace; font-size: 12px; color: #0066cc; text-decoration: underline;",
+      "font-family: monospace; color: #2296F3;"
+    );
+  }
+
+}
