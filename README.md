@@ -14,6 +14,7 @@ Built directly on the Web Audio API. 18 KB gzipped, zero dependencies, written i
 TypeScript and usable from plain JavaScript.
 
 - **[Live demo](https://soundhub.chriscreativecode.com/)**
+- **[Changelog](./CHANGELOG.md)**
 - **[Documentation](https://soundhub-docs.chriscreativecode.com/)**
 
 ```bash
