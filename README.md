@@ -1,13 +1,16 @@
 # soundhub.js
 
-[![npm version](https://img.shields.io/npm/v/soundhub)](https://www.npmjs.com/package/soundhub)
-[![Bundle size](https://img.shields.io/bundlephobia/minzip/soundhub)](https://bundlephobia.com/result?p=soundhub)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/soundhub.svg)](https://www.npmjs.com/package/soundhub)
+[![License: MIT](https://img.shields.io/npm/l/soundhub.svg)](https://opensource.org/licenses/MIT)
+[![Minzipped size](https://img.shields.io/bundlephobia/minzip/soundhub.svg)](https://bundlephobia.com/package/soundhub)
+[![Total downloads](https://img.shields.io/npm/dt/soundhub.svg)](https://www.npmjs.com/package/soundhub)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B-yellow.svg)](https://www.npmjs.com/package/soundhub)
+[![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6.svg)](https://www.npmjs.com/package/soundhub)
 
 **One hub for all the audio in your app.** Load sounds once, address them by id, and
 listen to a single typed event bus instead of wiring callbacks per sound.
 
-Built directly on the Web Audio API. 16 KB gzipped, zero dependencies, written in
+Built directly on the Web Audio API. 18 KB gzipped, zero dependencies, written in
 TypeScript and usable from plain JavaScript.
 
 - **[Live demo](https://soundhub.chriscreativecode.com/)**
@@ -67,17 +70,33 @@ instance automatically.
 own oscillators through the master chain, or hang an `AnalyserNode` off the output
 for a visualiser. The library never gets in your way.
 
-Also included: sprites, seamless looping, fades per sound and globally, playback
+Also included: streaming for long files, sprites, seamless looping, fades per sound and globally, playback
 rate, stereo panning, 3D spatial positioning with HRTF, cross-origin loading with
 retries, and mobile handling (auto-unlock, auto-mute when the tab hides,
 auto-resume on focus).
 
-### Scope
+**Long files stream.** Short sounds are decoded into memory, which is what makes
+precise scheduling, sprites and instance stacking possible. An hour-long podcast
+loaded that way would cost hundreds of megabytes and a long wait before the first
+sound. So `loadStream` takes the other route — the browser fetches as it plays —
+while the audio still runs through the same graph, so master volume, panning and
+the limiter apply either way.
 
-soundhub decodes into buffers, which is what makes precise scheduling, sprites and
-spatial audio work. That suits interfaces, games and sound effects. It is not built
-for streaming hour-long media files — use an `<audio>` element for those, or route
-one through `getMasterInput()`.
+```ts
+await hub.loadStream('episode-42', '/audio/episode-42.mp3');
+
+hub.play('episode-42');
+hub.setPlaybackRate('episode-42', 1.5);   // podcast listeners want this
+hub.seek('episode-42', 1800);             // jump half an hour in
+```
+
+Playback, seeking, volume, fades, mute, panning, playback rate, looping, state and
+progress events behave the same as for a buffered sound, on the same event bus.
+What a stream cannot do is anything that needs random access to samples: sprites
+and `createNewInstance` are unavailable, and looping is handled by the browser, so
+no `loop_completed` event fires. `getStreamElement(id)` hands you the media element
+for the rest — buffered ranges for a loading bar, or Media Session metadata so the
+lock screen shows the episode title.
 
 ## Examples
 
@@ -102,7 +121,7 @@ The shape of it:
 
 | Area | Methods |
 | --- | --- |
-| Loading | `loadSound` `loadSounds` `updateSoundUrl` `unloadSound` `removeSound` `isSoundLoaded` |
+| Loading | `loadSound` `loadSounds` `loadStream` `updateSoundUrl` `unloadSound` `removeSound` `isSoundLoaded` |
 | Playback | `play` `playSprite` `pause` `resume` `stop` `seek` `stopAllSounds` `pauseAllSounds` `resumeAllSounds` |
 | Volume & mute | `setSoundVolume` `setGlobalVolume` `mute` `unmute` `toggleGlobalMute` `fadeIn` `fadeOut` `fadeGlobalIn` `fadeGlobalOut` |
 | State | `getSoundState` `isPlaying` `isPaused` `getProgress` `getDuration` `startProgressTracking` |
@@ -110,6 +129,7 @@ The shape of it:
 | Sprites | `setSoundSprite` `getSpriteConfig` `removeSpriteConfig` |
 | Panning | `setPan` `setGlobalPan` `resetPan` `isStereoPanActive` |
 | Spatial | `setSpatialPosition` `setMasterSpatialPosition` `updatePannerConfigById` `removeSpatialEffect` |
+| Streaming | `loadStream` `isStream` `getStreamElement` |
 | Graph | `getContext` `getMasterInput` `getMasterOutput` `setMasterLimiter` `getMasterLimiterNode` |
 | Events | `addEventListener` `removeEventListener` `dispatchEvent` `hasEventListener` |
 

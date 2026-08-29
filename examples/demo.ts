@@ -317,6 +317,61 @@ const orbit = (now: number): void => {
   requestAnimationFrame(orbit);
 };
 
+// ----------------------------------------------------------- streaming ----
+
+const streamSeekEl = $<HTMLInputElement>('streamSeek');
+const streamNow = $('streamNow');
+const streamTotal = $('streamTotal');
+const streamStateEl = $('streamState');
+let streamScrubbing = false;
+
+const refreshStreamState = (): void => {
+  streamStateEl.textContent = hub.getSoundState('podcast').state ?? 'stopped';
+};
+
+hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
+  if (event.soundId !== 'podcast' || streamScrubbing) return;
+  const info = event.progressInfo;
+  if (!info) return;
+  streamSeekEl.value = String(Math.round(info.progress * 1000));
+  streamNow.textContent = formatTime(info.currentTime);
+  streamTotal.textContent = formatTime(info.duration);
+});
+
+$('streamPlay').addEventListener('click', () => {
+  hub.play('podcast', { volume: Number($<HTMLInputElement>('streamVol').value), trackProgress: true });
+  refreshStreamState();
+});
+$('streamPause').addEventListener('click', () => { hub.pause('podcast'); refreshStreamState(); });
+$('streamResume').addEventListener('click', () => { hub.resume('podcast'); refreshStreamState(); });
+$('streamStop').addEventListener('click', () => { hub.stop('podcast'); refreshStreamState(); });
+$('streamMute').addEventListener('click', (e) => {
+  hub.toggleMute('podcast');
+  (e.currentTarget as HTMLButtonElement).classList.toggle('on');
+});
+
+streamSeekEl.addEventListener('pointerdown', () => { streamScrubbing = true; });
+streamSeekEl.addEventListener('change', () => {
+  hub.seek('podcast', (Number(streamSeekEl.value) / 1000) * hub.getDuration('podcast'));
+  streamScrubbing = false;
+});
+
+const streamRate = $<HTMLInputElement>('streamRate');
+const streamRateOut = $<HTMLOutputElement>('streamRateOut');
+streamRate.addEventListener('input', () => {
+  const rate = Number(streamRate.value);
+  hub.setPlaybackRate('podcast', rate);
+  streamRateOut.textContent = `${rate.toFixed(2)}×`;
+});
+
+const streamVol = $<HTMLInputElement>('streamVol');
+const streamVolOut = $<HTMLOutputElement>('streamVolOut');
+streamVol.addEventListener('input', () => {
+  const value = Number(streamVol.value);
+  hub.setSoundVolume('podcast', value);
+  streamVolOut.textContent = `${Math.round(value * 100)}%`;
+});
+
 // --------------------------------------------------------------- stats ----
 
 const refreshStats = (): void => {
@@ -331,6 +386,11 @@ const refreshStats = (): void => {
 const boot = async (): Promise<void> => {
   await hub.loadSounds(SOUNDS);
 
+  // Same file, loaded the other way: the browser streams it instead of
+  // decoding it into memory. With a real podcast this is the difference
+  // between a few hundred kilobytes and several hundred megabytes.
+  await hub.loadStream('podcast', musicUrl, { volume: 0.8, trackProgress: true });
+
   hub.setSoundSprite('sprites', SPRITES);
   hub.createSoundGroup('ambience', { playOptions: { loop: true, volume: 0.4 } });
   hub.createSoundGroup('lasers', { maxInstances: 16 });
@@ -341,6 +401,8 @@ const boot = async (): Promise<void> => {
   window.setInterval(refreshStats, 500);
 
   timeTotal.textContent = formatTime(hub.getDuration('music'));
+  streamTotal.textContent = formatTime(hub.getDuration('podcast'));
+  refreshStreamState();
 
   $('loading').hidden = true;
   $('app').hidden = false;

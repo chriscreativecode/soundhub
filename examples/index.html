@@ -112,6 +112,33 @@
         </div>
       </section>
 
+      <!-- Streaming ----------------------------------------------------->
+      <section class="card">
+        <h2>Streaming</h2>
+        <p class="hint">Loaded with <code>loadStream</code>: the browser fetches as it plays instead of decoding the whole file up front. That is what makes an hour-long podcast practical.</p>
+        <div class="row">
+          <button id="streamPlay" class="primary">Play</button>
+          <button id="streamPause">Pause</button>
+          <button id="streamResume">Resume</button>
+          <button id="streamStop">Stop</button>
+          <button id="streamMute">Mute</button>
+        </div>
+        <input type="range" id="streamSeek" class="seek" min="0" max="1000" step="1" value="0" />
+        <div class="row between">
+          <span class="time" id="streamNow">0:00</span>
+          <span class="badge" id="streamState">stopped</span>
+          <span class="time" id="streamTotal">0:00</span>
+        </div>
+        <div class="row">
+          <label>Speed <output id="streamRateOut">1.00×</output>
+            <input type="range" id="streamRate" min="0.5" max="3" step="0.1" value="1" />
+          </label>
+          <label>Volume <output id="streamVolOut">80%</output>
+            <input type="range" id="streamVol" min="0" max="1" step="0.01" value="0.8" />
+          </label>
+        </div>
+      </section>
+
       <!-- Event bus ---------------------------------------------------->
       <section class="card wide">
         <h2>Event bus</h2>

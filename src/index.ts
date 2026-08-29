@@ -28,3 +28,4 @@ export type { SoundPannerConfig } from './core/sound-panner-config';
 export type { SoundProgressStateInfo } from './core/sound-progress-state-info';
 export type { SoundResetOptions } from './core/sound-reset-options.interface';
 export type { SoundStateInfo } from './core/sound-state-info.interface';
+export type { StreamOptions } from './core/stream-sound';

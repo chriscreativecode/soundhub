@@ -7,11 +7,12 @@ import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { Sound } from "./sound.interface";
+import { StreamOptions } from "./stream-sound";
 
 export interface SoundHubInterface {
   // Playback control: Manage the playback of sounds, including play, pause, resume, stop, and seek operations.
   /* Play a sound by its ID. Optionally, provide PlayOptions to customize playback behavior. */
-  play(id: string, options?: PlayOptions, skipDispatchEvent?: boolean): void;
+  play(id: string, options?: PlayOptions, skipDispatchEvent?: boolean): Sound | undefined;
   /* Play a specific sprite from a sound by its ID and sprite key. Optionally, provide PlayOptions for customization. */
   playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent?: boolean): void;
   /* Pause a sound by its ID. Optionally, skip dispatching the pause event. */
@@ -69,7 +70,7 @@ export interface SoundHubInterface {
 
   // Loop control: Control looping behavior for individual sounds.
   /* Set the loop state of a sound by its ID. Optionally, specify the maximum number of loops. */
-  setLoop(id: string, loop: boolean): void;
+  setLoop(id: string, loop: boolean, maxLoops?: number): void;
   /* Get the loop state of a sound by its ID. */
   getLoop(id: string): boolean;
 
@@ -89,7 +90,7 @@ export interface SoundHubInterface {
 
   // Group management: Create and manage sound groups to control multiple sounds collectively.
   /* Create a new sound group with a specified name and options. */
-  createSoundGroup(groupName: string, options: SoundGroup): void;
+  createSoundGroup(groupName: string, options?: { maxInstances?: number; playOptions?: PlayOptions }): void;
   /* Add a sound to a group by its ID and the group name. */
   addToSoundGroup(groupName: string, soundId: string): void;
   /* Remove a sound from a group by its ID and the group name. */
@@ -108,6 +109,16 @@ export interface SoundHubInterface {
   removeSpriteSound(id: string): void;
   /* Remove the sprite configuration for a sound by its ID. */
   removeSpriteConfig(id: string): void;
+
+  // Streaming: load long files as a stream instead of decoding them into memory.
+  /* Load a long audio file (podcast, audiobook, radio, a full album track) as a stream.
+     Playback, seeking, volume, fades, panning, playback rate, looping, state and progress
+     all behave as they do for a buffered sound; sprites and createNewInstance do not apply. */
+  loadStream(id: string, url: string, options?: StreamOptions): Promise<void>;
+  /* Whether this id was loaded with loadStream rather than loadSound. */
+  isStream(id: string): boolean;
+  /* The underlying media element, for buffered ranges or Media Session metadata. */
+  getStreamElement(id: string): HTMLAudioElement | undefined;
 
   // Context management: Manage the audio context, including suspending and resuming audio processing.
   /* Suspend the audio context, pausing all audio processing. */
@@ -195,7 +206,7 @@ export interface SoundHubInterface {
   /* Update the panner configuration for a sound by its ID. */
   updatePannerConfigById(soundId: string, newConfig: Partial<SoundPannerConfig>): void;
   /* Reset the spatial position of a sound by its ID. */
-  resetSpatialPosition(id: string): void;
+  resetSpatialPosition(id?: string): void;
   /* Reset the master spatial position to the default (0, 0, 0). */
   resetMasterSpatialPosition(): void;
 
