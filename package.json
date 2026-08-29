@@ -1,7 +1,8 @@
 {
-  "name": "sound-manager-ts",
-  "version": "5.9.0",
+  "name": "soundhub",
+  "version": "6.0.0",
   "license": "MIT",
+  "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus. Web Audio API, 14 KB, zero dependencies.",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -9,85 +10,59 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://bitbucket.org/chriscrossweb/sound-manager-typescript"
+    "url": "git+https://github.com/chriscreativecode/soundhub.git"
   },
   "bugs": {
-    "url": "https://soundmanager-docs.chriscreativecode.com/report-bug"
+    "url": "https://github.com/chriscreativecode/soundhub/issues"
   },
-  "homepage": "https://soundmanager.chriscreativecode.com/",
-  "description": "Lightweight TypeScript soundmanager for Web Audio API. Seamless audio control in web apps and games with full type safety and modern API",
+  "homepage": "https://soundhub.chriscreativecode.com/",
   "keywords": [
     "audio",
-    "sound",
-    "typescript",
-    "typescript-sound-manager",
-    "soundmanager",
-    "sound-manager",
-    "sound-manager-ts",
-    "sound-engine",
-    "audio-manager",
     "web-audio",
-    "audio-player",
-    "sound-effects",
-    "audio-management",
-    "browser-audio",
-    "typescript-audio",
     "web-audio-api",
+    "sound",
+    "sound-effects",
     "audio-library",
-    "sound-library",
-    "lightweight-soundmanager",
+    "audio-player",
     "game-audio",
-    "web-game-audio",
-    "html5-audio",
-    "react-audio",
-    "vue-audio",
-    "svelte-audio",
     "spatial-audio",
-    "3d-audio",
-    "hrtf"
+    "audio-sprites",
+    "typescript",
+    "browser-audio"
   ],
   "type": "module",
-  "main": "./dist/sound-manager-ts.umd.js",
-  "module": "./dist/sound-manager-ts.es.js",
+  "sideEffects": false,
+  "main": "./dist/soundhub.umd.js",
+  "module": "./dist/soundhub.es.js",
   "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/sound-manager-ts.es.js",
-      "require": "./dist/sound-manager-ts.umd.js"
+      "import": "./dist/soundhub.es.js",
+      "require": "./dist/soundhub.umd.js"
     }
   },
   "files": [
-    "dist/sound-manager-ts.umd.js",
-    "dist/sound-manager-ts.es.js",
-    "dist/types"
+    "dist/soundhub.umd.js",
+    "dist/soundhub.es.js",
+    "dist/types",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "dev": "npm run dev:main",
-    "dev:main": "cross-env BROWSER=chrome vite --mode demo-main",
-    "dev:docs": "vite --mode readme-dev",
-    "clean": "if exist dist rmdir /s /q dist",
-    "build": "npm run clean && npm run build:lib && npm run build:demo && npm run build:docs && node scripts/prepare-deploy.js",
-    "build:demo": "vite build --mode demo-main",
-    "build:lib": "vite build --mode lib",
-    "build:docs": "vite build --mode readme",
-    "build:deploy": "npm run build:demo && npm run build:docs && node scripts/prepare-deploy.js",
-"debug:types": "tsc --listFiles --emitDeclarationOnly",
+    "dev": "vite --mode examples",
+    "build": "npm run typecheck && vite build --mode lib",
+    "build:examples": "vite build --mode examples",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.10.10",
-    "cross-env": "^7.0.3",
-    "fs-extra": "^11.2.0",
-    "github-markdown-css": "^5.8.1",
-    "highlight.js": "^11.11.1",
-    "markdown-it": "^14.1.0",
-    "markdown-it-anchor": "^9.2.0",
-    "marked-highlight": "^2.2.1",
-    "sharp": "^0.34.5",
     "typescript": "^5.7.3",
     "vite": "^6.0.4",
     "vite-plugin-dts": "^4.5.1"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
