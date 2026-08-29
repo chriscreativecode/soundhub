@@ -11,6 +11,7 @@ import { DEFAULT_PANNER_CONFIG, SoundPannerConfig } from "./sound-panner-config"
 import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { SoundState } from "./sound-state.interface";
+import { StreamOptions, StreamSound } from "./stream-sound";
 import { Sound } from "./sound.interface";
 import { Ticker } from "./ticker";
 
@@ -42,6 +43,7 @@ export class SoundHub implements SoundHubInterface {
   private _spatialAudioSupported: boolean | null = null;
   private readonly DEFAULT_PRECISION: number = 2;
   private soundGroups: Map<string, SoundGroup> = new Map();
+  private streams: Map<string, StreamSound> = new Map();
   private instanceCounters: Map<string, number> = new Map();
   private unlockHandlers: {
     touchstart: (this: Document, ev: TouchEvent) => void;
@@ -53,7 +55,7 @@ export class SoundHub implements SoundHubInterface {
   private static readonly RESUME_EVENTS = ["click", "touchstart", "keydown"] as const;
   private static readonly GLOBAL_FADE_ID = "fade_global";
 
-  private VERSION = "6.0.0";
+  private VERSION = "6.1.0";
 
   constructor(config: SoundHubConfig = {}) {
     this.ticker = new Ticker();
@@ -790,6 +792,17 @@ export class SoundHub implements SoundHubInterface {
 
   // Playback control-----------------------------------------------------------------------------------------------------------
   public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
+    if (this.streams.has(id)) {
+      this.streamPlay(id, {
+        volume: options.volume,
+        pan: options.pan,
+        loop: options.loop,
+        playbackRate: options.playbackRate,
+        startTime: options.startTime,
+        trackProgress: options.trackProgress,
+      });
+      return undefined;
+    }
 
     if (this.context.state === 'suspended' && this.config.autoUnlock) {
       this.setupAudioUnlock();
@@ -982,11 +995,15 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) {
+      throw new Error(`Sprites need the samples in memory, so playSprite is not available on the stream "${id}".`);
+    }
     const spriteId = `${id}_${spriteKey}`;
     this.play(spriteId, options, skipDispatchEvent);
   }
 
   public pause(id: string, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) return this.streamPause(id, skipDispatchEvent);
     try {
       const sound = this.getValidatedSound(id);
 
@@ -1034,6 +1051,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public resume(id: string, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) return this.streamResume(id, skipDispatchEvent);
     try {
       const sound = this.getValidatedSound(id);
       this.play(id, sound?.playOptions);
@@ -1053,6 +1071,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public stop(id: string, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) return this.streamStop(id, skipDispatchEvent);
     try {
       const sound = this.sounds.get(id);
       if (!sound) {
@@ -1097,6 +1116,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public seek(id: string, time: number, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) return this.streamSeek(id, time, skipDispatchEvent);
     try {
       const sound = this.getValidatedSound(id);
       const { duration, currentTime } = this.getSoundState(id);
@@ -1151,6 +1171,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public stopAllSounds(): void {
+    this.streams.forEach((_, id) => this.streamStop(id));
     try {
       // Iterate the sounds map, not activeSources: pause() removes the entry from
       // activeSources, so paused sounds were silently skipped and stayed paused.
@@ -1173,6 +1194,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public pauseAllSounds(): void {
+    this.streams.forEach((_, id) => this.streamPause(id));
     this.sounds.forEach((sound, id) => {
       if (sound.state === SoundState.Playing) {
         this.pause(id);
@@ -1181,6 +1203,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public resumeAllSounds(): void {
+    this.streams.forEach((_, id) => this.streamResume(id));
     this.sounds.forEach((sound, id) => {
       if (sound.state == SoundState.Paused) {
         this.resume(id);
@@ -1193,6 +1216,11 @@ export class SoundHub implements SoundHubInterface {
   // Fade managment ----------------------------------------------------------------------------------------------------------------
 
   public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) {
+      const stream = this.streams.get(id)!;
+      if (stream.state !== SoundState.Playing) this.streamPlay(id);
+      return this.streamFade(id, duration, startVolume ?? 0, endVolume ?? stream.volume ?? 1, false);
+    }
     let sound: Sound;
     try {
       sound = this.getValidatedSound(id);
@@ -1519,10 +1547,12 @@ export class SoundHub implements SoundHubInterface {
   // Volume control-----------------------------------------------------------------------------------------------------------------
 
   public getVolume(id: string): number {
+    if (this.streams.has(id)) return this.streams.get(id)!.volume;
     return this.getSoundVolume(id);
   }
 
   public setSoundVolume(id: string, volume: number, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) return this.streamSetVolume(id, volume, skipDispatchEvent);
     try {
       // Cancel any ongoing fade animation
       this.cancelFadeAnimation(id);
@@ -1555,6 +1585,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getSoundVolume(id: string): number {
+    if (this.streams.has(id)) return this.streams.get(id)!.volume;
     try {
       const sound = this.getValidatedSound(id);
       return sound.originalVolume ?? sound.volume ?? sound.playOptions?.volume ?? this.config.defaultVolume ?? 1;
@@ -1587,6 +1618,7 @@ export class SoundHub implements SoundHubInterface {
   // Mute control-------------------------------------------------------------------------------------------------------------------
 
   public muteAllSounds(): void {
+    this.streams.forEach((_, id) => this.mute(id));
     this.previousGlobalVolume = this.roundValue(this.masterGainNode.gain.value, 2);
     this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
     this.isMuted = true;
@@ -1600,6 +1632,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public unmuteAllSounds(): void {
+    this.streams.forEach((_, id) => this.unmute(id));
     this.masterGainNode.gain.setValueAtTime(this.previousGlobalVolume, this.context.currentTime);
     this.isMuted = false;
 
@@ -1612,6 +1645,16 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public mute(id: string): void {
+    if (this.streams.has(id)) {
+      const stream = this.streams.get(id)!;
+      if (!stream.isMuted) {
+        stream.previousVolume = stream.volume;
+        this.streamSetVolume(id, 0, true);
+        stream.isMuted = true;
+        this.dispatchEvent({ type: SoundEventsEnum.MUTED, soundId: id, isMuted: true, timestamp: this.context.currentTime });
+      }
+      return;
+    }
     try {
       const sound = this.getValidatedSound(id);
 
@@ -1633,6 +1676,15 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public unmute(id: string): void {
+    if (this.streams.has(id)) {
+      const stream = this.streams.get(id)!;
+      if (stream.isMuted) {
+        this.streamSetVolume(id, stream.previousVolume ?? 1, true);
+        stream.isMuted = false;
+        this.dispatchEvent({ type: SoundEventsEnum.UNMUTED, soundId: id, isMuted: false, timestamp: this.context.currentTime });
+      }
+      return;
+    }
     try {
       const sound = this.getValidatedSound(id);
       // Restore the previous volume
@@ -1654,6 +1706,9 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public toggleMute(id: string): void {
+    if (this.streams.has(id)) {
+      return this.streams.get(id)!.isMuted ? this.unmute(id) : this.mute(id);
+    }
     try {
       const sound = this.getValidatedSound(id);
       if ((sound?.volume ?? sound?.originalVolume ?? sound.playOptions?.volume ?? 1) > 0) {
@@ -1678,6 +1733,12 @@ export class SoundHub implements SoundHubInterface {
 
   // Loop control --------------------------------------------------------------------------------------------------------------------------------
   public setLoop(id: string, loop: boolean, maxLoops: number = -1): void {
+    if (this.streams.has(id)) {
+      // A media element loops natively and never reports the iterations, so
+      // maxLoops has nothing to count here.
+      this.streams.get(id)!.element.loop = loop;
+      return;
+    }
     const sound = this.sounds.get(id);
     if (!sound) {
       this.debugLog(`Sound ${id} not found for setting loop`);
@@ -1696,6 +1757,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getLoop(id: string): boolean {
+    if (this.streams.has(id)) return this.streams.get(id)!.element.loop;
     const sound = this.sounds.get(id);
     if (!sound) {
       this.debugLog(`Sound ${id} not found for getting loop`);
@@ -2148,6 +2210,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public unloadSound(id: string): void {
+    if (this.streams.has(id)) return this.streamUnload(id);
     const sound = this.sounds.get(id);
     if (!sound) {
       this.debugLog(`Sound ${id} not found for unloading`);
@@ -2177,6 +2240,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public removeSound(id: string): void {
+    if (this.streams.has(id)) return this.streamUnload(id);
     try {
       const sound = this.sounds.get(id);
       if (!sound) return;
@@ -2188,6 +2252,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public isSoundLoaded(id: string): boolean {
+    if (this.streams.has(id)) return true;
     const sound = this.sounds.get(id);
     return sound?.buffer != null;
   }
@@ -2289,6 +2354,9 @@ export class SoundHub implements SoundHubInterface {
 
   // Sprite control----------------------------------------------------------------------------------------------------------------------------------
   public setSoundSprite(id: string, sprite: { [key: string]: [number, number] }): void {
+    if (this.streams.has(id)) {
+      throw new Error(`Sprites need the samples in memory, so they are not available on the stream "${id}". Load it with loadSound instead.`);
+    }
     try {
       const originalSound = this.getValidatedSound(id);
       if (!originalSound || !originalSound.buffer) {
@@ -2507,6 +2575,7 @@ export class SoundHub implements SoundHubInterface {
   // State checks-------------------------------------------------------------------------------------------------------------------
 
   public isPlaying(id: string): boolean {
+    if (this.streams.has(id)) return this.streams.get(id)!.state === SoundState.Playing;
     try {
       const sound = this.getValidatedSound(id);
       return sound.state === SoundState.Playing;
@@ -2516,6 +2585,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public isPaused(id: string): boolean {
+    if (this.streams.has(id)) return this.streams.get(id)!.state === SoundState.Paused;
     try {
       const sound = this.getValidatedSound(id);
       return sound.state == SoundState.Paused;
@@ -2525,6 +2595,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public isStopped(id: string): boolean {
+    if (this.streams.has(id)) return this.streams.get(id)!.state === SoundState.Stopped;
     try {
       const sound = this.getValidatedSound(id);
       return sound.state === SoundState.Stopped;
@@ -2534,6 +2605,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getSoundState(id: string): SoundStateInfo {
+    if (this.streams.has(id)) return this.streamState(id);
     let sound: Sound;
     try {
       sound = this.getValidatedSound(id);
@@ -2620,6 +2692,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getDuration(id: string): number {
+    if (this.streams.has(id)) return this.streamDuration(this.streams.get(id)!);
     try {
       const sound = this.getValidatedSound(id);
       return sound?.buffer?.duration || 0;
@@ -2642,6 +2715,37 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public startProgressTracking(id: string): void {
+    if (this.streams.has(id)) {
+      this.stopProgressTracking(id);
+      const stream = this.streams.get(id)!;
+      this.ticker.addCallback(`progress_${id}`, () => {
+        if (stream.state !== SoundState.Playing) {
+          this.stopProgressTracking(id);
+          return;
+        }
+        const state = this.streamState(id);
+        this.dispatchEvent({
+          type: SoundEventsEnum.PROGRESS,
+          soundId: id,
+          originalId: id,
+          instanceId: id,
+          currentTime: state.currentTime,
+          duration: state.duration,
+          progress: state.progress,
+          progressInfo: {
+            soundId: id,
+            currentTime: state.currentTime,
+            duration: state.duration,
+            rawDuration: state.rawDuration ?? 0,
+            progress: state.progress,
+          },
+          state,
+          volume: stream.volume,
+          timestamp: this.context.currentTime,
+        });
+      }, this.PROGRESS_UPDATE_INTERVAL);
+      return;
+    }
     // Clear any existing tracking
     this.stopProgressTracking(id);
 
@@ -2715,6 +2819,15 @@ export class SoundHub implements SoundHubInterface {
   // Panning control-------------------------------------------------------------------------------------------------------------------
 
   public setPan(id: string, value: number, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) {
+      const stream = this.streams.get(id)!;
+      stream.pan = Math.max(-1, Math.min(1, value));
+      if (stream.stereoPanner) stream.stereoPanner.pan.value = stream.pan;
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({ type: SoundEventsEnum.PAN_CHANGED, soundId: id, pan: stream.pan, timestamp: this.context.currentTime });
+      }
+      return;
+    }
     try {
       const sound = this.getValidatedSound(id);
       // Clamp the pan value between -1 and 1
@@ -3230,6 +3343,19 @@ export class SoundHub implements SoundHubInterface {
 
   // Playback control-----------------------------------------------------------------------------------------------------------------------
   public setPlaybackRate(id: string, rate: number, skipDispatchEvent: boolean = false): void {
+    if (this.streams.has(id)) {
+      const stream = this.streams.get(id)!;
+      stream.element.playbackRate = Math.max(0.25, Math.min(4, rate));
+      if (!skipDispatchEvent) {
+        this.dispatchEvent({
+          type: SoundEventsEnum.PLAYBACK_RATE_CHANGED,
+          soundId: id,
+          playbackRate: stream.element.playbackRate,
+          timestamp: this.context.currentTime,
+        });
+      }
+      return;
+    }
     if (!id || typeof rate !== "number" || isNaN(rate) || rate <= 0) {
       this.debugLog("Invalid parameters for playback rate change");
       return;
@@ -3284,6 +3410,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getPlaybackRate(id: string): number {
+    if (this.streams.has(id)) return this.streams.get(id)!.element.playbackRate;
     try {
       const sound = this.getValidatedSound(id);
       return sound?.source?.playbackRate?.value ?? sound?.playOptions?.playbackRate ?? this.config.defaultPlaybackRate ?? 1;
@@ -3446,6 +3573,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getGainNode(id: string): GainNode | undefined {
+    if (this.streams.has(id)) return this.streams.get(id)!.gainNode;
     try {
       const sound = this.getValidatedSound(id);
       return sound?.gainNode || undefined;
@@ -3460,6 +3588,7 @@ export class SoundHub implements SoundHubInterface {
   // Utility functions----------------------------------------------------------------------------------------------------------------------
 
   public hasSound(id: string): boolean {
+    if (this.streams.has(id)) return true;
     return this.sounds.has(id) && this.sounds.get(id)?.buffer != null;
   }
 
@@ -3500,6 +3629,7 @@ export class SoundHub implements SoundHubInterface {
 
   // Get the total number of sounds in the manager
   public getSoundCount(): number {
+    if (this.streams.size) return this.sounds.size + this.streams.size;
     return this.sounds.size;
   }
 
@@ -3509,6 +3639,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getSoundIds(): string[] {
+    if (this.streams.size) return [...this.sounds.keys(), ...this.streams.keys()];
     return Array.from(this.sounds.keys());
   }
 
@@ -3534,6 +3665,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public destroy(): void {
+    Array.from(this.streams.keys()).forEach((id) => this.streamUnload(id));
     try {
       this.cleanup();
 
@@ -3651,37 +3783,385 @@ export class SoundHub implements SoundHubInterface {
   }
   // End Listeners----------------------------------------------------------------------------------------------------------------------
 
+  // Streaming ------------------------------------------------------------------------------------------------------
+  //
+  // Everything above this line decodes a whole file into an AudioBuffer, which
+  // is what makes precise scheduling, sprites and instance stacking possible.
+  // It is also why an hour-long recording is a bad fit: the decoded audio has
+  // to sit in memory in full before the first sample plays.
+  //
+  // A stream is the other trade. An HTMLAudioElement does the fetching and
+  // decoding as it goes, and MediaElementAudioSourceNode drops the result into
+  // the same graph, so master volume, panning and the limiter still apply.
+  // What you give up is everything that needs random access to samples:
+  // sprites, overlapping instances of one id, and gapless looping.
+
+  /**
+   * Load a long audio file as a stream instead of a buffer.
+   *
+   * Use this for podcasts, audiobooks, radio, DJ sets, background music that
+   * runs for an hour — anything where waiting for a full download and holding
+   * the decoded audio in memory would be wasteful.
+   *
+   * Playback, seeking, volume, fades, panning, playback rate, looping, state
+   * and progress events all work the way they do for a buffered sound. Sprites
+   * and `createNewInstance` do not: those need the samples in memory.
+   */
+  public async loadStream(id: string, url: string, options: StreamOptions = {}): Promise<void> {
+    if (this.sounds.has(id) || this.streams.has(id)) {
+      this.debugLog(`Sound with id ${id} already exists. Skipping.`);
+      return;
+    }
+
+    const element = new Audio();
+    element.preload = options.preload ?? "metadata";
+    element.crossOrigin = this.config.crossOrigin ?? "anonymous";
+    element.playbackRate = options.playbackRate ?? this.config.defaultPlaybackRate ?? 1;
+    element.loop = options.loop ?? this.config.loopSounds ?? false;
+    // The gain node carries the volume so fades and mute behave like they do
+    // for buffered sounds. The element itself stays at full scale.
+    element.volume = 1;
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          element.removeEventListener("loadedmetadata", onLoaded);
+          element.removeEventListener("error", onError);
+        };
+        const onLoaded = () => { cleanup(); resolve(); };
+        const onError = () => {
+          cleanup();
+          const message = element.error ? element.error.message : "unknown";
+          reject(new Error(`Stream load error for ${id}: ${message}`));
+        };
+        element.addEventListener("loadedmetadata", onLoaded, { once: true });
+        element.addEventListener("error", onError, { once: true });
+        element.src = url;
+        element.load();
+      });
+    } catch (error) {
+      this.handleError("loading stream", error, id);
+      throw error;
+    }
+
+    const gainNode = this.context.createGain();
+    gainNode.gain.value = options.volume ?? this.config.defaultVolume ?? 1;
+
+    const source = this.context.createMediaElementSource(element);
+    const stereoPanner = this.context.createStereoPanner();
+    stereoPanner.pan.value = options.pan ?? this.config.defaultPan ?? 0;
+
+    source.connect(stereoPanner);
+    stereoPanner.connect(gainNode);
+    gainNode.connect(this.masterGainNode);
+
+    const stream: StreamSound = {
+      id,
+      url,
+      element,
+      source,
+      gainNode,
+      stereoPanner,
+      pannerNode: null,
+      panType: SoundPanType.Stereo,
+      panSpatialPosition: this.config.defaultPanSpatialPosition ?? { x: 0, y: 0, z: 0 },
+      pan: options.pan ?? this.config.defaultPan ?? 0,
+      volume: options.volume ?? this.config.defaultVolume ?? 1,
+      isMuted: false,
+      state: SoundState.Stopped,
+      startOffset: options.startTime ?? this.config.defaultStartTime ?? 0,
+      options,
+      onEnded: () => {
+        // A looping element never fires this, so reaching here always means done.
+        stream.state = SoundState.Stopped;
+        this.stopProgressTracking(id);
+        this.dispatchEvent({
+          type: SoundEventsEnum.ENDED,
+          soundId: id,
+          currentTime: element.currentTime,
+          duration: this.streamDuration(stream),
+          timestamp: this.context.currentTime,
+        });
+      },
+      onError: () => {
+        const message = element.error ? element.error.message : "unknown";
+        this.lastError = new Error(`Stream error for ${id}: ${message}`);
+        this.dispatchEvent({
+          type: SoundEventsEnum.ERROR,
+          soundId: id,
+          error: this.lastError,
+          timestamp: this.context.currentTime,
+        });
+      },
+    };
+
+    element.addEventListener("ended", stream.onEnded);
+    element.addEventListener("error", stream.onError);
+
+    this.streams.set(id, stream);
+    this.debugLog(`Stream ${id} loaded (${this.streamDuration(stream).toFixed(1)}s)`);
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.LOADED,
+      soundId: id,
+      timestamp: this.context.currentTime,
+      duration: this.streamDuration(stream),
+    });
+  }
+
+  /** Whether this id was loaded with loadStream rather than loadSound. */
+  public isStream(id: string): boolean {
+    return this.streams.has(id);
+  }
+
+  /**
+   * The underlying media element, for the things only it can do: reading
+   * `buffered` ranges to draw a loading bar, or setting Media Session metadata
+   * so the lock screen shows the episode title.
+   */
+  public getStreamElement(id: string): HTMLAudioElement | undefined {
+    return this.streams.get(id)?.element;
+  }
+
+  private streamDuration(stream: StreamSound): number {
+    const duration = stream.element.duration;
+    // Live streams report Infinity, and a file whose metadata has not landed
+    // yet reports NaN. Neither is something a progress bar can divide by.
+    return Number.isFinite(duration) ? duration : 0;
+  }
+
+  private streamPlay(id: string, options: StreamOptions = {}): void {
+    const stream = this.streams.get(id);
+    if (!stream) return;
+
+    if (options.volume !== undefined) this.streamSetVolume(id, options.volume, true);
+    if (options.pan !== undefined && stream.stereoPanner) {
+      stream.pan = Math.max(-1, Math.min(1, options.pan));
+      stream.stereoPanner.pan.value = stream.pan;
+    }
+    if (options.loop !== undefined) stream.element.loop = options.loop;
+    if (options.playbackRate !== undefined) stream.element.playbackRate = options.playbackRate;
+
+    const startAt = options.startTime ?? (stream.state === SoundState.Stopped ? stream.startOffset : undefined);
+    if (startAt !== undefined) {
+      stream.element.currentTime = startAt;
+    }
+
+    // Autoplay policies suspend the context until a gesture. Without this the
+    // element would happily play into a graph that produces no sound.
+    if (this.context.state === "suspended") void this.context.resume();
+
+    void stream.element.play().catch((error: unknown) => {
+      this.handleError("playing stream", error, id);
+    });
+
+    stream.state = SoundState.Playing;
+
+    this.dispatchEvent({
+      type: SoundEventsEnum.STARTED,
+      soundId: id,
+      currentTime: stream.element.currentTime,
+      duration: this.streamDuration(stream),
+      volume: stream.volume,
+      timestamp: this.context.currentTime,
+    });
+
+    const track = options.trackProgress ?? stream.options.trackProgress ?? this.config.trackProgress ?? false;
+    if (track) this.startProgressTracking(id);
+  }
+
+  private streamPause(id: string, skipDispatchEvent = false): void {
+    const stream = this.streams.get(id);
+    if (!stream || stream.state !== SoundState.Playing) return;
+
+    stream.element.pause();
+    stream.state = SoundState.Paused;
+    this.stopProgressTracking(id);
+
+    if (!skipDispatchEvent) {
+      this.dispatchEvent({
+        type: SoundEventsEnum.PAUSED,
+        soundId: id,
+        currentTime: stream.element.currentTime,
+        duration: this.streamDuration(stream),
+        timestamp: this.context.currentTime,
+      });
+    }
+  }
+
+  private streamResume(id: string, skipDispatchEvent = false): void {
+    const stream = this.streams.get(id);
+    if (!stream || stream.state !== SoundState.Paused) return;
+
+    if (this.context.state === "suspended") void this.context.resume();
+    void stream.element.play().catch((error: unknown) => {
+      this.handleError("resuming stream", error, id);
+    });
+    stream.state = SoundState.Playing;
+
+    if (!skipDispatchEvent) {
+      this.dispatchEvent({
+        type: SoundEventsEnum.RESUMED,
+        soundId: id,
+        currentTime: stream.element.currentTime,
+        duration: this.streamDuration(stream),
+        timestamp: this.context.currentTime,
+      });
+    }
+
+    const track = stream.options.trackProgress ?? this.config.trackProgress ?? false;
+    if (track) this.startProgressTracking(id);
+  }
+
+  private streamStop(id: string, skipDispatchEvent = false): void {
+    const stream = this.streams.get(id);
+    if (!stream) return;
+
+    stream.element.pause();
+    stream.element.currentTime = stream.startOffset;
+    stream.state = SoundState.Stopped;
+    this.stopProgressTracking(id);
+
+    if (!skipDispatchEvent) {
+      this.dispatchEvent({
+        type: SoundEventsEnum.STOPPED,
+        soundId: id,
+        currentTime: stream.element.currentTime,
+        duration: this.streamDuration(stream),
+        timestamp: this.context.currentTime,
+      });
+    }
+  }
+
+  private streamSeek(id: string, time: number, skipDispatchEvent = false): void {
+    const stream = this.streams.get(id);
+    if (!stream) return;
+
+    const duration = this.streamDuration(stream);
+    stream.element.currentTime = duration ? Math.max(0, Math.min(time, duration)) : Math.max(0, time);
+
+    if (!skipDispatchEvent) {
+      this.dispatchEvent({
+        type: SoundEventsEnum.SEEKED,
+        soundId: id,
+        currentTime: stream.element.currentTime,
+        duration,
+        timestamp: this.context.currentTime,
+      });
+    }
+  }
+
+  private streamSetVolume(id: string, volume: number, skipDispatchEvent = false): void {
+    const stream = this.streams.get(id);
+    if (!stream) return;
+
+    stream.volume = this.setValidatedVolume(volume);
+    stream.isMuted = stream.volume === 0;
+    stream.gainNode.gain.setValueAtTime(stream.volume, this.context.currentTime);
+
+    if (!skipDispatchEvent) {
+      this.dispatchEvent({
+        type: SoundEventsEnum.VOLUME_CHANGED,
+        soundId: id,
+        volume: stream.volume,
+        timestamp: this.context.currentTime,
+      });
+    }
+  }
+
+  private streamFade(id: string, duration: number, from: number, to: number, stopAfter: boolean): void {
+    const stream = this.streams.get(id);
+    if (!stream) return;
+
+    const now = this.context.currentTime;
+    const gain = stream.gainNode.gain;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(this.setValidatedVolume(from), now);
+    gain.linearRampToValueAtTime(this.setValidatedVolume(to), now + Math.max(0.001, duration));
+    stream.volume = this.setValidatedVolume(to);
+
+    window.setTimeout(() => {
+      if (!this.streams.has(id)) return;
+      if (stopAfter) this.streamStop(id);
+      this.dispatchEvent({
+        type: to > from ? SoundEventsEnum.FADE_IN_COMPLETED : SoundEventsEnum.FADE_OUT_COMPLETED,
+        soundId: id,
+        volume: to,
+        timestamp: this.context.currentTime,
+      });
+    }, duration * 1000);
+  }
+
+  private streamState(id: string): SoundStateInfo {
+    const stream = this.streams.get(id)!;
+    const duration = this.streamDuration(stream);
+    const currentTime = stream.element.currentTime;
+
+    return {
+      progress: duration ? currentTime / duration : 0,
+      startTime: stream.startOffset,
+      currentTime,
+      elapsedTime: currentTime,
+      adjustedElapsedTime: currentTime,
+      duration,
+      rawDuration: duration || null,
+      playbackRate: stream.element.playbackRate,
+      state: stream.state,
+      volume: stream.volume,
+      pan: stream.pan,
+      panSpatialPosition: stream.panSpatialPosition,
+    };
+  }
+
+  private streamUnload(id: string): void {
+    const stream = this.streams.get(id);
+    if (!stream) return;
+
+    this.stopProgressTracking(id);
+    stream.element.removeEventListener("ended", stream.onEnded);
+    stream.element.removeEventListener("error", stream.onError);
+    stream.element.pause();
+
+    try {
+      stream.source.disconnect();
+      stream.stereoPanner?.disconnect();
+      stream.pannerNode?.disconnect();
+      stream.gainNode.disconnect();
+    } catch {
+      // Already disconnected; nothing to clean up.
+    }
+
+    // Clearing src stops the browser from carrying on with the download.
+    stream.element.removeAttribute("src");
+    stream.element.load();
+
+    this.streams.delete(id);
+    this.dispatchEvent({
+      type: SoundEventsEnum.UNLOADED,
+      soundId: id,
+      timestamp: this.context.currentTime,
+    });
+  }
+
+  // End streaming --------------------------------------------------------------------------------------------------
+
   public getVersion(): string {
     return this.VERSION;
   }
 
   private showConsoleInfo(): void {
     console.info(
-      `%csoundhub.js\n` +
-      `%cversion ${this.VERSION}\n` +
-      `© Chris Schardijn\n` +
-      `%cVisit demo: https://soundhub.chriscreativecode.com/\n` +
-      `%cNPM package: https://www.npmjs.com/package/soundhub\n\n` +
-      `%c▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n` +
-      `█                                               █\n` +
-      `█     ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄     █\n` +
-      `█    █            ▌                  ▌     █    █\n` +
-      `█    █ ▌ █ ▌   ▌▌ ▌▌█  ▌ ▌  ▌█ ▌   █ ▌  ▌  █    █\n` +
-      `█    █ ▌▌█▌▌▌█▌▐▌▌▌▌█▌▌▌█▌▌▌▌█▌▌█▌▌█▌▌▌▌▌█▌█    █\n` +
-      `█    █ ▌ █ ▌   ▌▌ ▌▌█  ▌ ▌  ▌█ ▌   █ ▌  ▌  █    █\n` +
-      `█    █            ▌                  ▌     █    █\n` +
-      `█     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀     █\n` +
-      `█      │       │      │        ■■■■     ■ ■ ■ ■ █\n` +
-      `█     ███      │     ███      ■ ▐  ■    ■ ■ ■ ■ █\n` +
-      `█      │      ███     │       ■    ■    ■ ■ ■ ■ █\n` +
-      `█      │       │      │        ■■■■     ■ ■ ■ ■ █\n` +
-      `█                                               █\n` +
-      `▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`,
-      "font-family: monospace; font-size: 18px; font-weight: bold;",
-      "font-family: monospace; font-size: 12px;",
-      "font-family: monospace; font-size: 12px; color: #0066cc; text-decoration: underline;",
-      "font-family: monospace; font-size: 12px; color: #0066cc; text-decoration: underline;",
-      "font-family: monospace; color: #2296F3;"
+      `%csoundhub.js %cv${this.VERSION}\n` +
+      `%c© Chris Schardijn\n` +
+      `%cDemo:      https://soundhub.chriscreativecode.com/\n` +
+      `Docs:      https://soundhub-docs.chriscreativecode.com/\n` +
+      `GitHub:    https://github.com/chriscreativecode/soundhub\n` +
+      `npm:       https://www.npmjs.com/package/soundhub\n` +
+      `Portfolio: https://www.chriscreativecode.com/`,
+      "font-family: monospace; font-size: 15px; font-weight: bold; color: #2296F3;",
+      "font-family: monospace; font-size: 13px; color: #888;",
+      "font-family: monospace; font-size: 12px; color: #888;",
+      "font-family: monospace; font-size: 12px; line-height: 1.6;"
     );
   }
 

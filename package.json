@@ -1,8 +1,8 @@
 {
   "name": "soundhub",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "license": "MIT",
-  "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus. Web Audio API, 16 KB gzipped, zero dependencies.",
+  "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus, and stream long files. Web Audio API, 18 KB gzipped, zero dependencies.",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -24,11 +24,13 @@
     "sound-effects",
     "audio-library",
     "audio-player",
+    "audio-streaming",
     "game-audio",
     "spatial-audio",
     "audio-sprites",
     "typescript",
-    "browser-audio"
+    "browser-audio",
+    "podcast"
   ],
   "type": "module",
   "sideEffects": false,
