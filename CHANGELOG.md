@@ -9,69 +9,86 @@ adds something backwards-compatible, a major asks you to change your code.
 
 ### Added
 
-- `once(type, callback, filter?)` — listen for the next matching event and stop.
-- `addEventListener` now takes a filter and returns its own unsubscribe function.
-  The filter gained `soundId`, which is the field every event carries; before
-  this it only matched `originalId` and `instanceId`, so filtering did nothing
-  for most events and every callback had to start with an id check. The
-  interface never declared the filter parameter at all, though the
-  implementation had always accepted one.
-- `setMediaSession(id, info?)` and `clearMediaSession()` — put a sound on the
-  operating system's media controls: title, artist and artwork on the lock
-  screen, and working play, pause, skip and scrub handlers. Playback state and
-  scrubber position stay in step as the sound plays.
-- `SoundEventFilter` and `MediaSessionInfo` are exported for typing.
-- `loadStream(id, url, options?)` — load a long file as a stream instead of
-  decoding it into memory. An hour-long podcast no longer costs hundreds of
-  megabytes and a wait before the first sound. Playback, seeking, volume, fades,
-  mute, panning, playback rate, looping, state and progress events behave as
-  they do for a buffered sound, and the audio runs through the same graph, so
-  master volume, panning and the limiter still apply.
-- `isStream(id)` — whether an id was loaded as a stream.
-- `getStreamElement(id)` — the underlying media element, for reading `buffered`
-  ranges or setting Media Session metadata.
-- `StreamOptions` is exported for typing.
+**Streaming.** `loadStream(id, url, options?)` loads a long file without
+decoding it into memory first. An hour of stereo audio costs around 600 MB once
+decoded, and nothing plays until the download and the decode are both done. With
+a stream the browser fetches as it plays, and the audio still runs through the
+same graph, so master volume, panning and the limiter apply either way.
+`isStream(id)` and `getStreamElement(id)` come with it.
+
+**Media Session.** `setMediaSession(id, info?)` puts a title, artist and artwork
+on the operating system's media controls and hooks up play, pause, skip and
+scrubbing. The playback state and the scrubber position stay in step while the
+sound plays. `clearMediaSession()` removes it again.
+
+**Listener filters and `once()`.** `addEventListener` now accepts a filter and
+returns a function that removes the listener again. `once(type, callback,
+filter?)` listens for a single event and then stops.
+
+```js
+const off = hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
+  bar.value = event.progressInfo.progress;
+}, { soundId: 'music' });
+
+hub.once(SoundEventsEnum.ENDED, playNextTrack, { soundId: 'music' });
+```
+
+The filter gained a `soundId` field. It used to match only `originalId` and
+`instanceId`, which are set on sounds played with `createNewInstance` and on
+nothing else, so filtering did nothing for ordinary playback and every callback
+had to start with its own id check. The interface never declared the filter
+parameter at all, even though the implementation had always accepted one.
+
+`SoundEventFilter`, `MediaSessionInfo` and `StreamOptions` are exported for
+typing.
+
+### Fixed
+
+- `SoundHubInterface` now matches the implementation in four places where it did
+  not. `play` returns `Sound | undefined`, `setLoop` takes an optional
+  `maxLoops`, `createSoundGroup` takes `{ maxInstances?, playOptions? }`, and
+  `resetSpatialPosition` takes an optional id. Code written against the
+  interface could fail to compile against these before.
 
 ### Changed
 
-- `SoundHubInterface` now matches the implementation in four places where it
-  did not: `play` returns `Sound | undefined`, `setLoop` takes an optional
-  `maxLoops`, `createSoundGroup` takes `{ maxInstances?, playOptions? }`, and
-  `resetSpatialPosition` takes an optional id. Code written against the
-  interface may have failed to compile against these before.
-- The console banner is now five links instead of an ASCII drawing.
+- The console banner is five links instead of an ASCII drawing.
 
-### Notes
+### Notes on streams
 
-- Sprites and `createNewInstance` are not available on a stream; both need the
+- Sprites and `createNewInstance` do not work on a stream, because both need the
   samples in memory. `setSoundSprite` and `playSprite` throw a clear error
-  rather than failing quietly.
-- A looping stream is looped by the browser, so no `loop_completed` event fires
-  and `maxLoops` has nothing to count.
+  instead of failing quietly.
+- The browser handles looping, so no `loop_completed` event fires and `maxLoops`
+  has nothing to count.
 
 ## [6.0.0] - 2026-08-29
 
-Renamed from `sound-manager-ts`. No behaviour changed; see the
+Renamed from `sound-manager-ts`. Nothing about the behaviour changed. See the
 [migration notes](./README.md#migrating-from-sound-manager-ts).
 
 ### Changed
 
 - The package is now `soundhub` and the main class is `SoundHub`.
-- `SoundManager`, `SoundManagerConfig` and `SoundManagerInterface` remain as
-  deprecated aliases so existing code compiles unchanged. They will be removed
-  in v7.
-- The published type declarations now land at `dist/types/index.d.ts`, where
-  `package.json` has always pointed. Before this they were written a directory
+- `SoundManager`, `SoundManagerConfig` and `SoundManagerInterface` are still
+  exported as deprecated aliases, so existing code compiles unchanged. They will
+  be removed in v7.
+
+### Fixed
+
+- The type declarations now land at `dist/types/index.d.ts`, where
+  `package.json` has always pointed. They used to be written one directory
   deeper, so editors found no types at all.
+- `PanningModel` and `DistanceModel` are exported. They were internal by
+  accident.
+- `SoundState` is exported as a value instead of a type, so `SoundState.Playing`
+  can be used in a comparison.
 
 ### Added
 
-- `PanningModel` and `DistanceModel` are exported; they were internal by
-  accident.
-- `SoundState` is exported as a value rather than a type, so
-  `SoundState.Playing` can be used in a comparison.
-- `examples/` holds one page exercising the whole public API, with audio
-  generated by `scripts/generate-example-sounds.py`.
+- `examples/` holds one page that exercises the whole public API. The audio in
+  it is generated by `scripts/generate-example-sounds.py`, so the folder carries
+  the same MIT licence as the rest of the project.
 
 ---
 
