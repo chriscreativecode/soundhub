@@ -8,6 +8,7 @@ import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { Sound } from "./sound.interface";
 import { StreamOptions } from "./stream-sound";
+import { MediaSessionInfo, SoundEventFilter } from "./sound-event-filter";
 
 export interface SoundHubInterface {
   // Playback control: Manage the playback of sounds, including play, pause, resume, stop, and seek operations.
@@ -119,6 +120,12 @@ export interface SoundHubInterface {
   isStream(id: string): boolean;
   /* The underlying media element, for buffered ranges or Media Session metadata. */
   getStreamElement(id: string): HTMLAudioElement | undefined;
+
+  // Media Session: hand a sound to the operating system's media controls.
+  /* Put this sound on the lock screen and wire up the hardware media keys. */
+  setMediaSession(id: string, info?: MediaSessionInfo): void;
+  /* Take the current sound off the operating system's media controls. */
+  clearMediaSession(): void;
 
   // Context management: Manage the audio context, including suspending and resuming audio processing.
   /* Suspend the audio context, pausing all audio processing. */
@@ -255,10 +262,15 @@ export interface SoundHubInterface {
   destroy(): void;
 
   // Listeners / Event handling: Manage event listeners for sound-related events.
-  /* Add an event listener for a specific SoundEventsEnum type. Optionally, provide a filter to narrow down the events. */
-  addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
-  /* Remove an event listener for a specific SoundEventsEnum type. Optionally, provide a filter to narrow down the events. */
-  removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void): void;
+  /* Add an event listener for a specific SoundEventsEnum type. The optional filter narrows
+     which sounds you hear: { soundId } for one sound, { originalId } for every instance of it.
+     Returns a function that removes the listener again. */
+  addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void, filter?: SoundEventFilter): () => void;
+  /* Listen for the next matching event and then stop listening. Returns a function that
+     cancels the listener before it has fired. */
+  once(type: SoundEventsEnum, callback: (event: SoundEvent) => void, filter?: SoundEventFilter): () => void;
+  /* Remove an event listener for a specific SoundEventsEnum type. Pass the same filter it was added with. */
+  removeEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void, filter?: SoundEventFilter): void;
   /* Remove all event listeners associated with a specific instance ID. */
   removeEventListenersForInstance(instanceId: string): void;
   /* Dispatch a custom event to all registered listeners. */

@@ -12,12 +12,13 @@ import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { SoundState } from "./sound-state.interface";
 import { StreamOptions, StreamSound } from "./stream-sound";
+import { MediaSessionInfo, SoundEventFilter } from "./sound-event-filter";
 import { Sound } from "./sound.interface";
 import { Ticker } from "./ticker";
 
 interface EventListener {
   callback: (event: SoundEvent) => void;
-  filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp };
+  filter?: SoundEventFilter;
 }
 
 export class SoundHub implements SoundHubInterface {
@@ -44,6 +45,7 @@ export class SoundHub implements SoundHubInterface {
   private readonly DEFAULT_PRECISION: number = 2;
   private soundGroups: Map<string, SoundGroup> = new Map();
   private streams: Map<string, StreamSound> = new Map();
+  private mediaSessionId: string | null = null;
   private instanceCounters: Map<string, number> = new Map();
   private unlockHandlers: {
     touchstart: (this: Document, ev: TouchEvent) => void;
@@ -3696,16 +3698,53 @@ export class SoundHub implements SoundHubInterface {
 
   // Event listeners -------------------------------------------------------------------------------------------------------------------
 
+  /**
+   * Listen for one kind of event.
+   *
+   * Without a filter you hear every sound, which means writing
+   * `if (event.soundId !== 'x') return` at the top of the callback. The filter
+   * does that for you: `{ soundId: 'music' }` for one sound, `{ originalId:
+   * 'laser' }` to catch every overlapping instance of it at once.
+   *
+   * Returns a function that removes this listener again, which is easier to
+   * hold on to than reconstructing the same callback and filter for
+   * removeEventListener.
+   */
   public addEventListener(
     type: SoundEventsEnum,
     callback: (event: SoundEvent) => void,
-    filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
-  ): void {
+    filter?: SoundEventFilter
+  ): () => void {
     if (!this.eventListeners.has(type)) {
       this.eventListeners.set(type, new Set());
     }
 
-    this.eventListeners.get(type)!.add({ callback, filter });
+    const listener: EventListener = { callback, filter };
+    this.eventListeners.get(type)!.add(listener);
+
+    return () => {
+      this.eventListeners.get(type)?.delete(listener);
+    };
+  }
+
+  /**
+   * Listen for the next matching event and then stop listening.
+   *
+   * Handy for the one-shot cases that would otherwise leak a listener: waiting
+   * for a track to finish before starting the next one, or for a fade to
+   * complete before tearing something down.
+   */
+  public once(
+    type: SoundEventsEnum,
+    callback: (event: SoundEvent) => void,
+    filter?: SoundEventFilter
+  ): () => void {
+    const off = this.addEventListener(type, (event) => {
+      off();
+      callback(event);
+    }, filter);
+
+    return off;
   }
 
   /**
@@ -3736,7 +3775,7 @@ export class SoundHub implements SoundHubInterface {
   public removeEventListener(
     type: SoundEventsEnum,
     callback: (event: SoundEvent) => void,
-    filter?: { originalId?: string; instanceId?: string; instancePattern?: RegExp }
+    filter?: SoundEventFilter
   ): void {
     const listeners = this.eventListeners.get(type);
     if (!listeners) return;
@@ -3759,12 +3798,19 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public dispatchEvent(event: SoundEvent): void {
+    // Keep the operating system's controls in step before the listeners run,
+    // so a UI that reacts to the same event sees a lock screen that agrees.
+    if (this.mediaSessionId && event.soundId === this.mediaSessionId) {
+      this.updateMediaSessionState(this.mediaSessionId);
+    }
+
     const listeners = this.eventListeners.get(event.type);
     if (!listeners) return;
 
     listeners.forEach(({ callback, filter }) => {
       // Apply filter if provided
       if (filter) {
+        if (filter.soundId && event.soundId !== filter.soundId) return;
         if (filter.originalId && event.originalId !== filter.originalId) return;
         if (filter.instanceId && event.instanceId !== filter.instanceId) return;
         if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;
@@ -4117,6 +4163,8 @@ export class SoundHub implements SoundHubInterface {
     const stream = this.streams.get(id);
     if (!stream) return;
 
+    if (this.mediaSessionId === id) this.clearMediaSession();
+
     this.stopProgressTracking(id);
     stream.element.removeEventListener("ended", stream.onEnded);
     stream.element.removeEventListener("error", stream.onError);
@@ -4142,6 +4190,123 @@ export class SoundHub implements SoundHubInterface {
       timestamp: this.context.currentTime,
     });
   }
+
+  // Media Session --------------------------------------------------------------------------------------------------
+
+  /**
+   * Hand one sound to the operating system's media controls.
+   *
+   * This is what puts an episode title on a phone's lock screen, draws the
+   * artwork, and makes the play/pause key on a keyboard and the buttons on a
+   * headset do the right thing. For a podcast it is not a flourish; people
+   * expect their phone to behave like a podcast player.
+   *
+   * Works for a streamed sound and a buffered one alike. Call it again with
+   * different metadata when the track changes, and clearMediaSession() when
+   * playback is done.
+   */
+  public setMediaSession(id: string, info: MediaSessionInfo = {}): void {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
+      this.debugLog("Media Session is not supported in this browser");
+      return;
+    }
+
+    const session = navigator.mediaSession;
+    this.mediaSessionId = id;
+
+    if (info.title || info.artist || info.album || info.artwork) {
+      session.metadata = new MediaMetadata({
+        title: info.title ?? "",
+        artist: info.artist ?? "",
+        album: info.album ?? "",
+        artwork: info.artwork ?? [],
+      });
+    }
+
+    const back = info.seekBackwardOffset ?? 15;
+    const forward = info.seekForwardOffset ?? 30;
+
+    // A handler set to null takes the button off the lock screen, which is why
+    // previoustrack and nexttrack are only wired when the caller supplies them.
+    const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+      ["play", () => { this.isPaused(id) ? this.resume(id) : this.play(id); }],
+      ["pause", () => this.pause(id)],
+      ["stop", () => this.stop(id)],
+      ["seekbackward", (details) => {
+        const offset = details.seekOffset ?? back;
+        this.seek(id, Math.max(0, this.getCurrentTime(id) - offset));
+      }],
+      ["seekforward", (details) => {
+        const offset = details.seekOffset ?? forward;
+        this.seek(id, this.getCurrentTime(id) + offset);
+      }],
+      ["seekto", (details) => {
+        if (details.seekTime !== undefined) this.seek(id, details.seekTime);
+      }],
+      ["previoustrack", info.onPreviousTrack ?? null],
+      ["nexttrack", info.onNextTrack ?? null],
+    ];
+
+    for (const [action, handler] of handlers) {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // Not every browser implements every action; an unknown one throws.
+      }
+    }
+
+    this.updateMediaSessionState(id);
+  }
+
+  /** Take this sound off the operating system's media controls. */
+  public clearMediaSession(): void {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+
+    const session = navigator.mediaSession;
+    const actions: MediaSessionAction[] = [
+      "play", "pause", "stop", "seekbackward", "seekforward", "seekto", "previoustrack", "nexttrack",
+    ];
+    for (const action of actions) {
+      try {
+        session.setActionHandler(action, null);
+      } catch {
+        // See above.
+      }
+    }
+
+    session.metadata = null;
+    session.playbackState = "none";
+    this.mediaSessionId = null;
+  }
+
+  /**
+   * Keeps the lock screen in step: whether it shows a play or a pause button,
+   * and where the scrubber sits.
+   */
+  private updateMediaSessionState(id: string): void {
+    if (this.mediaSessionId !== id) return;
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+
+    const session = navigator.mediaSession;
+    session.playbackState = this.isPlaying(id) ? "playing" : this.isPaused(id) ? "paused" : "none";
+
+    const duration = this.getDuration(id);
+    if (!duration || !session.setPositionState) return;
+
+    try {
+      session.setPositionState({
+        duration,
+        playbackRate: this.getPlaybackRate(id) || 1,
+        // A position past the duration throws, and rounding at the end of a
+        // track is enough to get there.
+        position: Math.min(this.getCurrentTime(id), duration),
+      });
+    } catch {
+      // Metadata not settled yet; the next progress tick will get it.
+    }
+  }
+
+  // End Media Session ----------------------------------------------------------------------------------------------
 
   // End streaming --------------------------------------------------------------------------------------------------
 

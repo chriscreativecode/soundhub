@@ -202,14 +202,15 @@ const timeTotal = $('timeTotal');
 const musicState = $('musicState');
 let scrubbing = false;
 
+// The filter does the id check, so the callback only handles this one sound.
 hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
-  if (event.soundId !== 'music' || scrubbing) return;
+  if (scrubbing) return;
   const info = event.progressInfo;
   if (!info) return;
   seekEl.value = String(Math.round(info.progress * 1000));
   timeNow.textContent = formatTime(info.currentTime);
   timeTotal.textContent = formatTime(info.duration);
-});
+}, { soundId: 'music' });
 
 const refreshMusicState = (): void => {
   musicState.textContent = hub.getSoundState('music').state ?? 'stopped';
@@ -330,16 +331,33 @@ const refreshStreamState = (): void => {
 };
 
 hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
-  if (event.soundId !== 'podcast' || streamScrubbing) return;
+  if (streamScrubbing) return;
   const info = event.progressInfo;
   if (!info) return;
   streamSeekEl.value = String(Math.round(info.progress * 1000));
   streamNow.textContent = formatTime(info.currentTime);
   streamTotal.textContent = formatTime(info.duration);
-});
+}, { soundId: 'podcast' });
+
+// One-shot: say something the first time this stream reaches the end, then stop
+// listening. Without once() this would either fire forever or leak a listener.
+hub.once(SoundEventsEnum.ENDED, () => {
+  streamStateEl.textContent = 'finished';
+}, { soundId: 'podcast' });
 
 $('streamPlay').addEventListener('click', () => {
   hub.play('podcast', { volume: Number($<HTMLInputElement>('streamVol').value), trackProgress: true });
+
+  // Puts this on the lock screen and makes the media keys work. Try it on a
+  // phone, or press the play/pause key on a keyboard with the tab in the
+  // background.
+  hub.setMediaSession('podcast', {
+    title: 'soundhub.js streaming example',
+    artist: 'Chris Schardijn',
+    seekBackwardOffset: 15,
+    seekForwardOffset: 30,
+  });
+
   refreshStreamState();
 });
 $('streamPause').addEventListener('click', () => { hub.pause('podcast'); refreshStreamState(); });

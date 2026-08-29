@@ -52,7 +52,18 @@ the day-to-day code looks like:
 
 **One typed event bus.** Thirty-plus event types in a single enum
 (`SoundEventsEnum.STARTED`, `.FADE_OUT_COMPLETED`, `.SPATIAL_POSITION_CHANGED`, …),
-each carrying the sound id. Your UI subscribes once, not once per sound.
+each carrying the sound id. Your UI subscribes once, not once per sound — and a
+filter keeps each listener to the sound it cares about:
+
+```ts
+const off = hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
+  bar.value = event.progressInfo!.progress;      // no id check needed
+}, { soundId: 'music' });
+
+hub.once(SoundEventsEnum.ENDED, playNextTrack, { soundId: 'music' });
+
+off();  // addEventListener hands back its own unsubscribe
+```
 
 **UI-ready state.** `getSoundState(id)` returns progress, current time, adjusted
 elapsed time, duration, volume, pan and spatial position in one object, and
@@ -96,8 +107,23 @@ progress events behave the same as for a buffered sound, on the same event bus.
 What a stream cannot do is anything that needs random access to samples: sprites
 and `createNewInstance` are unavailable, and looping is handled by the browser, so
 no `loop_completed` event fires. `getStreamElement(id)` hands you the media element
-for the rest — buffered ranges for a loading bar, or Media Session metadata so the
-lock screen shows the episode title.
+for the rest, such as buffered ranges for a loading bar.
+
+**The lock screen works.** `setMediaSession` puts a title, artist and artwork on
+the operating system's media controls and wires up the hardware keys — play,
+pause, skip back fifteen, skip forward thirty, and the scrubber:
+
+```ts
+hub.setMediaSession('episode-42', {
+  title: 'Episode 42 — Naming things',
+  artist: 'The Podcast',
+  artwork: [{ src: '/cover-512.png', sizes: '512x512', type: 'image/png' }],
+  onNextTrack: () => playEpisode(43),
+});
+```
+
+soundhub keeps the playback state and the scrubber position in step as the
+sound plays; `clearMediaSession()` takes it off again.
 
 ## Examples
 
@@ -132,7 +158,8 @@ The shape of it:
 | Spatial | `setSpatialPosition` `setMasterSpatialPosition` `updatePannerConfigById` `removeSpatialEffect` |
 | Streaming | `loadStream` `isStream` `getStreamElement` |
 | Graph | `getContext` `getMasterInput` `getMasterOutput` `setMasterLimiter` `getMasterLimiterNode` |
-| Events | `addEventListener` `removeEventListener` `dispatchEvent` `hasEventListener` |
+| Events | `addEventListener` `once` `removeEventListener` `dispatchEvent` `hasEventListener` |
+| Media Session | `setMediaSession` `clearMediaSession` |
 
 ## Browser support
 
