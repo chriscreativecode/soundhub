@@ -1,3 +1,4 @@
+import { wantsOverlap } from "./play-sound-options.interface";
 import { SoundPanType } from "./sound-pan-type.enum";
 import { Sound } from "./sound.interface";
 
@@ -34,7 +35,7 @@ export class AudioNodeConnector {
     if (sound.source) sound.source.disconnect();
     if (sound.stereoPanner) sound.stereoPanner.disconnect();
     if (sound.pannerNode) sound.pannerNode.disconnect();
-    if (sound.playOptions?.createNewInstance) {
+    if (wantsOverlap(sound.playOptions)) {
       sound.gainNode.disconnect();
     }
   }

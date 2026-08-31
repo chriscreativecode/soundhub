@@ -7,7 +7,7 @@
 export interface SoundEventFilter {
   /** Exactly this sound. The common case. */
   soundId?: string;
-  /** Every overlapping instance of one sound, played with `createNewInstance`. */
+  /** Every overlapping instance of one sound, played with `overlap`. */
   originalId?: string;
   /** One specific instance. */
   instanceId?: string;

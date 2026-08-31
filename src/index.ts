@@ -16,6 +16,7 @@ export { SoundPanType } from './core/sound-pan-type.enum';
 export { SoundState } from './core/sound-state.interface';
 
 export type { SoundHubConfig } from './core/sound-hub-config';
+export type { SoundLoadState } from './core/sound-load-state';
 export type { SoundHubConfig as SoundManagerConfig } from './core/sound-hub-config';
 export type { SoundHubInterface } from './core/sound-hub.interface';
 export type { SoundHubInterface as SoundManagerInterface } from './core/sound-hub.interface';

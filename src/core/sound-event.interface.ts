@@ -1,4 +1,5 @@
 import { PlayOptions } from "./play-sound-options.interface";
+import { SoundLoadState } from "./sound-load-state";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundProgressStateInfo } from "./sound-progress-state-info";
@@ -14,7 +15,9 @@ export interface SoundEvent {
   instanceId?: string; // Add this for instance tracking
   isMaster?: boolean;
   isMuted?: boolean;
+  loadState?: SoundLoadState;
   options?: PlayOptions;
+  orientation?: { x: number; y: number; z: number };
   originalId?: string; // Add this to track the original sound ID
   pan?: number;
   pannerConfig?: SoundPannerConfig;
@@ -32,5 +35,7 @@ export interface SoundEvent {
   state?: SoundStateInfo;
   timestamp?: number;
   type: SoundEventsEnum;
+  up?: { x: number; y: number; z: number };
+  url?: string;
   volume?: number;
 }

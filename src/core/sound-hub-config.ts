@@ -5,8 +5,14 @@ export interface SoundHubConfig {
   autoUnlock?: boolean; // Unlock audio for mobile browser that have restrictions
   autoMuteOnHidden?: boolean; // Automatically mute when page or tab of your browser is not active
   autoResumeOnFocus?: boolean; // Automatically resume when page or tab of your browser gets focus
-  createNewInstance?: boolean; // Create a new instance of the sound when playing it. 
-  // By default this is false. This is useful when you want to play the same sound multiple times simultaneously. 
+  autoSuspend?: boolean; // Suspend the audio context after a stretch of silence, so a phone stops
+  // spending battery on an idle audio graph (default: false). The next play() wakes it up again.
+  autoSuspendDelay?: number; // Seconds of silence before autoSuspend kicks in (default: 30)
+  /** @deprecated Renamed to `overlap`. Still honoured, and removed in v7. */
+  createNewInstance?: boolean; // Old name for overlap. Both work; overlap wins when you set both.
+  overlap?: boolean; // Let every sound overlap itself instead of restarting (default: false).
+  // Per sound this is play(id, { overlap: true }). Set it here when your whole project
+  // is sound effects and restarting is never what you want.
 
   // ------- Loading Configuration: -------------------------------------------------------------
   // Loading Behaviour
@@ -16,6 +22,8 @@ export interface SoundHubConfig {
   retryDelay?: number; // Delay between retry attempts in seconds (default: 0.5 seconds)
 
   // Network Handling
+  fetchHeaders?: Record<string, string>; // Extra request headers for every audio fetch, for example
+  // { Authorization: "Bearer ..." } when your files sit behind a token. Left out by default.
   fetchRetries?: number; // Number of retries for failed fetches (default: 2)
   fetchTimeout?: number; // Timeout for fetch requests in seconds
   corsProxy?: string; // URL of CORS proxy service, the ones I tested that work great are: 
@@ -29,6 +37,10 @@ export interface SoundHubConfig {
   credentialStrategy?: 'auto' | 'omit' | 'include';
   
   // -----End Loading Configuration-------------------------------------------------------------
+
+  maxInstancesPerSound?: number; // Ceiling on how many overlapping instances one sound may have at
+  // the same time (default: 0, no ceiling). Reaching it stops the oldest instance instead of
+  // stacking another one. A cheap guard against a stuck key spawning a thousand voices.
 
   masterLimiter?: boolean; // Insert a limiter just before the output so many simultaneous sounds cannot clip (default: false).
   // Off by default so existing projects keep their exact sound. Turn it on when you mix
@@ -56,7 +68,9 @@ export const DEFAULT_CONFIG: SoundHubConfig = {
   autoUnlock: true,
   autoMuteOnHidden: true,
   autoResumeOnFocus: true,
-  createNewInstance: false,
+  autoSuspend: false,
+  autoSuspendDelay: 30,
+  overlap: false,
 
   // ------- Loading Configuration: -------------------------------------------------------------
   // Loading Behaviour
@@ -66,6 +80,7 @@ export const DEFAULT_CONFIG: SoundHubConfig = {
   retryDelay: 0.5, // Delay between retry attempts in seconds (default: 0.5 seconds)
 
   // Network Handling
+  fetchHeaders: undefined, // Extra headers for audio requests
   fetchRetries: 2, // Number of retries for failed fetches (default: 2)
   fetchTimeout: 8, // Timeout for fetch requests in seconds
   corsProxy: undefined, // URL of CORS proxy service
@@ -78,6 +93,8 @@ export const DEFAULT_CONFIG: SoundHubConfig = {
   credentialStrategy: 'auto',
   
   // -----End Loading Configuration-------------------------------------------------------------
+
+  maxInstancesPerSound: 0, // No ceiling
 
   masterLimiter: false, // Opt-in, so upgrading never changes how existing projects sound
 

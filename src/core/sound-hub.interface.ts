@@ -7,6 +7,7 @@ import { SoundPannerConfig } from "./sound-panner-config";
 import { SoundResetOptions } from "./sound-reset-options.interface";
 import { SoundStateInfo } from "./sound-state-info.interface";
 import { Sound } from "./sound.interface";
+import { SoundLoadState } from "./sound-load-state";
 import { StreamOptions } from "./stream-sound";
 import { MediaSessionInfo, SoundEventFilter } from "./sound-event-filter";
 
@@ -15,7 +16,7 @@ export interface SoundHubInterface {
   /* Play a sound by its ID. Optionally, provide PlayOptions to customize playback behavior. */
   play(id: string, options?: PlayOptions, skipDispatchEvent?: boolean): Sound | undefined;
   /* Play a specific sprite from a sound by its ID and sprite key. Optionally, provide PlayOptions for customization. */
-  playSprite(id: string, spriteKey: string, options: PlayOptions, skipDispatchEvent?: boolean): void;
+  playSprite(id: string, spriteKey: string, options?: PlayOptions, skipDispatchEvent?: boolean): void;
   /* Pause a sound by its ID. Optionally, skip dispatching the pause event. */
   pause(id: string, skipDispatchEvent?: boolean): void;
   /* Resume a paused sound by its ID. Optionally, skip dispatching the resume event. */
@@ -76,10 +77,24 @@ export interface SoundHubInterface {
   getLoop(id: string): boolean;
 
   // Sound loading and management: Load, update, and manage sounds in the sound manager.
-  /* Load multiple sounds from an array of sound configurations. */
-  loadSounds(soundsToLoad: { id: string; url: string }[], signal?: AbortSignal): Promise<void>;
-  /* Load a single sound by its ID and URL. */
-  loadSound(id: string, url: string, signal?: AbortSignal): Promise<void>;
+  /* Load multiple sounds from an array of sound configurations. Pass an array of urls
+     for one sound to let the browser pick the format it supports. */
+  loadSounds(soundsToLoad: { id: string; url: string | string[] }[], signal?: AbortSignal): Promise<void>;
+  /* Load a single sound. The url may be a list of alternatives, and may be left out
+     entirely for a sound that was registered with registerSound. */
+  loadSound(id: string, url?: string | string[], signal?: AbortSignal): Promise<void>;
+  /* Record where a sound lives without fetching it. Load it later with loadSound(id). */
+  registerSound(id: string, url: string | string[]): void;
+  /* registerSound for a whole list at once. */
+  registerSounds(soundsToRegister: { id: string; url: string | string[] }[]): void;
+  /* Where a sound is in the loading process: unloaded, loading, loaded or error. */
+  getLoadState(id: string): SoundLoadState;
+  /* The urls a sound was registered or loaded with. */
+  getSoundUrls(id: string): string[];
+  /* Whether this browser can play a format, by extension: canPlay('opus'). */
+  canPlay(format: string): boolean;
+  /* Every extension this browser accepts. */
+  getSupportedFormats(): string[];
   /* Update the URL of a sound by its ID. */
   updateSoundUrl(id: string, newUrl: string): Promise<void>;
   /* Unload a sound by its ID, freeing up resources. */
@@ -114,7 +129,7 @@ export interface SoundHubInterface {
   // Streaming: load long files as a stream instead of decoding them into memory.
   /* Load a long audio file (podcast, audiobook, radio, a full album track) as a stream.
      Playback, seeking, volume, fades, panning, playback rate, looping, state and progress
-     all behave as they do for a buffered sound; sprites and createNewInstance do not apply. */
+     all behave as they do for a buffered sound; sprites and overlap do not apply. */
   loadStream(id: string, url: string, options?: StreamOptions): Promise<void>;
   /* Whether this id was loaded with loadStream rather than loadSound. */
   isStream(id: string): boolean;
@@ -216,6 +231,26 @@ export interface SoundHubInterface {
   resetSpatialPosition(id?: string): void;
   /* Reset the master spatial position to the default (0, 0, 0). */
   resetMasterSpatialPosition(): void;
+  /* Point a sound in a direction. Works together with the cone settings on the panner config. */
+  setSpatialOrientation(soundId: string, x: number, y: number, z: number, skipDispatchEvent?: boolean): void;
+  /* The direction a sound points in. */
+  getSpatialOrientation(soundId: string): { x: number; y: number; z: number } | null;
+  /* Point the master panner in a direction. */
+  setMasterSpatialOrientation(x: number, y: number, z: number, skipDispatchEvent?: boolean): void;
+  /* The direction the master panner points in. */
+  getMasterSpatialOrientation(): { x: number; y: number; z: number };
+
+  // Listener: the ear in the scene. Move this instead of the sounds for a first-person camera.
+  /* Move the listener. Every spatial sound is heard from here. */
+  setListenerPosition(x: number, y: number, z: number, skipDispatchEvent?: boolean): void;
+  /* The current listener position. */
+  getListenerPosition(): { x: number; y: number; z: number };
+  /* Point the listener. Forward is where the head looks, up is which way is up. */
+  setListenerOrientation(forwardX: number, forwardY: number, forwardZ: number, upX?: number, upY?: number, upZ?: number, skipDispatchEvent?: boolean): void;
+  /* The current listener orientation. */
+  getListenerOrientation(): { forward: { x: number; y: number; z: number }; up: { x: number; y: number; z: number } };
+  /* Put the listener back at the centre, looking down negative z. */
+  resetListener(): void;
 
   // Playback rate control: Control the playback speed of sounds.
   /* Set the playback rate of a sound by its ID. */
