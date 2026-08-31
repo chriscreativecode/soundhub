@@ -11,8 +11,7 @@
 listen to a single typed event bus instead of wiring callbacks per sound.
 
 Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, written in
-TypeScript and usable from plain JavaScript. Coming from Howler.js? There is a
-comparison a bit further down.
+TypeScript and usable from plain JavaScript.
 
 - **[Live demo](https://soundhub.chriscreativecode.com/)**
 - **[Changelog](./CHANGELOG.md)**
@@ -45,38 +44,47 @@ hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
 });
 ```
 
-## soundhub next to Howler.js
+## What soundhub is built for
 
-Howler.js is the library most people reach for, and it is a good one. The
-difference is the shape of the API. Howler gives you an object per sound and you
-keep track of those objects yourself. soundhub keeps one manager in front of the
-audio graph and you address everything by id, so the state of your audio lives in
-one place instead of spread over your components.
+You address every sound by id and one hub holds the graph behind it, so the state
+of your audio sits in one place instead of spread over your components.
+
+- One typed event bus with 38 event types. A filter per listener narrows it down
+  to a single sound, one overlapping instance, or every instance that matches a
+  naming pattern.
+- The progress event carries the whole state. `event.state` is the same
+  `SoundStateInfo` object that `getSoundState()` returns: progress, currentTime,
+  duration, playbackRate, volume, pan, spatial position and the playback state. A
+  seek bar reads it straight off the event instead of polling for it.
+- Long files stay in the graph. `loadStream` plays an hour of audio without
+  decoding it first, and it still runs through the panner and the gain nodes, so
+  an ambience track gets the same effects and the same 3D position as a sample of
+  half a second.
+- Ceilings instead of your own bookkeeping. `createSoundGroup` with
+  `maxInstances` caps a group, and `maxInstancesPerSound` does the same for every
+  sound in the hub without needing a group for it. Hit the cap and the oldest
+  instance stops. A master limiter is one config flag, gapless looping is one
+  play option, and the lock screen controls are one call to `setMediaSession`.
+
+```ts
+hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
+  const { progress, currentTime, duration } = event.state!;
+  seekBar.value = progress;
+  timeLabel.textContent = `${format(currentTime)} / ${format(duration)}`;
+}, { soundId: 'music' });
+```
 
 | | soundhub | Howler.js |
 | --- | --- | --- |
-| Model | one hub, sounds by id | one `Howl` object per sound |
-| Events | one typed bus, 35+ event types, filter per listener | callbacks per `Howl` |
-| Types | written in TypeScript | types in a separate `@types` package |
-| Long files | `loadStream`, still routed through the graph | `html5: true`, outside the Web Audio graph |
+| Events | one typed bus, 38 types, filter per listener | callbacks per `Howl` |
+| Progress | the full state on the event, plus `getSoundState` | poll `seek()` yourself |
+| Long files | `loadStream`, still in the Web Audio graph | `html5: true`, outside it |
 | Spatial on long files | yes | no, HTML5 mode skips the panner |
-| Limiter | `masterLimiter: true` | build it yourself on `Howler.ctx` |
 | Groups | `createSoundGroup` with `maxInstances` | your own bookkeeping |
-| Media Session | `setMediaSession` | your own bookkeeping |
-| Progress | `progress` events plus `getSoundState` | poll `seek()` yourself |
-| Gapless loop | `seamlessLoop: true` | no |
-| Format fallback | a list of urls per sound, plus `canPlay` | a list of urls per sound, plus `Howler.codecs` |
-| Listener | `setListenerPosition` and `setListenerOrientation` | `Howler.pos` and `Howler.orientation` |
-| Deferred loading | `registerSound` plus `getLoadState` | `preload: false` plus `load()` |
-| Idle battery | `autoSuspend` | `Howler.autoSuspend`, on by default |
-| Auth headers | `fetchHeaders` in the config | `xhr: { headers }` per sound |
+| Limiter | `masterLimiter: true` | build it yourself on `Howler.ctx` |
 
-Where Howler is ahead: it is smaller, and it has been in production far longer,
-on more strange devices than I will ever own.
-
-Pick soundhub when your app has a lot of audio at once and you want one place to
-control it. Pick Howler when you need a handful of sounds and the smallest
-possible download.
+soundhub is for apps that run a lot of audio at once. A game, a player, anything
+where the music and the one-shots have to stay under control from one place.
 
 ## Playing a sound many times at once
 
