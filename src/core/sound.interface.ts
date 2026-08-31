@@ -16,6 +16,7 @@ export interface Sound {
   originalVolume?: number;
   pannerNode?: PannerNode | null; // for 3D panning
   pan?: number; // Normal panning value -1 to 1
+  panSpatialOrientation?: { x: number; y: number; z: number }; // Direction the sound points in, for cone settings
   panSpatialPosition? : { x: number; y: number; z: number };
   panType?: SoundPanType; 
   pausedAt?: number;

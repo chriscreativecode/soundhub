@@ -57,6 +57,19 @@
         <p class="hint">Live instances: <strong id="laserCount">0</strong>, capped at 16 by the group's <code>maxInstances</code>.</p>
       </section>
 
+      <!-- Deferred loading --------------------------------------------->
+      <section class="card">
+        <h2>Deferred loading</h2>
+        <p class="hint">These three were registered with <code>registerSound</code> and not fetched at startup. The first click loads them.</p>
+        <div class="row">
+          <button id="lazyExplosion" class="primary">Explosion</button>
+          <button id="lazyPowerUp">Power up</button>
+          <button id="lazyWhoosh">Whoosh</button>
+        </div>
+        <p class="hint">State: <strong id="lazyState">-</strong></p>
+        <p class="hint">Formats this browser accepts: <strong id="formats">-</strong></p>
+      </section>
+
       <!-- Transport & progress ----------------------------------------->
       <section class="card">
         <h2>Progress &amp; transport</h2>
@@ -109,6 +122,14 @@
           <label>Z (front ↔ back) <output id="heliZOut">0</output>
             <input type="range" id="heliZ" min="-10" max="10" step="0.1" value="0" />
           </label>
+        </div>
+        <p class="hint">The sliders move the helicopter. The ones below move you: same panner, other end of it.</p>
+        <div class="row">
+          <label>Listener X <output id="earXOut">0</output>
+            <input type="range" id="earX" min="-10" max="10" step="0.1" value="0" />
+          </label>
+          <button id="earTurn">Turn around</button>
+          <button id="earReset">Reset listener</button>
         </div>
       </section>
 

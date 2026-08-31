@@ -30,13 +30,17 @@ const hub = new SoundHub({
 const SOUNDS = [
   { id: 'sprites', url: spriteSheetUrl },
   { id: 'laser', url: laserUrl },
-  { id: 'explosion', url: explosionUrl },
-  { id: 'power-up', url: powerUpUrl },
-  { id: 'whoosh', url: whooshUrl },
   { id: 'music', url: musicUrl },
   { id: 'rain', url: rainUrl },
   { id: 'birds', url: birdsUrl },
   { id: 'helicopter', url: helicopterUrl },
+];
+
+// Known about, not fetched. The button that needs one loads it.
+const DEFERRED_SOUNDS = [
+  { id: 'explosion', url: explosionUrl },
+  { id: 'power-up', url: powerUpUrl },
+  { id: 'whoosh', url: whooshUrl },
 ];
 
 const SPRITES: { [key: string]: [number, number] } = {
@@ -162,7 +166,7 @@ const buildSprites = (): void => {
     const button = document.createElement('button');
     button.className = 'sprite';
     button.innerHTML = `<b>${SPRITE_LABELS[key]}</b><small>${start.toFixed(1)}s → ${end.toFixed(1)}s</small>`;
-    button.addEventListener('click', () => hub.playSprite('sprites', key, {}));
+    button.addEventListener('click', () => hub.playSprite('sprites', key));
     grid.append(button);
   });
 };
@@ -179,7 +183,7 @@ const refreshLaserCount = (): void => {
 };
 
 const fireLaser = (): void => {
-  hub.play('laser', { createNewInstance: true, groupId: 'lasers', volume: 0.7 });
+  hub.play('laser', { overlap: true, groupId: 'lasers', volume: 0.7 });
   refreshLaserCount();
 };
 
@@ -193,6 +197,29 @@ $('laserStop').addEventListener('click', () => {
   hub.getGroup('lasers')?.sounds.forEach((id) => hub.stop(id));
   refreshLaserCount();
 });
+
+// --------------------------------------------------- deferred loading ----
+
+const lazyStateEl = $('lazyState');
+
+const refreshLazyState = (): void => {
+  lazyStateEl.textContent = DEFERRED_SOUNDS
+    .map(({ id }) => `${id}: ${hub.getLoadState(id)}`)
+    .join('   ');
+};
+
+const playWhenLoaded = async (id: string): Promise<void> => {
+  if (hub.getLoadState(id) !== 'loaded') {
+    refreshLazyState();
+    await hub.loadSound(id);
+  }
+  hub.play(id, { overlap: true });
+  refreshLazyState();
+};
+
+$('lazyExplosion').addEventListener('click', () => void playWhenLoaded('explosion'));
+$('lazyPowerUp').addEventListener('click', () => void playWhenLoaded('power-up'));
+$('lazyWhoosh').addEventListener('click', () => void playWhenLoaded('whoosh'));
 
 // -------------------------------------------------- progress & transport ---
 
@@ -303,6 +330,30 @@ $('heliStop').addEventListener('click', () => {
   hub.stop('helicopter');
 });
 
+const earX = $<HTMLInputElement>('earX');
+const earXOut = $<HTMLOutputElement>('earXOut');
+let facingBackwards = false;
+
+earX.addEventListener('input', () => {
+  const x = Number(earX.value);
+  earXOut.textContent = x.toFixed(1);
+  hub.setListenerPosition(x, 0, 0);
+});
+
+$('earTurn').addEventListener('click', (e) => {
+  facingBackwards = !facingBackwards;
+  (e.currentTarget as HTMLButtonElement).classList.toggle('on', facingBackwards);
+  hub.setListenerOrientation(0, 0, facingBackwards ? 1 : -1);
+});
+
+$('earReset').addEventListener('click', () => {
+  facingBackwards = false;
+  $('earTurn').classList.remove('on');
+  earX.value = '0';
+  earXOut.textContent = '0.0';
+  hub.resetListener();
+});
+
 $('heliOrbit').addEventListener('click', (e) => {
   orbiting = !orbiting;
   (e.currentTarget as HTMLButtonElement).classList.toggle('on', orbiting);
@@ -403,6 +454,7 @@ const refreshStats = (): void => {
 
 const boot = async (): Promise<void> => {
   await hub.loadSounds(SOUNDS);
+  hub.registerSounds(DEFERRED_SOUNDS);
 
   // Same file, loaded the other way: the browser streams it instead of
   // decoding it into memory. With a real podcast this is the difference
@@ -416,6 +468,8 @@ const boot = async (): Promise<void> => {
   buildSprites();
   refreshGroup();
   refreshStats();
+  refreshLazyState();
+  $('formats').textContent = hub.getSupportedFormats().join(', ');
   window.setInterval(refreshStats, 500);
 
   timeTotal.textContent = formatTime(hub.getDuration('music'));
