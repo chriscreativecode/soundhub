@@ -5,7 +5,7 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
-## [Unreleased]
+## [6.2.0] - 2026-08-31
 
 ### Added
 
@@ -123,9 +123,9 @@ repeated what the line below them said. The build strips comments either way, so
 the package is the same size; this is for anyone reading the code.
 
 **Tests.** The project has a test suite: Vitest on jsdom with a Web Audio mock,
-173 tests over loading, playback, overlap, sprites, groups, fades, panning,
+177 tests over loading, playback, overlap, sprites, groups, fades, panning,
 spatial audio, the listener, streams, the media session and the event bus.
-`npm test` runs it. Five of the fixes above came out of writing it.
+`npm test` runs it. Five of the six fixes above came out of writing it.
 
 ### Deprecated
 
@@ -226,5 +226,6 @@ Renamed from `sound-manager-ts`. Nothing about the behaviour changed. See the
 Earlier history belongs to [`sound-manager-ts`](https://www.npmjs.com/package/sound-manager-ts),
 versions 1.0.0 through 5.9.1.
 
+[6.2.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.0
 [6.1.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.1.0
 [6.0.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.0.0
