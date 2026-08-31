@@ -5,6 +5,23 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [6.2.1] - 2026-08-31
+
+### Fixed
+
+**The package did not export its own `package.json`.** `require('soundhub/package.json')`
+threw, which is how build tools, bundle analysers and version checks read a
+package's version. It is exported now.
+
+### Changed
+
+The README leads with what the library is built for instead of with a
+comparison, and the events, progress state and ceilings each get a line. Tests
+were added around the packaging itself: the version in the console banner has to
+match `package.json`, the entry points have to point at files that actually
+ship, the progress event has to carry the full state, and every method the
+interface declares has to exist on the class.
+
 ## [6.2.0] - 2026-08-31
 
 ### Added
@@ -226,6 +243,7 @@ Renamed from `sound-manager-ts`. Nothing about the behaviour changed. See the
 Earlier history belongs to [`sound-manager-ts`](https://www.npmjs.com/package/sound-manager-ts),
 versions 1.0.0 through 5.9.1.
 
+[6.2.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.1
 [6.2.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.0
 [6.1.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.1.0
 [6.0.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.0.0
