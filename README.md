@@ -40,7 +40,7 @@ hub.play('laser', { overlap: true });
 
 // One bus, one place to react.
 hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
-  progressBar.value = event.progressInfo!.progress;
+  progressBar.value = event.state!.progress;
 });
 ```
 
@@ -218,7 +218,7 @@ and a filter keeps each listener to the sound it cares about:
 
 ```ts
 const off = hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
-  bar.value = event.progressInfo!.progress;      // no id check needed
+  bar.value = event.state!.progress;             // no id check needed
 }, { soundId: 'music' });
 
 hub.once(SoundEventsEnum.ENDED, playNextTrack, { soundId: 'music' });
