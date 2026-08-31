@@ -146,6 +146,33 @@ export class MockConstantSourceNode extends MockAudioNode {
   }
 }
 
+export class MockAnalyserNode extends MockAudioNode {
+  public fftSize = 2048;
+  public smoothingTimeConstant = 0.8;
+  public minDecibels = -100;
+  public maxDecibels = -30;
+
+  constructor(context: MockAudioContext) {
+    super(context, 'analyser');
+  }
+
+  get frequencyBinCount(): number {
+    return this.fftSize / 2;
+  }
+
+  getByteFrequencyData(array: Uint8Array): void {
+    array.fill(0);
+  }
+
+  getByteTimeDomainData(array: Uint8Array): void {
+    array.fill(128);
+  }
+
+  getFloatTimeDomainData(array: Float32Array): void {
+    array.fill(0);
+  }
+}
+
 export class MockAudioBuffer {
   constructor(
     public readonly numberOfChannels: number,
@@ -249,6 +276,10 @@ export class MockAudioContext {
 
   createPanner(): MockPannerNode {
     return new MockPannerNode(this);
+  }
+
+  createAnalyser(): MockAnalyserNode {
+    return new MockAnalyserNode(this);
   }
 
   createDynamicsCompressor(): MockDynamicsCompressorNode {
