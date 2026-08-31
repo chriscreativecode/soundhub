@@ -5,10 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # Serve examples/ with the library aliased to src/
-npm run build      # Typecheck, then build dist/ and dist/types/
-npm run typecheck  # tsc --noEmit
+npm run dev            # Serve examples/ with the library aliased to src/
+npm run build          # Typecheck, then build dist/ and dist/types/
+npm run typecheck      # tsc --noEmit
+npm test               # Vitest, once
+npm run test:watch     # Vitest, while you work
+npm run test:coverage  # Vitest with a coverage report
 ```
+
+Tests live in `tests/`, with the Web Audio mock and helpers in `tests/support`.
+They run against `src/`, not `dist/`. A bug fix gets a test that fails without
+it; new public API gets tests in the file for its area.
 
 ## Architecture
 
@@ -41,5 +48,7 @@ comments, commit messages and UI copy.
   statement.
 
 Run the humanizer skill over any longer piece of prose before handing it over,
-and check for dashes before calling it done.
+and check for dashes before calling it done. For README.md this is not optional:
+every rewrite of it goes through the humanizer skill first, because that file
+ships to npm and is the first thing anyone reads.
 

@@ -5,6 +5,137 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [Unreleased]
+
+### Added
+
+**`overlap`.** Playing a sound while it is still running restarts it. Set
+`overlap: true` and the call gets its own instance instead, so the sounds stack.
+That is what `createNewInstance` did, under a name that says what happens rather
+than what the library does internally. It works in the play options and in the
+hub config, and the default is still off.
+
+```js
+hub.play('laser', { overlap: true });
+```
+
+`playSprite` no longer needs an empty options object: `hub.playSprite('ui',
+'click')` is enough.
+
+**A list of urls per sound.** `loadSound` and `loadSounds` take an array, and the
+browser picks the first format it can play. The check happens before anything is
+fetched, so the files it cannot use are never requested. `SoundHub.canPlay('opus')`
+and `SoundHub.getSupportedFormats()` answer the same question directly, and both
+are static so you can ask before building a hub. A url without a known extension,
+a signed CDN link for example, is used as is.
+
+```js
+await hub.loadSound('theme', ['/audio/theme.opus', '/audio/theme.m4a']);
+```
+
+**Deferred loading.** `registerSound(id, url)` writes down where a sound lives
+without fetching it. `loadSound(id)` then needs no url. `getLoadState(id)` returns
+`unloaded`, `loading`, `loaded` or `error`, and a `loading` event fires on the bus
+when a fetch starts, which is enough to drive a spinner. `getSoundUrls(id)` gives
+back what was registered.
+
+**A listener you can move.** `setListenerPosition` and `setListenerOrientation`
+move the ear through the scene, which is what a first-person camera needs.
+Until now sounds could only move around a fixed listener. `getListenerPosition`,
+`getListenerOrientation` and `resetListener` come with it, and a
+`listener_changed` event goes on the bus. Old Safari, which has `setPosition`
+instead of the audio params, is handled.
+
+**Sounds that point somewhere.** `setSpatialOrientation(id, x, y, z)` aims a
+sound, and `panSpatialOrientation` does the same from the play options. The cone
+settings in `SoundPannerConfig` have been there for a while but had no direction
+to work with, so they did nothing. Now they do. `setMasterSpatialOrientation`
+does the same for the master panner.
+
+**`autoSuspend`.** A running audio context keeps the audio hardware awake even
+when nothing plays. Turn this on and the context sleeps after `autoSuspendDelay`
+seconds of silence, thirty by default, and the next `play()` wakes it up. Off by
+default: waking takes a few milliseconds, and a metronome or a busy game is
+better off awake. `context_suspended` and `context_resumed` events report it.
+
+**`fetchHeaders`.** Extra request headers for every audio fetch, for audio behind
+a token.
+
+```js
+const hub = new SoundHub({ fetchHeaders: { Authorization: `Bearer ${token}` } });
+```
+
+**`maxInstancesPerSound`.** A ceiling on overlapping instances of one sound,
+without needing a group for it. Reaching the ceiling stops the oldest instance.
+Off by default.
+
+**An `unlocked` event.** Mobile browsers keep audio locked until the first touch.
+The hub already handled that; now it says so, which is the moment to take your
+"tap for sound" overlay off the screen.
+
+### Fixed
+
+**A sound played into a group did not join it.** `play(id, { groupId })` only
+added the sound to the group on the overlap path. Without overlap the group
+stayed empty, so its play options never applied and stopping every member of a
+group stopped nothing. This is the bug behind "press Rain, press Stop group,
+still hear rain" on the example page.
+
+**`getSoundVolume` ignored fades.** It reads `originalVolume`, which a fade did
+not touch, so after a fade it kept reporting the volume from before while
+`getSoundState().volume` already reported the new one. The two agree again.
+
+**Cancelling a fade finished it instead.** Anything that interrupts a fade goes
+through the same cancel step: setting the volume, starting another fade, stopping
+the sound. That step ran the fade's completion callback, so the volume jumped to
+the value the fade was heading for, `fade_in_completed` or `fade_out_completed`
+fired, and a `fadeOut(..., stopAfterFade)` stopped the sound. Turning the volume
+up halfway through a fade out therefore silenced it and stopped it. Cancelling
+now abandons the fade and leaves the volume where it got to, which is also what
+`fadeIn` always assumed when it carries on from the current volume.
+
+**A fade that stops the sound fired its event thousands of times.** The completion
+callback of `fadeOut(..., stopAfterFade)` calls `stop()`, `stop()` calls back into
+the fade machinery, and it found its own callback still registered. It recursed
+until the stack ran out, dispatching `fade_out_completed` on every level. The
+callback is now taken out of the map before it runs, and the event fires once.
+
+**`removeEventListener` removed too much.** The filter comparison never looked at
+`soundId`, so two listeners with the same callback and different `soundId`
+filters counted as the same listener and removing one removed both.
+
+**A listener filtered on an instance never heard it end.** The listeners for an
+instance were dropped during the cleanup that runs before the `ended` event, so
+the one event they were waiting for arrived after they were gone. The cleanup now
+happens after the event.
+
+### Changed
+
+**Finished instances are cleaned up.** An instance played with `overlap` used to
+stay in the sound map for the lifetime of the page. A game firing a footstep
+every half second grew the map by seven thousand entries an hour. Instances that
+have finished are now dropped when a new instance of the same sound starts.
+Playing and paused ones are left alone, and so is one that is on the lock screen.
+`getSoundIds()` no longer lists instances that ended.
+
+**Comments.** The source lost about a hundred and thirty comments that only
+repeated what the line below them said. The build strips comments either way, so
+the package is the same size; this is for anyone reading the code.
+
+**Tests.** The project has a test suite: Vitest on jsdom with a Web Audio mock,
+173 tests over loading, playback, overlap, sprites, groups, fades, panning,
+spatial audio, the listener, streams, the media session and the event bus.
+`npm test` runs it. Five of the fixes above came out of writing it.
+
+### Deprecated
+
+**`createNewInstance`.** Renamed to `overlap`. The old name still works in the
+play options and in the config, so nothing breaks by upgrading, and your editor
+marks it as deprecated. It is removed in v7, together with the `SoundManager`
+alias.
+
+If you set both, `overlap` wins.
+
 ## [6.1.0] - 2026-08-29
 
 ### Added
