@@ -205,16 +205,14 @@ const hub = new SoundHub({
 });
 ```
 
-## Why one hub
+## A closer look
 
-Most Web Audio wrappers hand you an object per sound and leave the rest to you.
-soundhub keeps a single manager in front of the audio graph, which changes what
-the day-to-day code looks like:
+"What soundhub is built for" is the short version. This is the same ground with
+the code on it, plus the parts that did not fit there.
 
-**One typed event bus.** Thirty-plus event types in a single enum
-(`SoundEventsEnum.STARTED`, `.FADE_OUT_COMPLETED`, `.SPATIAL_POSITION_CHANGED`, …),
-each carrying the sound id. Your UI subscribes once instead of once per sound,
-and a filter keeps each listener to the sound it cares about:
+**Filters and unsubscribing.** A listener can be narrowed to one sound, one
+overlapping instance, or every instance matching a pattern, and
+`addEventListener` hands back the function that removes it again:
 
 ```ts
 const off = hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
@@ -226,18 +224,10 @@ hub.once(SoundEventsEnum.ENDED, playNextTrack, { soundId: 'music' });
 off();  // addEventListener hands back its own unsubscribe
 ```
 
-**UI-ready state.** `getSoundState(id)` returns progress, current time, adjusted
-elapsed time, duration, volume, pan and spatial position in one object, and
-`progress` events fire on an interval you choose. No polling loop of your own,
-no time arithmetic.
-
-**A master limiter.** `masterLimiter: true` puts a compressor just before the
-output, so twenty simultaneous sound effects do not clip. Off by default, so
+**What a group carries.** A group has its own play options, so
+`play(id, { groupId })` inherits looping, volume and the rest from the group
+instead of repeating them per call. The master limiter is off by default:
 turning it on is a deliberate change to how your project sounds.
-
-**Groups.** Give a group its own play options and route sounds into it with
-`play(id, { groupId })`. `maxInstances` caps concurrency and retires the oldest
-instance automatically.
 
 **A listener you can move.** `setSpatialPosition` moves a sound around the ear,
 which is what a map or a menu needs. A first-person camera works the other way
@@ -267,12 +257,11 @@ stereo panning, 3D spatial positioning with HRTF, cross-origin loading with
 retries, and mobile handling (auto-unlock, auto-mute when the tab hides,
 auto-resume on focus).
 
-**Long files stream.** Short sounds are decoded into memory, which is what makes
-precise scheduling, sprites and instance stacking possible. An hour-long podcast
-loaded that way would cost hundreds of megabytes and a long wait before the first
-sound. So `loadStream` takes the other route: the browser fetches as it plays.
-The audio still runs through the same graph, so master volume, panning and the
-limiter apply either way.
+**Why a stream is a different thing.** Short sounds are decoded into memory,
+which is what makes precise scheduling, sprites and instance stacking possible.
+An hour-long podcast loaded that way would cost hundreds of megabytes and a long
+wait before the first sound. So `loadStream` takes the other route: the browser
+fetches as it plays.
 
 ```ts
 await hub.loadStream('episode-42', '/audio/episode-42.mp3');
