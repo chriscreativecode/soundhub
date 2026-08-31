@@ -5,6 +5,22 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [6.2.2] - 2026-08-31
+
+Documentation only. The code is the same as 6.2.1.
+
+### Changed
+
+**The README said everything twice.** The section at the top and the one lower
+down had grown into two feature lists under each other, making the same four
+points in the same order, one of them claiming thirty-plus event types while the
+other said thirty-eight. The top section is the claim now, and the lower one is
+the same ground with the code on it plus what did not fit up there. It is called
+"A closer look" instead of arguing the case a second time.
+
+The quick start examples read progress off `event.state`, the way the rest of the
+README does.
+
 ## [6.2.1] - 2026-08-31
 
 ### Fixed
@@ -243,6 +259,7 @@ Renamed from `sound-manager-ts`. Nothing about the behaviour changed. See the
 Earlier history belongs to [`sound-manager-ts`](https://www.npmjs.com/package/sound-manager-ts),
 versions 1.0.0 through 5.9.1.
 
+[6.2.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.2
 [6.2.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.1
 [6.2.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.0
 [6.1.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.1.0

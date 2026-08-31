@@ -1,6 +1,6 @@
 {
   "name": "soundhub",
-  "version": "6.2.1",
+  "version": "6.2.2",
   "license": "MIT",
   "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus, and stream long files. Web Audio API, 21 KB gzipped, zero dependencies.",
   "author": {
