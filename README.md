@@ -79,13 +79,13 @@ hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
 }, { soundId: 'music' });
 ```
 
-| | soundhub | Howler.js |
+| | soundhub | Howler.js 2.2.4 |
 | --- | --- | --- |
 | Events | one typed bus, 38 types, filter per listener | callbacks per `Howl` |
 | Progress | the full state on the event, plus `getSoundState` | poll `seek()` yourself |
 | Long files | `loadStream`, still in the Web Audio graph | `html5: true`, outside it |
 | Spatial on long files | yes | no, HTML5 mode skips the panner |
-| Groups | `createSoundGroup` with `maxInstances` | your own bookkeeping |
+| Groups | `createSoundGroup` with `maxInstances` | no cap on concurrent instances (`pool` recycles finished ones) |
 | Limiter | `masterLimiter: true` | build it yourself on `Howler.ctx` |
 
 soundhub is for apps that run a lot of audio at once. A game, a player, anything
