@@ -18,6 +18,10 @@ listen to a single typed event bus instead of wiring callbacks per sound.
 Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, written in
 TypeScript and usable from plain JavaScript.
 
+It started in December 2024 as `sound-manager-ts`, which ran to 55 releases before
+the 6.0.0 rewrite and the rename. That package is deprecated on npm and points here.
+The [changelog](./CHANGELOG.md) goes back to the first release.
+
 - **[Live demo](https://soundhub.chriscreativecode.com/)**
 - **[Changelog](./CHANGELOG.md)**
 - **[Documentation](https://soundhub-docs.chriscreativecode.com/)**
