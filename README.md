@@ -1,8 +1,12 @@
 # soundhub.js
 
-[![soundhub.js placing a sound in 3D around the listener](docs/demo.gif)](https://soundhub.chriscreativecode.com/spatial/)
+**One hub for all the audio in your app.** Load sounds once, address them by id, and
+listen to a single typed event bus instead of wiring callbacks per sound.
 
-*The 3D spatial demo. The sound orbits the listener while you keep control of the panner settings. [Try it with the sound on](https://soundhub.chriscreativecode.com/).*
+[![Twelve sounds registered in one hub, three of them playing at once, with every state change arriving on one event bus](docs/hero.png)](https://soundhub.chriscreativecode.com/general/)
+
+*Twelve sounds registered, three playing at once, each with its own volume, and every
+state change arriving on one typed bus. [Try it with the sound on](https://soundhub.chriscreativecode.com/).*
 
 [![npm version](https://img.shields.io/npm/v/soundhub.svg)](https://www.npmjs.com/package/soundhub)
 [![License: MIT](https://img.shields.io/npm/l/soundhub.svg)](https://opensource.org/licenses/MIT)
@@ -11,9 +15,6 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B-yellow.svg)](https://www.npmjs.com/package/soundhub)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6.svg)](https://www.npmjs.com/package/soundhub)
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/chriscreativecode/soundhub)
-
-**One hub for all the audio in your app.** Load sounds once, address them by id, and
-listen to a single typed event bus instead of wiring callbacks per sound.
 
 Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, written in
 TypeScript and usable from plain JavaScript.
@@ -237,6 +238,11 @@ off();  // addEventListener hands back its own unsubscribe
 `play(id, { groupId })` inherits looping, volume and the rest from the group
 instead of repeating them per call. The master limiter is off by default:
 turning it on is a deliberate change to how your project sounds.
+
+[![A sound orbiting the listener in the 3D spatial demo](docs/demo.gif)](https://soundhub.chriscreativecode.com/spatial/)
+
+*One sound orbiting the listener, with the panner settings live. This is one feature
+of several, not what the library is for.*
 
 **A listener you can move.** `setSpatialPosition` moves a sound around the ear,
 which is what a map or a menu needs. A first-person camera works the other way
