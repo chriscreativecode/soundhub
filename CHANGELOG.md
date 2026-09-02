@@ -256,8 +256,117 @@ Renamed from `sound-manager-ts`. Nothing about the behaviour changed. See the
 
 ---
 
-Earlier history belongs to [`sound-manager-ts`](https://www.npmjs.com/package/sound-manager-ts),
-versions 1.0.0 through 5.9.1.
+# sound-manager-ts
+
+soundhub started in December 2024 as `sound-manager-ts` and was renamed after
+the 6.0.0 rewrite. The releases below were published under that name between
+December 2024 and August 2026. The package is deprecated on npm and points here.
+
+## [5.8.0] - 2026-08-14
+
+### Added
+
+- A limiter on the master output, so overlapping sounds do not clip.
+  `setMasterLimiter`, `isMasterLimiterEnabled` and `getMasterLimiterNode`, with
+  `getMasterInput` and `getMasterOutput` for wiring your own nodes into the
+  chain.
+
+## [5.0.0] - 2025-03-22
+
+### Added
+
+- Sound groups: `createSoundGroup`, `addToSoundGroup`, `removeFromSoundGroup`,
+  `getGroup` and `removeSoundGroup`, with instance caps per group.
+- Explicit loading with `loadSound`, `loadSounds`, `unloadSound` and
+  `removeSound`, separating loading from playback.
+- Progress tracking: `startProgressTracking`, `stopProgressTracking`,
+  `setProgressUpdateInterval`, `getProgress` and `getProgressPercentage`.
+- Audio context control through `suspendContext`, `resumeContext` and
+  `getContext`.
+- Spatial position getters and resets alongside the existing setters.
+- Playback rate control with `setPlaybackRate` and `getPlaybackRate`.
+
+## [4.0.0] - 2025-02-08
+
+### Added
+
+- 3D spatial audio: `setSoundPosition`, `setMasterSpatialPosition`,
+  `updatePannerConfigById` and the panner configuration type.
+- Stereo panning: `setPan`, `setGlobalPan`, `removePan` and `resetGlobalPan`.
+- Sound sprites through `setSoundSprite` and `playSprite`.
+- Fades: `fadeIn`, `fadeOut`, `fadeGlobalIn` and `fadeGlobalOut`.
+- An event listener API with `addEventListener` and `removeEventListener`.
+
+### Changed
+
+- Shortened the method names. `playSound` became `play`, `pauseSound` became
+  `pause`, and the rest followed.
+- Split the source into modules. The type output went from one file to fourteen.
+
+## [3.0.0] - 2025-01-25
+
+### Changed
+
+- Reworked the internals ahead of the 4.0.0 API. The bundle grew from 5.3 KB to
+  6.9 KB gzipped.
+
+## [2.0.0] - 2025-01-01
+
+### Changed
+
+- Second pass over the public API after the first two weeks of use. The bundle
+  grew from 1.6 KB to 5.3 KB gzipped.
+
+## [1.0.0] - 2024-12-19
+
+First public release, at 1.6 KB gzipped.
+
+### Added
+
+- Playback: `playSound`, `pauseSound`, `resumeSound`, `stopSound`, and the
+  matching all sounds variants.
+- Volume per sound and globally, muting per sound and globally.
+- `preloadSounds`, `isPlaying`, `isPaused`, `getSoundIds`, `getSoundState` and
+  `dispose`.
+
+---
+
+## Full release history
+
+Every version published to npm, oldest first. Versions not described above were
+fixes and small additions between the milestones.
+
+| Version | Date | Package |
+| --- | --- | --- |
+| 1.0.0 to 1.0.4 | 19 Dec 2024 | sound-manager-ts |
+| 1.1.0 to 1.3.0 | 22 Dec 2024 | sound-manager-ts |
+| 2.0.0 | 1 Jan 2025 | sound-manager-ts |
+| 2.1.0 to 2.1.6 | 2 to 4 Jan 2025 | sound-manager-ts |
+| 2.1.7 to 2.1.9 | 7 Jan 2025 | sound-manager-ts |
+| 2.2.0, 2.3.0 | 12 Jan 2025 | sound-manager-ts |
+| 2.4.0 | 24 Jan 2025 | sound-manager-ts |
+| 3.0.0 to 3.1.0 | 25 Jan 2025 | sound-manager-ts |
+| 3.2.0 | 26 Jan 2025 | sound-manager-ts |
+| 4.0.0, 4.0.1 | 8 Feb 2025 | sound-manager-ts |
+| 5.0.0 to 5.2.1 | 22 Mar 2025 | sound-manager-ts |
+| 5.3.0, 5.3.1 | 23 Mar 2025 | sound-manager-ts |
+| 5.4.0 | 28 Mar 2025 | sound-manager-ts |
+| 5.5.0, 5.5.1 | 29 Mar 2025 | sound-manager-ts |
+| 5.5.2 | 30 Mar 2025 | sound-manager-ts |
+| 5.5.3 | 4 Apr 2025 | sound-manager-ts |
+| 5.5.4 | 10 Apr 2025 | sound-manager-ts |
+| 5.5.5, 5.5.6 | 19 Feb 2026 | sound-manager-ts |
+| 5.5.7 | 17 May 2026 | sound-manager-ts |
+| 5.5.8 | 31 May 2026 | sound-manager-ts |
+| 5.5.9, 5.6.0 | 1 Jun 2026 | sound-manager-ts |
+| 5.7.0, 5.7.1 | 2 Jun 2026 | sound-manager-ts |
+| 5.7.2 | 14 Jun 2026 | sound-manager-ts |
+| 5.8.0, 5.8.1 | 14 Aug 2026 | sound-manager-ts |
+| 5.9.0 | 15 Aug 2026 | sound-manager-ts |
+| 5.9.1 | 29 Aug 2026 | sound-manager-ts, deprecated |
+| 6.0.0 | 29 Aug 2026 | soundhub |
+| 6.1.0 | 30 Aug 2026 | soundhub |
+| 6.2.0 to 6.2.2 | 31 Aug 2026 | soundhub |
 
 [6.2.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.2
 [6.2.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.1
