@@ -1,11 +1,16 @@
 # soundhub.js
 
+[![soundhub.js placing a sound in 3D around the listener](docs/demo.gif)](https://soundhub.chriscreativecode.com/spatial/)
+
+*The 3D spatial demo. The sound orbits the listener while you keep control of the panner settings. [Try it with the sound on](https://soundhub.chriscreativecode.com/).*
+
 [![npm version](https://img.shields.io/npm/v/soundhub.svg)](https://www.npmjs.com/package/soundhub)
 [![License: MIT](https://img.shields.io/npm/l/soundhub.svg)](https://opensource.org/licenses/MIT)
 [![Minzipped size](https://img.shields.io/bundlephobia/minzip/soundhub.svg)](https://bundlephobia.com/package/soundhub)
 [![Total downloads](https://img.shields.io/npm/dt/soundhub.svg)](https://www.npmjs.com/package/soundhub)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B-yellow.svg)](https://www.npmjs.com/package/soundhub)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6.svg)](https://www.npmjs.com/package/soundhub)
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/chriscreativecode/soundhub)
 
 **One hub for all the audio in your app.** Load sounds once, address them by id, and
 listen to a single typed event bus instead of wiring callbacks per sound.
