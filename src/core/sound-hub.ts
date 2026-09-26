@@ -1116,7 +1116,12 @@ export class SoundHub implements SoundHubInterface {
       const freshStart = !this.isRestarting;
 
       if (freshStart && sound.playOptions?.volume !== undefined) {
-        this.setSoundVolume(sound.id, sound.playOptions.volume, true);
+        if (sound.isMuted) {
+          // Playing does not unmute. The volume is kept for unmute() instead.
+          sound.previousVolume = this.setValidatedVolume(sound.playOptions.volume);
+        } else {
+          this.setSoundVolume(sound.id, sound.playOptions.volume, true);
+        }
       }
       if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
         this.setPan(sound.id, sound.playOptions.pan, true);
@@ -1128,7 +1133,8 @@ export class SoundHub implements SoundHubInterface {
         const direction = sound.playOptions.panSpatialOrientation;
         this.setSpatialOrientation(sound.id, direction.x, direction.y, direction.z, true);
       }
-      if (freshStart && sound.playOptions?.fadeInDuration !== undefined) {
+      // A fade would make a muted sound audible, so a muted sound starts silent
+      if (freshStart && !sound.isMuted && sound.playOptions?.fadeInDuration !== undefined) {
         this.fadeIn(
           sound.id,
           sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1,
@@ -1136,11 +1142,14 @@ export class SoundHub implements SoundHubInterface {
           sound.playOptions?.volume // Use PlayOptions.volume as the end volume
         )
       }
-      if (freshStart && sound.playOptions?.fadeOutDuration !== undefined) {
+      if (freshStart && !sound.isMuted && sound.playOptions?.fadeOutDuration !== undefined) {
         this.fadeOut(sound.id, sound.playOptions.fadeOutDuration ?? this.config?.fadeOutDuration ?? 1);
       }
       if (sound.playOptions?.playbackRate !== undefined) {
-        this.setPlaybackRate(sound.id, playbackRate, true);
+        // startTime above already counts in this rate, so the new source only
+        // needs it set. setPlaybackRate() would seek to hold the position, and
+        // that seek restarts the source through play() again.
+        source.playbackRate.setValueAtTime(playbackRate, this.context.currentTime);
       }
       if (sound.playOptions?.loop !== undefined) {
         this.setLoop(sound.id, sound.playOptions.loop, sound.playOptions.maxLoops);
@@ -1346,10 +1355,8 @@ export class SoundHub implements SoundHubInterface {
       const playbackRate = sound.playOptions?.playbackRate || 1;
 
 
-      // Convert UI time (adjusted) back to raw time for internal storage
-      const rawTime = time * playbackRate;
-
-      const clampedTime = Math.max(0, Math.min(rawTime, rawDuration));
+      // time is a position in the file, whatever the playback rate
+      const clampedTime = Math.max(0, Math.min(time, rawDuration));
 
       sound.currentTime = clampedTime;
       sound.pausedAt = clampedTime;
@@ -1902,6 +1909,8 @@ export class SoundHub implements SoundHubInterface {
     }
     try {
       const sound = this.getValidatedSound(id);
+      // Only a muted sound has a volume to come back to
+      if (!sound.isMuted) return;
       const volumeToRestore = sound.previousVolume ?? this.config.defaultVolume ?? 1;
       sound.isMuted = false;
       sound.volume = volumeToRestore;
@@ -1926,10 +1935,11 @@ export class SoundHub implements SoundHubInterface {
     }
     try {
       const sound = this.getValidatedSound(id);
-      if ((sound?.volume ?? sound?.originalVolume ?? sound.playOptions?.volume ?? 1) > 0) {
-        this.mute(id);
-      } else {
+      // Decided by the mute state: a sound at volume 0 is quiet, not muted
+      if (sound.isMuted) {
         this.unmute(id);
+      } else {
+        this.mute(id);
       }
     } catch (error) {
       this.handleError("toggling mute", error, id);
@@ -2998,7 +3008,6 @@ export class SoundHub implements SoundHubInterface {
 
     const playbackRate = sound.playOptions?.playbackRate ?? 1;
     const rawDuration = sound.buffer?.duration ?? 0;
-    const adjustedDuration = rawDuration / playbackRate;
 
     let currentTime = 0;
     let elapsedTime = 0;
@@ -3023,8 +3032,10 @@ export class SoundHub implements SoundHubInterface {
     }
     const progressRatio = rawDuration > 0 ? currentTime / rawDuration : 0;
 
+    // Times are in the file's own seconds, as they are for a stream and an
+    // HTMLMediaElement: a position stays valid when the rate changes. Only
+    // adjustedElapsedTime is the time it took to hear, at this rate.
     const adjustedElapsedTime = elapsedTime / playbackRate;
-    const adjustedCurrentTime = currentTime / playbackRate;
 
     this.debugLog(`Sound state for ${id}:
       State: ${sound.state}
@@ -3035,7 +3046,7 @@ export class SoundHub implements SoundHubInterface {
       Current time: ${currentTime}s
       Raw Duration: ${rawDuration}s
       Duration playOptions: ${sound.playOptions?.duration || 0}s
-      Adjusted Duration: ${this.roundValue(elapsedTime, 4)}s
+      Listening time: ${this.roundValue(elapsedTime / playbackRate, 4)}s
       Playback Rate: ${playbackRate}
       Volume: ${sound.volume}
       Pan: ${sound.pan},
@@ -3046,10 +3057,10 @@ export class SoundHub implements SoundHubInterface {
     return {
       progress: this.roundValue(progressRatio, 4),
       startTime: sound.startTime || 0,
-      currentTime: this.roundValue(adjustedCurrentTime, 4), // Adjusted for UI
-      elapsedTime: this.roundValue(adjustedElapsedTime, 4), // Adjusted for UI
-      adjustedElapsedTime: this.roundValue(elapsedTime, 4), // Raw value
-      duration: this.roundValue(adjustedDuration, 4), // Adjusted for UI
+      currentTime: this.roundValue(currentTime, 4),
+      elapsedTime: this.roundValue(elapsedTime, 4),
+      adjustedElapsedTime: this.roundValue(adjustedElapsedTime, 4),
+      duration: this.roundValue(rawDuration, 4),
       rawDuration: this.roundValue(rawDuration, 4),
       state: sound.state || SoundState.Stopped,
       volume: sound.volume ?? sound?.playOptions?.volume ?? this.config.defaultVolume ?? 1,
@@ -3074,11 +3085,8 @@ export class SoundHub implements SoundHubInterface {
     if (this.streams.has(id)) return this.streamDuration(this.streams.get(id)!);
     try {
       const sound = this.getValidatedSound(id);
-      // The same scale as getCurrentTime and seek: how long it takes to hear
-      // at the sound's playback rate. getSoundState().rawDuration has the
-      // length of the file itself.
-      const playbackRate = sound.playOptions?.playbackRate || 1;
-      return this.roundValue((sound.buffer?.duration || 0) / playbackRate, 4);
+      // The length of the file, the same scale as getCurrentTime and seek
+      return sound?.buffer?.duration || 0;
     } catch (error) {
       this.handleError("getting duration", error, id);
       return 0;
@@ -3142,16 +3150,16 @@ export class SoundHub implements SoundHubInterface {
 
       const soundState = this.getSoundState(id);
 
-      const { currentTime, duration, rawDuration, elapsedTime, adjustedElapsedTime, playbackRate } = soundState;
+      const { currentTime, duration, rawDuration, elapsedTime, playbackRate } = soundState;
       const progress = duration ? (elapsedTime / duration) : 0;
 
 
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-        // adjustedElapsedTime is the position in the file. duration is wall
-        // clock time, the same way source.start() is given it, so at double
-        // speed it covers twice as much of the file.
+        // elapsedTime is the position in the file. duration is wall clock
+        // time, the same way source.start() is given it, so at double speed it
+        // covers twice as much of the file.
         const endOfRange = (sound.playOptions.startTime ?? 0) + sound.playOptions.duration * (playbackRate || 1);
-        if (adjustedElapsedTime >= endOfRange) {
+        if (elapsedTime >= endOfRange) {
           if (sound.playOptions.pauseAtDurationReached && !sound.playOptions.loop) {
             this.pause(id);
           } else {
@@ -3964,6 +3972,15 @@ export class SoundHub implements SoundHubInterface {
 
       source.playbackRate.setValueAtTime(rate, this.context.currentTime);
 
+      // Hold the place in the file. This used to sit inside the event check
+      // below, so a change without an event made the sound jump. A rate that
+      // did not change needs no seek, and a seek restarts the source.
+      if (sound.state === SoundState.Playing && rate !== previousRate) {
+        // startTime was an origin in the old rate; seeking to the same place in
+        // the file sets it again in the new one
+        this.seek(id, rawPosition, true);
+      }
+
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.PLAYBACK_RATE_CHANGED,
@@ -3972,12 +3989,6 @@ export class SoundHub implements SoundHubInterface {
           playbackRate: rate,
           sound
         });
-
-        if (sound.state === SoundState.Playing) {
-          // seek() converts UI time back to raw time using the new rate, so feed
-          // it the captured raw position expressed in the new rate.
-          this.seek(id, rawPosition / rate);
-        }
       }
       this.debugLog(`Playback rate set for sound ${id}: ${rate}`);
     } catch (error) {
@@ -4546,7 +4557,12 @@ export class SoundHub implements SoundHubInterface {
     const stream = this.streams.get(id);
     if (!stream) return;
 
-    if (options.volume !== undefined) this.streamSetVolume(id, options.volume, true);
+    if (options.volume !== undefined) {
+      const stream = this.streams.get(id)!;
+      // Playing does not unmute. The volume is kept for unmute() instead.
+      if (stream.isMuted) stream.previousVolume = this.setValidatedVolume(options.volume);
+      else this.streamSetVolume(id, options.volume, true);
+    }
     if (options.pan !== undefined && stream.stereoPanner) {
       stream.pan = Math.max(-1, Math.min(1, options.pan));
       stream.stereoPanner.pan.value = stream.pan;
@@ -4668,7 +4684,8 @@ export class SoundHub implements SoundHubInterface {
     if (!stream) return;
 
     stream.volume = this.setValidatedVolume(volume);
-    stream.isMuted = stream.volume === 0;
+    // Setting a volume unmutes, as it does for a buffered sound; volume 0 is quiet, not muted
+    stream.isMuted = false;
     stream.gainNode.gain.setValueAtTime(stream.volume, this.context.currentTime);
 
     if (!skipDispatchEvent) {
@@ -4714,7 +4731,7 @@ export class SoundHub implements SoundHubInterface {
       startTime: stream.startOffset,
       currentTime,
       elapsedTime: currentTime,
-      adjustedElapsedTime: currentTime,
+      adjustedElapsedTime: currentTime / (stream.element.playbackRate || 1),
       duration,
       rawDuration: duration || null,
       playbackRate: stream.element.playbackRate,
@@ -4857,13 +4874,10 @@ export class SoundHub implements SoundHubInterface {
     session.playbackState = this.isPlaying(id) ? "playing" : this.isPaused(id) ? "paused" : "none";
 
     // The lock screen wants file time and moves the scrubber at playbackRate
-    // itself, so this uses the length of the file, not the time to hear it.
+    // itself, which is the scale the getters use
     const playbackRate = this.getPlaybackRate(id) || 1;
-    const state = this.getSoundState(id);
-    const isStream = this.streams.has(id);
-    const duration = isStream ? state.duration : state.rawDuration ?? 0;
+    const { duration, currentTime: position } = this.getSoundState(id);
     if (!duration || !session.setPositionState) return;
-    const position = isStream ? state.currentTime : state.currentTime * playbackRate;
 
     try {
       session.setPositionState({

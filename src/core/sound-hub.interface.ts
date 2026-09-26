@@ -23,7 +23,7 @@ export interface SoundHubInterface {
   resume(id: string, skipDispatchEvent?: boolean): void;
   /** Stop a sound by its ID. Optionally, skip dispatching the stop event. */
   stop(id: string, skipDispatchEvent?: boolean): void;
-  /** Seek to a specific time in a sound by its ID. Optionally, skip dispatching the seek event. */
+  /** Jump to a position in the file, in seconds, whatever the playback rate. Optionally, skip dispatching the seek event. */
   seek(id: string, time: number, skipDispatchEvent?: boolean): void;
 
   // Multiple playback control: Control playback for all sounds simultaneously.
@@ -61,11 +61,11 @@ export interface SoundHubInterface {
   muteAllSounds(): void;
   /** Unmute all sounds. */
   unmuteAllSounds(): void;
-  /** Mute a specific sound by its ID. */
+  /** Mute one sound. It stays muted, also through play(), until unmute() or toggleMute(). setSoundVolume() unmutes it too. */
   mute(id: string): void;
-  /** Unmute a specific sound by its ID. */
+  /** Unmute one sound and bring back its volume. Does nothing for a sound that is not muted. */
   unmute(id: string): void;
-  /** Toggle the mute state of a specific sound by its ID. */
+  /** Mute a sound that is not muted, unmute one that is. A sound at volume 0 counts as not muted. */
   toggleMute(id: string): void;
   /** Toggle the global mute state for all sounds. */
   toggleGlobalMute(): void;
@@ -169,9 +169,9 @@ export interface SoundHubInterface {
   getSoundState(id: string): SoundStateInfo;
 
   // Progress tracking: Track and manage the playback progress of sounds.
-  /** Get the current playback time of a sound by its ID. */
+  /** The position in the file, in seconds, whatever the playback rate. */
   getCurrentTime(id: string): number;
-  /** Get the total duration of a sound by its ID. */
+  /** The length of the file, in seconds, whatever the playback rate. */
   getDuration(id: string): number;
   /** Get the playback progress of a sound as a ratio (0-1) by its ID. */
   getProgress(id: string): number;
@@ -247,7 +247,7 @@ export interface SoundHubInterface {
   resetListener(): void;
 
   // Playback rate control: Control the playback speed of sounds.
-  /** Set the playback rate of a sound by its ID. */
+  /** Set the playback rate of a sound. The sound keeps its place in the file. */
   setPlaybackRate(id: string, rate: number): void;
   /** Get the playback rate of a sound by its ID. */
   getPlaybackRate(id: string): number;

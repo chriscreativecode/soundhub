@@ -74,6 +74,84 @@ describe('mute', () => {
     expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.8, 5);
   });
 
+  it('stays muted when the sound is played again', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    hub.play('music', { volume: 0.6 });
+    hub.mute('music');
+    hub.stop('music');
+
+    hub.play('music');
+
+    expect(hub.getGainNode('music')?.gain.value).toBe(0);
+    hub.unmute('music');
+    expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.6, 5);
+  });
+
+  it('keeps a volume passed to play while muted for the unmute', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    hub.play('music', { volume: 0.6 });
+    hub.mute('music');
+
+    hub.play('music', { volume: 0.3 });
+
+    expect(hub.getGainNode('music')?.gain.value).toBe(0);
+    hub.unmute('music');
+    expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.3, 5);
+  });
+
+  it('toggles by the mute state, not the volume', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    hub.play('music', { volume: 0 });
+
+    hub.toggleMute('music');
+    expect(hub.getSound('music')?.isMuted).toBe(true);
+
+    hub.toggleMute('music');
+    expect(hub.getSound('music')?.isMuted).toBe(false);
+    expect(hub.getGainNode('music')?.gain.value).toBe(0);
+  });
+
+  it('leaves the volume alone when unmuting a sound that was not muted', async () => {
+    const hub = createHub({ defaultVolume: 0.9 });
+    await loadSound(hub, 'music');
+    hub.play('music', { volume: 0.4 });
+
+    hub.unmute('music');
+
+    expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.4, 5);
+  });
+
+  it('does not count a stream at volume 0 as muted', async () => {
+    const hub = createHub();
+    await hub.loadStream('podcast', '/audio/episode.mp3');
+    hub.play('podcast', { volume: 0.7 });
+
+    hub.setSoundVolume('podcast', 0);
+    // A toggle on a quiet stream mutes it; it must not jump to full volume
+    hub.toggleMute('podcast');
+    expect(hub.getSoundVolume('podcast')).toBe(0);
+
+    hub.toggleMute('podcast');
+    expect(hub.getSoundVolume('podcast')).toBe(0);
+  });
+
+  it('keeps a stream muted when it is played again', async () => {
+    const hub = createHub();
+    await hub.loadStream('podcast', '/audio/episode.mp3');
+    hub.play('podcast', { volume: 0.7 });
+    hub.mute('podcast');
+    hub.stop('podcast');
+
+    hub.play('podcast', { volume: 0.5 });
+
+    expect(hub.getSoundVolume('podcast')).toBe(0);
+    hub.unmute('podcast');
+    expect(hub.getSoundVolume('podcast')).toBe(0.5);
+  });
+
   it('mutes everything at once', async () => {
     const hub = createHub();
     await loadSound(hub, 'music');

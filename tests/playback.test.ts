@@ -256,6 +256,34 @@ describe('playback rate', () => {
 
     expect(listener).toHaveBeenCalled();
   });
+
+  it('keeps its place in the file when the rate changes without an event', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+    const listener = vi.fn();
+    hub.addEventListener(SoundEventsEnum.PLAYBACK_RATE_CHANGED, listener);
+
+    hub.play('music');
+    contextOf(hub).advance(1);
+    hub.setPlaybackRate('music', 2, true);
+    contextOf(hub).advance(0.5);
+    hub.pause('music');
+
+    // One second at normal speed, then half a second at double speed
+    expect(hub.getSound('music')?.pausedAt).toBeCloseTo(2, 4);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('does not restart the source when the rate stays the same', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+    hub.play('music', { playbackRate: 1.5 });
+    const source = sourceOf(hub, 'music');
+
+    hub.setPlaybackRate('music', 1.5);
+
+    expect(sourceOf(hub, 'music')).toBe(source);
+  });
 });
 
 describe('state for the UI', () => {
@@ -394,16 +422,29 @@ describe('duration with a playback rate', () => {
 });
 
 describe('time getters with a playback rate', () => {
-  it('reports duration and current time on the same scale', async () => {
+  it('reports positions in the file, whatever the rate', async () => {
     const hub = createHub();
     await loadSound(hub, 'music', '/audio/music.mp3', 2);
 
     hub.play('music', { playbackRate: 2 });
     contextOf(hub).advance(0.5);
 
-    // Two seconds of audio at double speed take one second to hear
-    expect(hub.getDuration('music')).toBeCloseTo(1, 4);
-    expect(hub.getCurrentTime('music')).toBeCloseTo(0.5, 4);
-    expect(hub.getCurrentTime('music') / hub.getDuration('music')).toBeCloseTo(hub.getProgress('music'), 4);
+    // Half a second at double speed is one second into a two second file
+    expect(hub.getDuration('music')).toBe(2);
+    expect(hub.getCurrentTime('music')).toBeCloseTo(1, 4);
+    expect(hub.getProgress('music')).toBeCloseTo(0.5, 4);
+    expect(hub.getSoundState('music').adjustedElapsedTime).toBeCloseTo(0.5, 4);
+  });
+
+  it('seeks to a position in the file, whatever the rate', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+    hub.play('music', { playbackRate: 2 });
+
+    hub.seek('music', 4);
+
+    expect(hub.getCurrentTime('music')).toBeCloseTo(4, 4);
+    hub.pause('music');
+    expect(hub.getSound('music')?.pausedAt).toBeCloseTo(4, 4);
   });
 });
