@@ -2739,7 +2739,23 @@ export class SoundHub implements SoundHubInterface {
 
   /** The level of a target's duck at this moment, from 0 to 1, including partway through an attack or a release. 1 when it has no duck. */
   public getDuckLevel(target: string): number {
-    return this.ducks.get(target)?.node.gain.value ?? 1;
+    const rule = this.ducks.get(target);
+    if (!rule) return 1;
+    // A browser stops running a node nothing plays through, so its gain stays
+    // where it was. The target is silent then, and the level it will play at
+    // is the one the duck is heading for.
+    return this.isPlayingThrough(rule.node) ? rule.node.gain.value : rule.active ? rule.amount : 1;
+  }
+
+  /** Whether any playing sound or stream sends its output into this node. */
+  private isPlayingThrough(node: AudioNode): boolean {
+    for (const sound of this.sounds.values()) {
+      if (sound.state === SoundState.Playing && this.audioNodeConnector.outputOf(sound.gainNode) === node) return true;
+    }
+    for (const stream of this.streams.values()) {
+      if (stream.state === SoundState.Playing && this.audioNodeConnector.outputOf(stream.gainNode) === node) return true;
+    }
+    return false;
   }
 
   /** Whether `name` refers to this sound: its id, the sound it came from, a sprite's sound, or its group. */

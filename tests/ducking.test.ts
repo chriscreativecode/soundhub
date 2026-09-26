@@ -231,3 +231,35 @@ describe('ducking after a silent change', () => {
     expect(hub.isDucked('music')).toBe(false);
   });
 });
+
+describe('getDuckLevel while the target is silent', () => {
+  it('reports the level the duck is heading for, not the frozen gain', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    await loadSound(hub, 'voice');
+    hub.duck('music', { when: 'voice', amount: 0.25 });
+    hub.play('music');
+    hub.play('voice');
+    const duckNode = outputOf(hub, 'music');
+
+    hub.stop('music');
+    hub.stop('voice');
+    // A browser leaves the gain where it was once nothing plays through the node
+    duckNode.gain.value = 0.25;
+
+    expect(hub.getDuckLevel('music')).toBe(1);
+  });
+
+  it('reads the gain while the target plays', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    await loadSound(hub, 'voice');
+    hub.duck('music', { when: 'voice', amount: 0.25 });
+    hub.play('music');
+    hub.play('voice');
+
+    outputOf(hub, 'music').gain.value = 0.6; // partway through the attack
+
+    expect(hub.getDuckLevel('music')).toBe(0.6);
+  });
+});

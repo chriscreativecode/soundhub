@@ -15,6 +15,12 @@ straight after `play(id, { playbackRate: 1.5 })`, or after a variation with a
 pitch spread started a take, it still returned 1. It now reads the rate the
 sound was given.
 
+**`getDuckLevel()` while the target is silent.** A browser stops running a
+gain node that nothing plays through, so after the music stopped the duck's
+gain stayed where it was and `getDuckLevel()` kept returning, say, 0.25 after
+the duck had ended. While nothing plays through the duck it now returns the
+level the duck is heading for, which is the level the target starts at.
+
 ## [6.5.0] - 2026-09-26
 
 Ducking, variations, a way to add audio you already have in memory, and two
