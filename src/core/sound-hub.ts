@@ -2568,9 +2568,20 @@ export class SoundHub implements SoundHubInterface {
       return;
     }
 
+    // A group holds loaded sounds as well as overlapping instances. Deleting
+    // every member took the loaded sounds out of the hub with it, without
+    // disconnecting their nodes. Only the instances go; a loaded sound stays
+    // and just leaves the group.
     group.sounds.forEach((soundId) => {
       this.stop(soundId);
-      this.sounds.delete(soundId);
+      const sound = this.sounds.get(soundId);
+      if (!sound) return;
+
+      if (sound.groupId === groupName) sound.groupId = undefined;
+      if (soundId.includes(':')) {
+        this.cleanupSound(soundId);
+        this.sounds.delete(soundId);
+      }
     });
 
     group.sounds.clear();

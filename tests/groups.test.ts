@@ -119,4 +119,29 @@ describe('groups', () => {
 
     expect(hub.getGroup('ambience')?.maxInstances).toBe(4);
   });
+
+  it('keeps the loaded sounds when the group is removed', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'rain');
+    hub.createSoundGroup('ambience');
+    hub.play('rain', { groupId: 'ambience' });
+
+    hub.removeSoundGroup('ambience');
+
+    expect(hub.hasSound('rain')).toBe(true);
+    expect(hub.getSound('rain')?.groupId).toBeUndefined();
+    expect(hub.play('rain')).toBeDefined();
+  });
+
+  it('drops the instances of a removed group', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'laser');
+    hub.createSoundGroup('lasers');
+    hub.play('laser', { overlap: true, groupId: 'lasers' });
+    hub.play('laser', { overlap: true, groupId: 'lasers' });
+
+    hub.removeSoundGroup('lasers');
+
+    expect(hub.getSoundIds()).toEqual(['laser']);
+  });
 });
