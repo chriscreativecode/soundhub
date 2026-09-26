@@ -155,6 +155,36 @@ describe('fades', () => {
     expect(hub.isPlaying('music')).toBe(false);
   });
 
+  it('plays at the volume from before a fade to silence when played again', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+
+    hub.play('music', { volume: 0.8 });
+    hub.fadeOut('music', 1, undefined, 0, true);
+    tick(hub, 0.5);
+    tick(hub, 1);
+    expect(hub.isPlaying('music')).toBe(false);
+
+    hub.play('music');
+
+    expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.8, 5);
+    expect(hub.getSoundVolume('music')).toBeCloseTo(0.8, 5);
+  });
+
+  it('keeps the end volume of a fade that does not go to silence for the next play', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+
+    hub.play('music', { volume: 1 });
+    hub.fadeOut('music', 1, 1, 0.3, false);
+    tick(hub, 1.5);
+    hub.stop('music');
+
+    hub.play('music');
+
+    expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.3, 5);
+  });
+
   it('leaves the sound playing when it should not stop after the fade', async () => {
     const hub = createHub();
     await loadSound(hub, 'music');

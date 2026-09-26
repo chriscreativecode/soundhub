@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHub, loadSound } from './support/helpers';
+import { contextOf, createHub, loadSound } from './support/helpers';
 
 type Handler = ((details: { seekOffset?: number; seekTime?: number }) => void) | null;
 
@@ -158,6 +158,19 @@ describe('media session', () => {
     hub.play('music');
 
     expect(session.playbackState).toBe('playing');
+  });
+
+  it('gives the lock screen file time for a sound at another playback rate', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 2);
+
+    hub.setMediaSession('music');
+    hub.play('music', { playbackRate: 2 });
+    contextOf(hub).advance(0.5);
+    hub.pause('music');
+
+    // Half a second at double speed is one second into the file
+    expect(session.setPositionState).toHaveBeenLastCalledWith({ duration: 2, playbackRate: 2, position: 1 });
   });
 
   it('takes it off again', async () => {

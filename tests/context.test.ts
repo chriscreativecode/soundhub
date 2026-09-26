@@ -183,6 +183,17 @@ describe('reset and destroy', () => {
     expect(hub.isPlaying('music')).toBe(false);
   });
 
+  it('reports unloaded sounds as unloaded after a reset that unloads them', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    expect(hub.getLoadState('music')).toBe('loaded');
+
+    hub.reset({ unloadSounds: true });
+
+    expect(hub.getLoadState('music')).toBe('unloaded');
+    expect(hub.isSoundLoaded('music')).toBe(false);
+  });
+
   it('keeps the sounds when it is only a reset', async () => {
     const hub = createHub();
     await loadSound(hub, 'music');
@@ -216,7 +227,22 @@ describe('reset and destroy', () => {
     expect(contextOf(hub).state).toBe('closed');
   });
 
-  it('drops every listener on destroy', async () => {
+  it('can be destroyed twice without an unhandled rejection', async () => {
+    const hub = createHub();
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+
+    hub.destroy();
+    hub.destroy();
+    await flush();
+    await flush();
+
+    process.off('unhandledRejection', unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+    expect(contextOf(hub).state).toBe('closed');
+  });
+
+    it('drops every listener on destroy', async () => {
     const hub = createHub();
     const listener = vi.fn();
     hub.addEventListener(SoundEventsEnum.STOPPED, listener);
@@ -250,6 +276,22 @@ describe('configuration', () => {
     await loadSound(hub, 'music');
 
     expect(hub.getSoundVolume('music')).toBe(0.4);
+  });
+
+  it('applies the default volume and pan to sounds only, not a second time on the master', async () => {
+    const hub = createHub({ defaultVolume: 0.4, defaultPan: 0.5 });
+    await loadSound(hub, 'music');
+
+    expect(hub.getGlobalVolume()).toBe(1);
+    expect(hub.getGlobalPan()).toBe(0);
+    expect((hub.getMasterInput() as GainNode).gain.value).toBe(1);
+
+    hub.setGlobalVolume(0.2);
+    hub.setGlobalPan(-1);
+    hub.reset();
+
+    expect(hub.getGlobalVolume()).toBe(1);
+    expect(hub.getGlobalPan()).toBe(0);
   });
 });
 

@@ -5,6 +5,47 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [Unreleased]
+
+Seven fixes found while rewriting the documentation against the source.
+
+### Fixed
+
+**`defaultVolume` and `defaultPan` count once.** They are settings for each new
+sound, but the constructor also put them on the master, so a `defaultVolume` of
+0.8 was heard as 0.64 and a `defaultPan` was applied twice. The master now
+starts at volume 1 and pan 0, and `reset()` puts it back there.
+
+**A sound faded to silence is audible when played again.** Every frame of a fade
+wrote its volume into the sound's play options, so after `fadeOut()` to 0 the
+next `play()` started almost silent, and what was stored depended on how many
+frames the fade got. A fade now changes the stored volume only when it
+completes: a fade to 0 keeps the volume from before it, any other end volume is
+kept for the next play.
+
+**`getDuration()` uses the same scale as `getCurrentTime()`.** For a buffered
+sound at another playback rate, `getCurrentTime()` and `seek()` work in the
+time it takes to hear the sound, but `getDuration()` returned the length of the
+file. At double speed a two second file now reports a duration of 1, and
+dividing the two gives the progress. `getSoundState().rawDuration` still has
+the length of the file. The lock screen position from `setMediaSession()` now
+uses file time throughout, which it expects.
+
+**`removeFromSoundGroup()` takes the sound out for good.** The sound kept its
+link to the group, so the next `play()` put it straight back in.
+
+**`removeSpatialEffect()` stays removed.** The position and pan type stayed in
+the play options, so the next `play()` built a new panner and the 3D effect came
+back. The sound now plays in stereo until it is positioned again.
+
+**`reset({ unloadSounds: true })` updates the load state.** `getLoadState()`
+went on saying `'loaded'` for the sounds it had just unloaded.
+
+**`destroy()` can be called twice.** The second call closed the audio context
+again, which rejects, and nothing caught it, so it surfaced as an unhandled
+promise rejection. A second call now does nothing, and a failure while closing
+is reported like any other error.
+
 ## [6.3.2] - 2026-09-26
 
 Three fixes found while building the new showcase demos, and a README and

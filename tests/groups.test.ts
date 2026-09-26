@@ -97,6 +97,18 @@ describe('groups', () => {
     expect(membersOf(hub, 'ambience')).toEqual([]);
   });
 
+  it('does not put a removed sound back in the group when it plays again', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'rain');
+    hub.createSoundGroup('ambience');
+    hub.addToSoundGroup('ambience', 'rain');
+
+    hub.removeFromSoundGroup('ambience', 'rain');
+    hub.play('rain');
+
+    expect(membersOf(hub, 'ambience')).toEqual([]);
+  });
+
   it('stops every sound in a group when the group is removed', async () => {
     const hub = createHub();
     await loadSound(hub, 'rain');

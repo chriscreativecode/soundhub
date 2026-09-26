@@ -36,6 +36,8 @@ export class SoundHub implements SoundHubInterface {
   private isMuted: boolean = false;
   private mutedForHiddenPage: boolean = false;
   private isRestarting: boolean = false;
+  /** Set by destroy(), which only does its work once */
+  private isDestroyed: boolean = false;
   private previousGlobalPan: number = 0;
   private PROGRESS_UPDATE_INTERVAL = 50; // milliseconds, see setProgressUpdateInterval()
   private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
@@ -126,11 +128,14 @@ export class SoundHub implements SoundHubInterface {
 
       this.rewireMasterChain();
 
-      this.masterStereoPanner.pan.value = this.config.defaultPan ?? 0;
-      this.previousGlobalPan = this.config.defaultPan ?? 0;
+      // defaultVolume and defaultPan are for each new sound. The master starts
+      // neutral, or they would be applied twice: 0.8 on a sound and 0.8 on the
+      // master is heard as 0.64.
+      this.masterStereoPanner.pan.value = 0;
+      this.previousGlobalPan = 0;
 
-      this.masterGainNode.gain.value = this.config.defaultVolume!;
-      this.previousGlobalVolume = this.config.defaultVolume!;
+      this.masterGainNode.gain.value = 1;
+      this.previousGlobalVolume = 1;
 
       this.setupAudioUnlock();
 
@@ -602,6 +607,9 @@ export class SoundHub implements SoundHubInterface {
     });
 
     this.activeSources.clear();
+    // Only the sounds that were in memory: a load still in flight, or a sound
+    // that is only registered, keeps its state
+    this.sounds.forEach((_, id) => this.loadStates.delete(id));
     this.sounds.clear();
     this.instanceCounters.clear();
     this.ticker.clear();
@@ -1550,6 +1558,11 @@ export class SoundHub implements SoundHubInterface {
       this.cancelFadeAnimation(id);
       const sound = this.getValidatedSound(id);
 
+      // The volume the next play() starts at. A fade only changes it once it
+      // completes, never halfway, so the result does not depend on how many
+      // frames the fade happened to get.
+      const volumeBeforeFade = sound.playOptions?.volume ?? startVolume;
+
       sound.volume = startVolume;
 
       sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
@@ -1570,6 +1583,12 @@ export class SoundHub implements SoundHubInterface {
         // getSoundVolume() reads originalVolume, so it follows the fade too
         sound.originalVolume = sound.volume;
         sound.gainNode.gain.setValueAtTime(targetVolume, this.context.currentTime);
+        // A fade to silence is a way to end a sound, not a new volume: playing
+        // it again should be audible. Any other end volume is kept.
+        sound.playOptions = {
+          ...sound.playOptions,
+          volume: targetVolume > 0 ? sound.volume : volumeBeforeFade,
+        };
         onComplete?.();
         this.dispatchEvent({
           type: SoundEventsEnum.VOLUME_CHANGED,
@@ -1597,11 +1616,6 @@ export class SoundHub implements SoundHubInterface {
         sound.gainNode.gain.setValueAtTime(currentVolume, currentTime);
         sound.volume = this.roundValue(currentVolume);
         sound.originalVolume = sound.volume;
-
-        sound.playOptions = {
-          ...sound.playOptions,
-          volume: sound.volume,
-        };
 
         this.dispatchEvent({
           type: SoundEventsEnum.VOLUME_CHANGED,
@@ -2571,6 +2585,9 @@ export class SoundHub implements SoundHubInterface {
     }
 
     group.sounds.delete(soundId);
+    // Without this the next play() reads the old groupId and adds it back
+    const sound = this.sounds.get(soundId);
+    if (sound?.groupId === groupName) sound.groupId = undefined;
     this.debugLog(`Removed sound ${soundId} from group ${groupName}.`);
   }
 
@@ -3057,7 +3074,11 @@ export class SoundHub implements SoundHubInterface {
     if (this.streams.has(id)) return this.streamDuration(this.streams.get(id)!);
     try {
       const sound = this.getValidatedSound(id);
-      return sound?.buffer?.duration || 0;
+      // The same scale as getCurrentTime and seek: how long it takes to hear
+      // at the sound's playback rate. getSoundState().rawDuration has the
+      // length of the file itself.
+      const playbackRate = sound.playOptions?.playbackRate || 1;
+      return this.roundValue((sound.buffer?.duration || 0) / playbackRate, 4);
     } catch (error) {
       this.handleError("getting duration", error, id);
       return 0;
@@ -3783,6 +3804,13 @@ export class SoundHub implements SoundHubInterface {
         sound.pannerNode = null;
       }
       sound.panSpatialPosition = { x: 0, y: 0, z: 0 };
+      // Forget the position for the next play() too, or it builds a new panner
+      // from the stored options and the effect comes straight back
+      sound.panType = SoundPanType.Stereo;
+      if (sound.playOptions) {
+        sound.playOptions.panSpatialPosition = { x: 0, y: 0, z: 0 };
+        sound.playOptions.panType = SoundPanType.Stereo;
+      }
 
       sound.gainNode.disconnect();
       sound.gainNode.connect(this.masterGainNode);
@@ -3976,7 +4004,7 @@ export class SoundHub implements SoundHubInterface {
     this.stopAllSounds();
 
     if (!options.keepVolumes) {
-      this.setGlobalVolume(this.config.defaultVolume ?? 1);
+      this.setGlobalVolume(1);
       if (this.isMuted) {
         this.unmuteAllSounds();
       }
@@ -4195,6 +4223,9 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public destroy(): void {
+    // A second call would close the context again, which rejects
+    if (this.isDestroyed) return;
+    this.isDestroyed = true;
     Array.from(this.streams.keys()).forEach((id) => this.streamUnload(id));
     try {
       this.cleanup();
@@ -4216,7 +4247,8 @@ export class SoundHub implements SoundHubInterface {
       this.masterStereoPanner.disconnect();
       this.masterGainNode.disconnect();
 
-      this.context.close();
+      // close() is async; a failure there must not surface as an unhandled rejection
+      this.context.close().catch((error) => this.handleError("closing the audio context", error));
       this.debugLog("SoundHub destroyed");
     } catch (error) {
       this.handleError("destroying hub", error);
@@ -4824,16 +4856,22 @@ export class SoundHub implements SoundHubInterface {
     const session = navigator.mediaSession;
     session.playbackState = this.isPlaying(id) ? "playing" : this.isPaused(id) ? "paused" : "none";
 
-    const duration = this.getDuration(id);
+    // The lock screen wants file time and moves the scrubber at playbackRate
+    // itself, so this uses the length of the file, not the time to hear it.
+    const playbackRate = this.getPlaybackRate(id) || 1;
+    const state = this.getSoundState(id);
+    const isStream = this.streams.has(id);
+    const duration = isStream ? state.duration : state.rawDuration ?? 0;
     if (!duration || !session.setPositionState) return;
+    const position = isStream ? state.currentTime : state.currentTime * playbackRate;
 
     try {
       session.setPositionState({
         duration,
-        playbackRate: this.getPlaybackRate(id) || 1,
+        playbackRate,
         // A position past the duration throws, and rounding at the end of a
         // track is enough to get there.
-        position: Math.min(this.getCurrentTime(id), duration),
+        position: Math.min(position, duration),
       });
     } catch {
       // Metadata not settled yet; the next progress tick will get it.

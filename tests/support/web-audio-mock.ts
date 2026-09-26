@@ -330,6 +330,10 @@ export class MockAudioContext {
   }
 
   close(): Promise<void> {
+    // Like a browser: a context can be closed once
+    if (this.state === 'closed') {
+      return Promise.reject(new DOMException('Cannot close a closed AudioContext.', 'InvalidStateError'));
+    }
     this.state = 'closed';
     return Promise.resolve();
   }

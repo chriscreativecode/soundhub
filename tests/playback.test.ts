@@ -392,3 +392,18 @@ describe('duration with a playback rate', () => {
     expect(ended).not.toHaveBeenCalled();
   });
 });
+
+describe('time getters with a playback rate', () => {
+  it('reports duration and current time on the same scale', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 2);
+
+    hub.play('music', { playbackRate: 2 });
+    contextOf(hub).advance(0.5);
+
+    // Two seconds of audio at double speed take one second to hear
+    expect(hub.getDuration('music')).toBeCloseTo(1, 4);
+    expect(hub.getCurrentTime('music')).toBeCloseTo(0.5, 4);
+    expect(hub.getCurrentTime('music') / hub.getDuration('music')).toBeCloseTo(hub.getProgress('music'), 4);
+  });
+});

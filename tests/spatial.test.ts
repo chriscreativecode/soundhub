@@ -132,6 +132,20 @@ describe('spatial position', () => {
     expect(hub.getSpatialPosition('helicopter')).toEqual({ x: 0, y: 0, z: 0 });
   });
 
+  it('keeps the spatial effect off when the sound plays again', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'helicopter');
+    hub.play('helicopter');
+    hub.setSpatialPosition(1, 0, 0, 'helicopter');
+
+    hub.removeSpatialEffect('helicopter');
+    hub.stop('helicopter');
+    hub.play('helicopter');
+
+    expect(hub.isSpatialAudioActive('helicopter')).toBe(false);
+    expect(hub.getSound('helicopter')?.panType).toBe(SoundPanType.Stereo);
+  });
+
   it('does nothing when spatial audio is switched off', async () => {
     const hub = createHub({ spatialAudio: false });
     await loadSound(hub, 'helicopter');

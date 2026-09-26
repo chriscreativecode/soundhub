@@ -11,6 +11,6 @@ export interface SoundStateInfo {
   playbackRate: number | null;
   state: SoundState;
   volume: number; // value from 0 to 1
-  pan: number; // value form 0 to 1
+  pan: number; // from -1 (left) to 1 (right)
   panSpatialPosition: { x: number; y: number; z: number };
 }
