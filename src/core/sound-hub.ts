@@ -984,8 +984,10 @@ export class SoundHub implements SoundHubInterface {
       let actualId = id;
       let instance: Sound | undefined;
 
+      // A restart after a seek or a loop keeps the group it is in. Running the
+      // group ceiling here could stop the very sound that is being restarted.
       let groupId: string | undefined = options.groupId || originalSound.groupId;
-      if (groupId) {
+      if (groupId && !this.isRestarting) {
         let group = this.soundGroups.get(groupId);
         if (!group) {
           this.debugLog(`Group ${groupId} not found.`);
@@ -1099,7 +1101,12 @@ export class SoundHub implements SoundHubInterface {
 
       sound.state = SoundState.Playing;
 
-      if (sound.playOptions?.volume !== undefined) {
+      // A restart reuses the gain node, which already holds the volume, a mute
+      // or a fade in progress. Setting the volume or starting the fades again
+      // made every seek and every loop fade in from silence.
+      const freshStart = !this.isRestarting;
+
+      if (freshStart && sound.playOptions?.volume !== undefined) {
         this.setSoundVolume(sound.id, sound.playOptions.volume, true);
       }
       if (sound.playOptions?.pan !== undefined && sound.panType !== SoundPanType.Spatial) {
@@ -1112,7 +1119,7 @@ export class SoundHub implements SoundHubInterface {
         const direction = sound.playOptions.panSpatialOrientation;
         this.setSpatialOrientation(sound.id, direction.x, direction.y, direction.z, true);
       }
-      if (sound.playOptions?.fadeInDuration !== undefined) {
+      if (freshStart && sound.playOptions?.fadeInDuration !== undefined) {
         this.fadeIn(
           sound.id,
           sound.playOptions?.fadeInDuration ?? this.config?.fadeInDuration ?? 1,
@@ -1120,7 +1127,7 @@ export class SoundHub implements SoundHubInterface {
           sound.playOptions?.volume // Use PlayOptions.volume as the end volume
         )
       }
-      if (sound.playOptions?.fadeOutDuration !== undefined) {
+      if (freshStart && sound.playOptions?.fadeOutDuration !== undefined) {
         this.fadeOut(sound.id, sound.playOptions.fadeOutDuration ?? this.config?.fadeOutDuration ?? 1);
       }
       if (sound.playOptions?.playbackRate !== undefined) {
@@ -1183,6 +1190,21 @@ export class SoundHub implements SoundHubInterface {
     this.play(spriteId, options, skipDispatchEvent);
   }
 
+  /**
+   * Start a new source for a sound that is already under way, for resume, seek
+   * and loop. A buffer source can only start once, so these go through play(),
+   * but without the parts that belong to a fresh start: the started event, the
+   * volume and the fades.
+   */
+  private restartSource(id: string, sound: Sound): void {
+    this.isRestarting = true;
+    try {
+      this.play(id, sound.playOptions, true);
+    } finally {
+      this.isRestarting = false;
+    }
+  }
+
   public pause(id: string, skipDispatchEvent: boolean = false): void {
     if (this.streams.has(id)) return this.streamPause(id, skipDispatchEvent);
     try {
@@ -1231,7 +1253,12 @@ export class SoundHub implements SoundHubInterface {
     if (this.streams.has(id)) return this.streamResume(id, skipDispatchEvent);
     try {
       const sound = this.getValidatedSound(id);
-      this.play(id, sound?.playOptions);
+      // Same rule as a stream: only a paused sound resumes
+      if (sound.state !== SoundState.Paused) return;
+
+      // Resuming continues the sound, so it dispatches resumed below and not
+      // started as well.
+      this.restartSource(id, sound);
 
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -1293,7 +1320,7 @@ export class SoundHub implements SoundHubInterface {
     if (this.streams.has(id)) return this.streamSeek(id, time, skipDispatchEvent);
     try {
       const sound = this.getValidatedSound(id);
-      const { duration, currentTime } = this.getSoundState(id);
+      const { duration } = this.getSoundState(id);
       if (time >= duration) {
         if (sound.state === SoundState.Stopped) {
           return;
@@ -1322,15 +1349,16 @@ export class SoundHub implements SoundHubInterface {
         this.cleanupExistingSource(id);
         sound.startTime = this.context.currentTime - (clampedTime / playbackRate);
 
-        this.play(id, sound.playOptions);
+        this.restartSource(id, sound);
       }
 
       if (skipDispatchEvent) return;
 
+      // The position after the seek. This used to report the one before it.
       this.dispatchEvent({
         type: SoundEventsEnum.SEEKED,
         soundId: id,
-        currentTime: currentTime,
+        currentTime: this.getSoundState(id).currentTime,
         timestamp: this.context.currentTime,
         sound,
       });
@@ -3079,7 +3107,12 @@ export class SoundHub implements SoundHubInterface {
 
 
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
-        if (adjustedElapsedTime >= (sound.playOptions.duration + (sound.playOptions.startTime ?? 0)) / (playbackRate || 1)) {
+        // adjustedElapsedTime is the position in the file. duration is wall
+        // clock time, the same way source.start() is given it, so at double
+        // speed it covers twice as much of the file. Dividing by the rate
+        // instead ended the sound after a quarter of its duration.
+        const endOfRange = (sound.playOptions.startTime ?? 0) + sound.playOptions.duration * (playbackRate || 1);
+        if (adjustedElapsedTime >= endOfRange) {
           if (sound.playOptions.pauseAtDurationReached && !sound.playOptions.loop) {
             this.pause(id);
           } else {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SoundEventsEnum, SoundState } from '../src/index';
 import { contextOf, createHub, endSound, loadSound, sourceOf } from './support/helpers';
 
@@ -283,5 +283,76 @@ describe('state for the UI', () => {
     expect(state.state).toBe(SoundState.Stopped);
     expect(state.progress).toBe(0);
     expect(hub.isPlaying('ghost')).toBe(false);
+  });
+});
+
+describe('restarting the source', () => {
+  it('does not fade in again or dispatch started on a seek', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+    const started = vi.fn();
+    hub.addEventListener(SoundEventsEnum.STARTED, started);
+    hub.play('music', { volume: 1 });
+    hub.updateSoundOptions('music', { fadeInDuration: 2 });
+
+    hub.seek('music', 5);
+
+    expect(hub.getGainNode('music')?.gain.value).toBe(1);
+    expect(started).toHaveBeenCalledOnce();
+  });
+
+  it('dispatches resumed but not started on resume', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    const started = vi.fn();
+    const resumed = vi.fn();
+    hub.addEventListener(SoundEventsEnum.STARTED, started);
+    hub.addEventListener(SoundEventsEnum.RESUMED, resumed);
+
+    hub.play('music');
+    hub.pause('music');
+    hub.resume('music');
+
+    expect(started).toHaveBeenCalledOnce();
+    expect(resumed).toHaveBeenCalledOnce();
+  });
+
+  it('reports the new position in the seeked event', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+    const listener = vi.fn();
+    hub.addEventListener(SoundEventsEnum.SEEKED, listener);
+
+    hub.play('music');
+    hub.seek('music', 5);
+
+    expect(listener.mock.calls[0][0].currentTime).toBeCloseTo(5, 5);
+  });
+});
+
+describe('duration with a playback rate', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('plays for the whole duration when progress is tracked', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 20);
+    const ended = vi.fn();
+    hub.addEventListener(SoundEventsEnum.ENDED, ended);
+
+    hub.play('music', { duration: 4, playbackRate: 2, trackProgress: true });
+    for (let i = 0; i < 30; i++) {
+      contextOf(hub).advance(0.1);
+      vi.advanceTimersByTime(100);
+    }
+
+    expect(ended).not.toHaveBeenCalled();
   });
 });
