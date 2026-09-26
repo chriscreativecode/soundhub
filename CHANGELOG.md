@@ -5,9 +5,34 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
-## [Unreleased]
+## [6.4.0] - 2026-09-26
 
-Seven fixes found while rewriting the documentation against the source.
+Fixes found while rewriting the documentation against the source. Three of
+them change behaviour you could see before, so this is a minor release: read
+**Changed** if you use `mute()`, or a playback rate other than 1 together with
+`getCurrentTime()` or `seek()`.
+
+### Changed
+
+**Every time is a position in the file.** A buffered sound reported
+`getCurrentTime()`, `getSoundState().currentTime` and `.duration`, and took
+`seek()`, in the time it takes to hear the sound at its playback rate, while
+`getDuration()` and every stream used the file's own seconds. All of them now
+use the file's seconds, as an `HTMLMediaElement` does: at double speed, half a
+second after the start of a two second file, `getCurrentTime()` is 1 and
+`getDuration()` is 2. A position stays valid when the rate changes. At rate 1
+nothing changes. `getSoundState().adjustedElapsedTime` is now what its name
+says, the time it took to hear that far; it used to hold the file position.
+
+**A muted sound stays muted when it plays again.** `play()` used to put the
+volume back and end the mute. Mute now lasts until `unmute()`, `toggleMute()`
+or `setSoundVolume()`. A volume passed to `play()` while muted becomes the
+volume `unmute()` returns to, and the `fadeInDuration` and `fadeOutDuration`
+options do not run on a muted sound. The same holds for streams.
+
+**`toggleMute()` follows the mute state.** It decided by the volume, so a sound
+at volume 0 was unmuted instead of muted. A stream set to volume 0 no longer
+counts as muted either, which is how a buffered sound already behaved.
 
 ### Fixed
 
@@ -23,13 +48,16 @@ frames the fade got. A fade now changes the stored volume only when it
 completes: a fade to 0 keeps the volume from before it, any other end volume is
 kept for the next play.
 
-**`getDuration()` uses the same scale as `getCurrentTime()`.** For a buffered
-sound at another playback rate, `getCurrentTime()` and `seek()` work in the
-time it takes to hear the sound, but `getDuration()` returned the length of the
-file. At double speed a two second file now reports a duration of 1, and
-dividing the two gives the progress. `getSoundState().rawDuration` still has
-the length of the file. The lock screen position from `setMediaSession()` now
-uses file time throughout, which it expects.
+**`setPlaybackRate()` keeps its place with `skipDispatchEvent`.** The seek that
+holds the position sat inside the check for the event, so a change without an
+event made the sound jump. A rate that does not change no longer restarts the
+source, and a rate change no longer dispatches a `seeked` event.
+
+**`unmute()` leaves a sound that was not muted alone.** It used to set it to
+`defaultVolume`.
+
+**The lock screen shows the right position at another playback rate.** The
+position `setMediaSession()` reported mixed the two time scales.
 
 **`removeFromSoundGroup()` takes the sound out for good.** The sound kept its
 link to the group, so the next `play()` put it straight back in.
@@ -500,8 +528,10 @@ fixes and small additions between the milestones.
 | 6.0.0 | 29 Aug 2026 | soundhub |
 | 6.1.0 | 30 Aug 2026 | soundhub |
 | 6.2.0 to 6.2.2 | 31 Aug 2026 | soundhub |
-| 6.3.0, 6.3.1 | 26 Sep 2026 | soundhub |
+| 6.3.0 to 6.3.2 | 26 Sep 2026 | soundhub |
+| 6.4.0 | 26 Sep 2026 | soundhub |
 
+[6.4.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.4.0
 [6.3.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.2
 [6.3.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.1
 [6.3.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.0
@@ -510,3 +540,9 @@ fixes and small additions between the milestones.
 [6.2.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.0
 [6.1.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.1.0
 [6.0.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.0.0
+[5.8.0]: https://www.npmjs.com/package/sound-manager-ts/v/5.8.0
+[5.0.0]: https://www.npmjs.com/package/sound-manager-ts/v/5.0.0
+[4.0.0]: https://www.npmjs.com/package/sound-manager-ts/v/4.0.0
+[3.0.0]: https://www.npmjs.com/package/sound-manager-ts/v/3.0.0
+[2.0.0]: https://www.npmjs.com/package/sound-manager-ts/v/2.0.0
+[1.0.0]: https://www.npmjs.com/package/sound-manager-ts/v/1.0.0
