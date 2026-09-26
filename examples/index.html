@@ -3,173 +3,246 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>soundhub.js example</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>soundhub.js examples</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%234f46e5'/%3E%3Cpath d='M6 10v4M9.5 7.5v9M13 5v14M16.5 8.5v7M20 11v2' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <header class="page-head">
-      <h1>soundhub<span>.js</span></h1>
-      <p>A single page that exercises the public API: sprites, multichannel playback, progress, groups, fades, panning and spatial audio, with every event on the bus printed live.</p>
+    <header class="top">
+      <div class="top__inner">
+        <a class="brand" href="#master" aria-label="soundhub.js examples, back to the top">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 10v4M7 7v10M11 4v16M15 8v8M19 11v2" /></svg>
+          </span>
+          <span class="brand__name">soundhub<span>.js</span></span>
+          <span class="pill" id="version">v-</span>
+        </a>
+        <nav class="links" aria-label="Project links">
+          <a href="https://soundhub-docs.chriscreativecode.com/" target="_blank" rel="noopener">Docs</a>
+          <a href="https://soundhub.chriscreativecode.com/" target="_blank" rel="noopener">Showcase</a>
+          <a href="https://www.npmjs.com/package/soundhub" target="_blank" rel="noopener">npm</a>
+          <a href="https://github.com/chriscreativecode/soundhub" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+      </div>
+      <nav class="sections" aria-label="Examples on this page">
+        <a href="#master">Master</a>
+        <a href="#sprites">Sprites</a>
+        <a href="#overlap">Overlap</a>
+        <a href="#player">Player</a>
+        <a href="#groups">Groups</a>
+        <a href="#spatial">Spatial</a>
+        <a href="#stream">Stream</a>
+        <a href="#deferred">Deferred</a>
+        <a href="#events">Events</a>
+      </nav>
     </header>
 
-    <div id="loading" class="loading">Loading sounds…</div>
+    <div class="intro">
+      <h1>Every part of the API, one page</h1>
+      <p>
+        Click anything. Each card shows the exact soundhub calls behind your click, and the event
+        log at the bottom shows what the library sent back. The page imports the library straight
+        from source, so it doubles as a smoke test.
+      </p>
+      <div class="status" role="status">
+        <span class="chip" id="chipContext"><i></i><b>Audio</b><em>-</em></span>
+        <span class="chip" id="chipSounds"><b>Sounds</b><em>-</em></span>
+        <span class="chip" id="chipPlaying"><i></i><b>Playing</b><em>0</em></span>
+      </div>
+      <p class="wake" id="wake" hidden>Browsers start audio muted until you interact. Your first click wakes it up.</p>
+    </div>
+
+    <div id="loading" class="loading"><span class="spinner" aria-hidden="true"></span> Loading sounds…</div>
 
     <main id="app" hidden>
-      <!-- Master ------------------------------------------------------->
-      <section class="card">
-        <h2>Master</h2>
-        <div class="row">
-          <label>Volume <output id="masterVolOut">100%</output>
+      <!-- Master ---------------------------------------------------------->
+      <section class="card" id="master" data-card="master">
+        <header class="card__head">
+          <h2>Master</h2>
+          <p>The volume, pan and limiter every sound passes through.</p>
+        </header>
+        <div class="meter" aria-hidden="true">
+          <div class="meter__bar"><span id="levelL"></span></div>
+          <div class="meter__bar"><span id="levelR"></span></div>
+        </div>
+        <div class="controls">
+          <label class="slider">
+            <span>Volume <output id="masterVolOut">100%</output></span>
             <input type="range" id="masterVol" min="0" max="1" step="0.01" value="1" />
           </label>
-          <label>Pan <output id="masterPanOut">0</output>
+          <label class="slider">
+            <span>Pan <output id="masterPanOut">centre</output></span>
             <input type="range" id="masterPan" min="-1" max="1" step="0.05" value="0" />
           </label>
         </div>
         <div class="row">
-          <button id="masterMute">Toggle mute</button>
-          <button id="stopAll">Stop everything</button>
-          <label class="check"><input type="checkbox" id="limiter" checked /> Master limiter</label>
+          <button class="btn" id="masterMute" aria-pressed="false">Mute all</button>
+          <button class="btn btn--danger" id="stopAll">Stop everything</button>
+          <label class="switch"><input type="checkbox" id="limiter" checked /><span></span> Limiter</label>
         </div>
-        <p class="hint">The limiter sits just before the output. Turn it off, then fire twenty lasers at once. That crackle is clipping.</p>
-        <dl class="stats">
-          <div><dt>Context</dt><dd id="statContext">-</dd></div>
-          <div><dt>Sounds loaded</dt><dd id="statCount">-</dd></div>
-          <div><dt>Ready</dt><dd id="statReady">-</dd></div>
-        </dl>
+        <p class="hint">The meter taps <code>getMasterOutput()</code> with an AnalyserNode. Turn the limiter off, then fire twelve lasers at once: that crackle is clipping.</p>
       </section>
 
-      <!-- Sprites ------------------------------------------------------>
-      <section class="card">
-        <h2>Sprites</h2>
-        <p class="hint">One 30-second mp3, eight regions. A sprite is nothing more than a start and an end time inside the same buffer.</p>
-        <div class="grid" id="spriteGrid"></div>
+      <!-- Sprites --------------------------------------------------------->
+      <section class="card" id="sprites" data-card="sprites">
+        <header class="card__head">
+          <h2>Sprites</h2>
+          <p>One 30 second file, eight regions. Each pad plays a slice of the same buffer.</p>
+        </header>
+        <div class="pads" id="spritePads"></div>
+        <div class="timeline" id="spriteTimeline" aria-hidden="true"></div>
       </section>
 
-      <!-- Multichannel ------------------------------------------------->
-      <section class="card">
-        <h2>Multichannel</h2>
-        <p class="hint">Every click starts a new instance of the same buffer, so they overlap instead of restarting.</p>
+      <!-- Overlap --------------------------------------------------------->
+      <section class="card" id="overlap" data-card="overlap">
+        <header class="card__head">
+          <h2>Overlap</h2>
+          <p>With <code>overlap: true</code> every click starts a new instance instead of restarting the sound.</p>
+        </header>
         <div class="row">
-          <button id="laser" class="primary">Fire laser</button>
-          <button id="laserBurst">Fire 12 at once</button>
-          <button id="laserStop">Stop all lasers</button>
+          <button class="btn btn--primary" id="laser">Fire laser</button>
+          <button class="btn" id="laserBurst">Fire 12 at once</button>
+          <button class="btn" id="laserStop">Stop lasers</button>
         </div>
-        <p class="hint">Live instances: <strong id="laserCount">0</strong>, capped at 16 by the group's <code>maxInstances</code>.</p>
+        <div class="slots" id="laserSlots" aria-hidden="true"></div>
+        <p class="hint"><strong id="laserCount">0</strong> playing, at most 16: the <code>lasers</code> group has <code>maxInstances: 16</code>.</p>
       </section>
 
-      <!-- Deferred loading --------------------------------------------->
-      <section class="card">
-        <h2>Deferred loading</h2>
-        <p class="hint">These three were registered with <code>registerSound</code> and not fetched at startup. The first click loads them.</p>
-        <div class="row">
-          <button id="lazyExplosion" class="primary">Explosion</button>
-          <button id="lazyPowerUp">Power up</button>
-          <button id="lazyWhoosh">Whoosh</button>
-        </div>
-        <p class="hint">State: <strong id="lazyState">-</strong></p>
-        <p class="hint">Formats this browser accepts: <strong id="formats">-</strong></p>
-      </section>
-
-      <!-- Transport & progress ----------------------------------------->
-      <section class="card">
-        <h2>Progress &amp; transport</h2>
-        <div class="row">
-          <button id="musicPlay" class="primary">Play</button>
-          <button id="musicPause">Pause</button>
-          <button id="musicResume">Resume</button>
-          <button id="musicStop">Stop</button>
-          <button id="musicFadeIn">Fade in 3s</button>
-          <button id="musicFadeOut">Fade out 3s</button>
-        </div>
-        <input type="range" id="seek" class="seek" min="0" max="1000" step="1" value="0" />
-        <div class="row between">
-          <span class="time" id="timeNow">0:00</span>
-          <span class="badge" id="musicState">stopped</span>
-          <span class="time" id="timeTotal">0:00</span>
+      <!-- Player ---------------------------------------------------------->
+      <section class="card card--wide" id="player" data-card="player">
+        <header class="card__head">
+          <h2>Player</h2>
+          <p>Transport, fades, mute, seeking and playback rate on one buffered sound.</p>
+        </header>
+        <div class="player">
+          <button class="play" id="musicToggle" aria-label="Play"><svg viewBox="0 0 24 24"><path id="musicIcon" d="M8 5.5v13l11-6.5z" /></svg></button>
+          <div class="player__main">
+            <div class="row between">
+              <strong>music.mp3</strong>
+              <span class="badge" id="musicState">stopped</span>
+            </div>
+            <input type="range" class="seek" id="seek" min="0" max="1000" step="1" value="0" aria-label="Position" />
+            <div class="row between times">
+              <span id="timeNow">0:00</span>
+              <span id="timeTotal">0:00</span>
+            </div>
+          </div>
         </div>
         <div class="row">
-          <label>Playback rate <output id="rateOut">1.00×</output>
+          <button class="btn" id="musicStop">Stop</button>
+          <button class="btn" id="musicFadeIn">Fade in 3 s</button>
+          <button class="btn" id="musicFadeOut">Fade out 3 s</button>
+          <button class="btn" id="musicMute" aria-pressed="false">Mute</button>
+        </div>
+        <div class="controls">
+          <label class="slider">
+            <span>Playback rate <output id="rateOut">1.00×</output></span>
             <input type="range" id="rate" min="0.5" max="2" step="0.05" value="1" />
           </label>
+          <label class="slider">
+            <span>Volume <output id="musicVolOut">80%</output></span>
+            <input type="range" id="musicVol" min="0" max="1" step="0.01" value="0.8" />
+          </label>
         </div>
+        <p class="hint">Times are positions in the file at any rate. Mute, stop and play again: it stays muted until you unmute.</p>
       </section>
 
-      <!-- Groups ------------------------------------------------------->
-      <section class="card">
-        <h2>Groups</h2>
-        <p class="hint">Both beds are played into one <code>ambience</code> group that carries its own play options (looping, volume 0.4).</p>
+      <!-- Groups ---------------------------------------------------------->
+      <section class="card" id="groups" data-card="groups">
+        <header class="card__head">
+          <h2>Groups</h2>
+          <p>Both beds play into one <code>ambience</code> group, which gives them its options: looping at volume 0.4.</p>
+        </header>
         <div class="row">
-          <button id="rain">Rain</button>
-          <button id="birds">Forest birds</button>
-          <button id="ambienceStop">Stop group</button>
+          <button class="btn" id="rain" aria-pressed="false"><i class="led"></i>Rain</button>
+          <button class="btn" id="birds" aria-pressed="false"><i class="led"></i>Birds</button>
+          <button class="btn btn--danger" id="ambienceStop">Stop group</button>
         </div>
-        <p class="hint">In group: <strong id="groupMembers">-</strong></p>
+        <p class="hint">In the group: <strong id="groupMembers">empty</strong></p>
       </section>
 
-      <!-- Spatial ------------------------------------------------------>
-      <section class="card">
-        <h2>Spatial audio</h2>
-        <p class="hint">A looping helicopter on a 3D panner. Drag it around. Headphones help.</p>
-        <div class="row">
-          <button id="heliPlay" class="primary">Start helicopter</button>
-          <button id="heliStop">Stop</button>
-          <button id="heliOrbit">Auto-orbit</button>
+      <!-- Spatial --------------------------------------------------------->
+      <section class="card" id="spatial" data-card="spatial">
+        <header class="card__head">
+          <h2>Spatial audio</h2>
+          <p>A helicopter on a 3D panner, seen from above. Drag it around you. Headphones help.</p>
+        </header>
+        <div class="radar" id="radar" role="application" aria-label="Drag to move the helicopter around the listener">
+          <span class="radar__ring"></span><span class="radar__ring"></span><span class="radar__ring"></span>
+          <span class="radar__front">front</span>
+          <span class="radar__me" id="radarMe" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l5 9h-3v9h-4v-9H7z" /></svg></span>
+          <span class="radar__heli" id="radarHeli"></span>
         </div>
         <div class="row">
-          <label>X (left ↔ right) <output id="heliXOut">0</output>
-            <input type="range" id="heliX" min="-10" max="10" step="0.1" value="0" />
-          </label>
-          <label>Z (front ↔ back) <output id="heliZOut">0</output>
-            <input type="range" id="heliZ" min="-10" max="10" step="0.1" value="0" />
-          </label>
+          <button class="btn btn--primary" id="heliToggle">Start helicopter</button>
+          <button class="btn" id="heliOrbit" aria-pressed="false">Orbit</button>
+          <button class="btn" id="earTurn" aria-pressed="false">Turn around</button>
+          <button class="btn" id="earReset">Reset listener</button>
         </div>
-        <p class="hint">The sliders move the helicopter. The ones below move you: same panner, other end of it.</p>
-        <div class="row">
-          <label>Listener X <output id="earXOut">0</output>
-            <input type="range" id="earX" min="-10" max="10" step="0.1" value="0" />
-          </label>
-          <button id="earTurn">Turn around</button>
-          <button id="earReset">Reset listener</button>
-        </div>
+        <p class="hint">Position <strong id="heliPos">3.0, 0, -4.0</strong>. Turning around moves you, not the helicopter: same panner, other end.</p>
       </section>
 
-      <!-- Streaming ----------------------------------------------------->
-      <section class="card">
-        <h2>Streaming</h2>
-        <p class="hint">Loaded with <code>loadStream</code>: the browser fetches as it plays instead of decoding the whole file up front. That is what makes an hour-long podcast practical.</p>
+      <!-- Stream ---------------------------------------------------------->
+      <section class="card" id="stream" data-card="stream">
+        <header class="card__head">
+          <h2>Stream</h2>
+          <p>Loaded with <code>loadStream</code>: the browser fetches while it plays, so an hour long file costs little memory.</p>
+        </header>
+        <div class="player">
+          <button class="play" id="streamToggle" aria-label="Play"><svg viewBox="0 0 24 24"><path id="streamIcon" d="M8 5.5v13l11-6.5z" /></svg></button>
+          <div class="player__main">
+            <div class="row between">
+              <strong>podcast</strong>
+              <span class="badge" id="streamState">stopped</span>
+            </div>
+            <div class="buffered"><span id="streamBuffered"></span></div>
+            <input type="range" class="seek" id="streamSeek" min="0" max="1000" step="1" value="0" aria-label="Position" />
+            <div class="row between times">
+              <span id="streamNow">0:00</span>
+              <span id="streamTotal">0:00</span>
+            </div>
+          </div>
+        </div>
         <div class="row">
-          <button id="streamPlay" class="primary">Play</button>
-          <button id="streamPause">Pause</button>
-          <button id="streamResume">Resume</button>
-          <button id="streamStop">Stop</button>
-          <button id="streamMute">Mute</button>
+          <button class="btn" id="streamBack">−15 s</button>
+          <button class="btn" id="streamForward">+30 s</button>
+          <button class="btn" id="streamMute" aria-pressed="false">Mute</button>
         </div>
-        <input type="range" id="streamSeek" class="seek" min="0" max="1000" step="1" value="0" />
-        <div class="row between">
-          <span class="time" id="streamNow">0:00</span>
-          <span class="badge" id="streamState">stopped</span>
-          <span class="time" id="streamTotal">0:00</span>
-        </div>
-        <div class="row">
-          <label>Speed <output id="streamRateOut">1.00×</output>
-            <input type="range" id="streamRate" min="0.5" max="3" step="0.1" value="1" />
-          </label>
-          <label>Volume <output id="streamVolOut">80%</output>
-            <input type="range" id="streamVol" min="0" max="1" step="0.01" value="0.8" />
-          </label>
-        </div>
+        <label class="slider">
+          <span>Speed <output id="streamRateOut">1.00×</output></span>
+          <input type="range" id="streamRate" min="0.5" max="3" step="0.1" value="1" />
+        </label>
+        <p class="hint">Playing puts it on the lock screen with <code>setMediaSession</code>, so media keys work too.</p>
       </section>
 
-      <!-- Event bus ---------------------------------------------------->
-      <section class="card wide">
-        <h2>Event bus</h2>
+      <!-- Deferred -------------------------------------------------------->
+      <section class="card" id="deferred" data-card="deferred">
+        <header class="card__head">
+          <h2>Deferred loading</h2>
+          <p>Registered with <code>registerSound</code> but not fetched. The first click loads the file, then plays it.</p>
+        </header>
+        <ul class="list" id="deferredList"></ul>
+        <p class="hint">Formats this browser plays: <strong id="formats">-</strong></p>
+      </section>
+
+      <!-- Events ---------------------------------------------------------->
+      <section class="card card--wide" id="events">
+        <header class="card__head">
+          <h2>Event log</h2>
+          <p>Every event the library dispatches, newest first.</p>
+        </header>
         <div class="row">
-          <label class="check"><input type="checkbox" id="showProgress" /> include progress events</label>
-          <button id="logClear">Clear</button>
+          <label class="switch"><input type="checkbox" id="showProgress" /><span></span> Progress events</label>
+          <label class="switch"><input type="checkbox" id="logPaused" /><span></span> Pause log</label>
+          <button class="btn btn--ghost" id="logClear">Clear</button>
         </div>
-        <ol class="log" id="log"></ol>
+        <ol class="log" id="log"><li class="log__empty">Nothing yet. Play something.</li></ol>
       </section>
     </main>
+
+    <footer class="foot">
+      <p>Every sound here is synthesised by <code>scripts/generate-example-sounds.py</code> and carries the MIT licence.</p>
+    </footer>
 
     <script type="module" src="./demo.ts"></script>
   </body>

@@ -337,8 +337,9 @@ sound plays; `clearMediaSession()` takes it off again.
 
 The `examples/` folder holds a single page that exercises the whole public API:
 sprites, overlapping instances, deferred loading, progress and seeking, groups,
-fades, panning, spatial audio with a listener you can move, and a live view of
-the event bus.
+fades, mute, panning, spatial audio with a listener you can move, streaming, a
+level meter on the master output, and a live view of the event bus. Each card
+prints the soundhub calls behind your last click.
 
 ```bash
 npm install
