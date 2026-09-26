@@ -34,20 +34,28 @@
   ],
   "type": "module",
   "sideEffects": false,
-  "main": "./dist/soundhub.umd.js",
+  "main": "./dist/soundhub.cjs",
   "module": "./dist/soundhub.es.js",
   "types": "./dist/types/index.d.ts",
+  "unpkg": "./dist/soundhub.umd.js",
+  "jsdelivr": "./dist/soundhub.umd.js",
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/soundhub.es.js",
-      "require": "./dist/soundhub.umd.js"
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/soundhub.es.js"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/soundhub.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "dist/soundhub.umd.js",
     "dist/soundhub.es.js",
+    "dist/soundhub.cjs",
+    "dist/soundhub.umd.js",
     "dist/types",
     "README.md",
     "LICENSE"

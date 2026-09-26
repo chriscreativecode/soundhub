@@ -23,18 +23,31 @@ describe('what the package promises', () => {
     expect(packageJson.exports['./package.json']).toBe('./package.json');
   });
 
-  it('exports types, an ES build and a UMD build from the root', () => {
+  it('exports an ES build and a CommonJS build from the root, each with its own types', () => {
+    // The package is "type": "module", so a .js file is ESM to Node. require
+    // pointed at the UMD build, which Node then loaded as ESM and found no
+    // exports in. The CommonJS build has a .cjs extension, and its own .d.cts
+    // so TypeScript does not treat it as an ES module either.
     expect(packageJson.exports['.']).toEqual({
-      types: './dist/types/index.d.ts',
-      import: './dist/soundhub.es.js',
-      require: './dist/soundhub.umd.js',
+      import: { types: './dist/types/index.d.ts', default: './dist/soundhub.es.js' },
+      require: { types: './dist/types/index.d.cts', default: './dist/soundhub.cjs' },
     });
+    expect(packageJson.main).toBe('./dist/soundhub.cjs');
   });
 
   it('ships the files those entry points point at', () => {
     expect(packageJson.files).toEqual(
-      expect.arrayContaining(['dist/soundhub.es.js', 'dist/soundhub.umd.js', 'dist/types'])
+      expect.arrayContaining(['dist/soundhub.es.js', 'dist/soundhub.cjs', 'dist/soundhub.umd.js', 'dist/types'])
     );
+  });
+
+  it('marks the old names as deprecated, so an editor strikes them through', () => {
+    const lines = read('../src/index.ts').split(/\r?\n/);
+    for (const name of ['SoundManager', 'SoundManagerConfig', 'SoundManagerInterface']) {
+      const declaration = lines.findIndex((line) => new RegExp(`^export (const|type) ${name} `).test(line));
+      expect(declaration, name).toBeGreaterThan(0);
+      expect(lines[declaration - 1], name).toContain('@deprecated');
+    }
   });
 
   it('runs the tests and the build before publishing', () => {

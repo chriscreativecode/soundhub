@@ -6,8 +6,24 @@
  * in v7.
  */
 
-export { SoundHub } from './core/sound-hub';
-export { SoundHub as SoundManager } from './core/sound-hub';
+import { SoundHub } from './core/sound-hub';
+import type { SoundHubConfig } from './core/sound-hub-config';
+import type { SoundHubInterface } from './core/sound-hub.interface';
+
+export { SoundHub };
+
+// The old names are declared here rather than re-exported under an alias,
+// because only a declaration can carry @deprecated for an editor to strike
+// through. They will be removed in v7.
+
+/** @deprecated Renamed to `SoundHub`. Removed in v7. */
+export const SoundManager = SoundHub;
+/** @deprecated Renamed to `SoundHub`. Removed in v7. */
+export type SoundManager = SoundHub;
+/** @deprecated Renamed to `SoundHubConfig`. Removed in v7. */
+export type SoundManagerConfig = SoundHubConfig;
+/** @deprecated Renamed to `SoundHubInterface`. Removed in v7. */
+export type SoundManagerInterface = SoundHubInterface;
 
 export { DEFAULT_CONFIG } from './core/sound-hub-config';
 export { DEFAULT_PANNER_CONFIG, PanningModel, DistanceModel } from './core/sound-panner-config';
@@ -17,9 +33,7 @@ export { SoundState } from './core/sound-state.interface';
 
 export type { SoundHubConfig } from './core/sound-hub-config';
 export type { SoundLoadState } from './core/sound-load-state';
-export type { SoundHubConfig as SoundManagerConfig } from './core/sound-hub-config';
 export type { SoundHubInterface } from './core/sound-hub.interface';
-export type { SoundHubInterface as SoundManagerInterface } from './core/sound-hub.interface';
 
 export type { PlayOptions } from './core/play-sound-options.interface';
 export type { Sound } from './core/sound.interface';
