@@ -5,6 +5,16 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [Unreleased]
+
+### Fixed
+
+**`getPlaybackRate()` right after `play()`.** It read the rate off the audio
+param, and a browser only moves that value once the audio thread has run. So
+straight after `play(id, { playbackRate: 1.5 })`, or after a variation with a
+pitch spread started a take, it still returned 1. It now reads the rate the
+sound was given.
+
 ## [6.5.0] - 2026-09-26
 
 Ducking, variations, a way to add audio you already have in memory, and two

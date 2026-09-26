@@ -4299,7 +4299,9 @@ export class SoundHub implements SoundHubInterface {
     if (this.streams.has(id)) return this.streams.get(id)!.element.playbackRate;
     try {
       const sound = this.getValidatedSound(id);
-      return sound?.source?.playbackRate?.value ?? sound?.playOptions?.playbackRate ?? this.config.defaultPlaybackRate ?? 1;
+      // The play options first: right after setValueAtTime a browser still
+      // reports the old value on the param, until the audio thread has run
+      return sound?.playOptions?.playbackRate ?? sound?.source?.playbackRate?.value ?? this.config.defaultPlaybackRate ?? 1;
     } catch {
       return this.config.defaultPlaybackRate ?? 1;
     }

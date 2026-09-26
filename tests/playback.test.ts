@@ -62,6 +62,17 @@ describe('play', () => {
     expect(hub.getLoop('music')).toBe(true);
   });
 
+  it('reports the rate given to play before the browser has applied it', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+
+    hub.play('music', { playbackRate: 1.5 });
+    // A real param still reads its old value until the audio thread has run
+    sourceOf(hub, 'music').playbackRate.value = 1;
+
+    expect(hub.getPlaybackRate('music')).toBe(1.5);
+  });
+
   it('starts at the requested offset', async () => {
     const hub = createHub();
     await loadSound(hub, 'music', '/audio/music.mp3', 10);
