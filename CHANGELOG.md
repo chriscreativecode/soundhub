@@ -5,9 +5,10 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
-## [Unreleased]
+## [6.5.0] - 2026-09-26
 
-Four additions, none of which changes what existing code does.
+Ducking, variations, a way to add audio you already have in memory, and two
+new entry points. None of it changes what existing code does.
 
 ### Added
 
@@ -37,7 +38,7 @@ import it.
 **`soundhub/howler`**, a new entry point with the Howler.js API (`Howl` and
 `Howler`) on top of one shared SoundHub, so Howler code runs after changing the
 import. `Howler.hub` and `howl.soundhubId` reach the hub underneath, and
-`Howler.configure()` sets its config. 3.6 KB gzipped, on top of the main
+`Howler.configure()` sets its config. 3.7 KB gzipped, on top of the main
 package.
 
 ### Changed
@@ -570,6 +571,7 @@ fixes and small additions between the milestones.
 | 6.3.0 to 6.3.2 | 26 Sep 2026 | soundhub |
 | 6.4.0 | 26 Sep 2026 | soundhub |
 
+[6.5.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.0
 [6.4.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.4.0
 [6.3.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.2
 [6.3.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.1

@@ -1,6 +1,6 @@
 {
   "name": "soundhub",
-  "version": "6.4.0",
+  "version": "6.5.0",
   "license": "MIT",
   "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus, and stream long files. Duck music under a voice, vary repeated sounds, add interface sounds without files, or run Howler.js code unchanged. Web Audio API, 23 KB gzipped, zero dependencies.",
   "author": {
