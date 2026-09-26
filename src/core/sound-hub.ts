@@ -32,6 +32,8 @@ export class SoundHub implements SoundHubInterface {
   private masterLimiterNode: DynamicsCompressorNode | null = null;
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
+  private mutedForHiddenPage: boolean = false;
+  private isRestarting: boolean = false;
   private previousGlobalPan: number = 0;
   private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
   private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
@@ -163,13 +165,20 @@ export class SoundHub implements SoundHubInterface {
     // keep this SoundHub (and its AudioContext) alive on `document` forever.
     this.removeVisibilityHandling();
 
+    // Only undo a mute this handler made. Unmuting on every return to the page
+    // also undid a mute the user had chosen before switching tabs.
     this.visibilityHandler = () => {
       if (document.hidden) {
+        if (this.isMuted) return;
         this.debugLog("Page hidden, auto-muting sounds");
         this.muteAllSounds();
-      } else if (this.config.autoResumeOnFocus) {
-        this.debugLog("Page visible, auto-resuming sounds");
-        this.unmuteAllSounds();
+        this.mutedForHiddenPage = true;
+      } else if (this.mutedForHiddenPage) {
+        this.mutedForHiddenPage = false;
+        if (this.config.autoResumeOnFocus) {
+          this.debugLog("Page visible, auto-resuming sounds");
+          this.unmuteAllSounds();
+        }
       }
     };
 
@@ -1455,12 +1464,22 @@ export class SoundHub implements SoundHubInterface {
     stopAfterFade: boolean = false,
     skipDispatchEvent: boolean = false
   ): void {
+    if (this.streams.has(id)) {
+      const stream = this.streams.get(id)!;
+      if (stream.state !== SoundState.Playing) return;
+      const target = endVolume ?? 0;
+      return this.streamFade(id, duration, startVolume ?? stream.volume, target, stopAfterFade && target === 0);
+    }
     let sound: Sound;
     try {
       sound = this.getValidatedSound(id);
     } catch {
       return; // getValidatedSound already reported the failure
     }
+
+    // Fading out something that is silent already has nothing to do. This used
+    // to call play() first, so a sound that had ended started again.
+    if (sound.state !== SoundState.Playing) return;
 
     this.cancelFadeAnimation(id);
 
@@ -1475,9 +1494,6 @@ export class SoundHub implements SoundHubInterface {
 
     sound.gainNode.gain.setValueAtTime(effectiveStartVolume, this.context.currentTime);
 
-    if (sound.state !== SoundState.Playing) {
-      this.play(id, { volume: effectiveStartVolume });
-    }
     this.fadeSound(id, effectiveStartVolume, targetEndVolume, duration, () => {
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -1709,6 +1725,8 @@ export class SoundHub implements SoundHubInterface {
       const sound = this.getValidatedSound(id);
 
       const validatedVolume = this.setValidatedVolume(volume);
+      // Setting a volume makes the sound audible again, so it is no longer muted
+      sound.isMuted = false;
       sound.volume = this.roundValue(validatedVolume);
       sound.originalVolume = validatedVolume;
       sound.playOptions = {
@@ -1769,7 +1787,11 @@ export class SoundHub implements SoundHubInterface {
 
   public muteAllSounds(): void {
     this.streams.forEach((_, id) => this.mute(id));
-    this.previousGlobalVolume = this.roundValue(this.masterGainNode.gain.value, 2);
+    // Muting while already muted read the master gain of 0 and kept that as the
+    // volume to come back to.
+    if (!this.isMuted) {
+      this.previousGlobalVolume = this.roundValue(this.masterGainNode.gain.value, 2);
+    }
     this.masterGainNode.gain.setValueAtTime(0, this.context.currentTime);
     this.isMuted = true;
 
@@ -1785,6 +1807,7 @@ export class SoundHub implements SoundHubInterface {
     this.streams.forEach((_, id) => this.unmute(id));
     this.masterGainNode.gain.setValueAtTime(this.previousGlobalVolume, this.context.currentTime);
     this.isMuted = false;
+    this.mutedForHiddenPage = false;
 
     this.dispatchEvent({
       type: SoundEventsEnum.UNMUTE_GLOBAL,
@@ -1808,6 +1831,11 @@ export class SoundHub implements SoundHubInterface {
     try {
       const sound = this.getValidatedSound(id);
 
+      // A second mute used to store the muted volume of 0 as the one to come
+      // back to, so unmute() restored silence.
+      if (sound.isMuted) return;
+
+      sound.isMuted = true;
       sound.previousVolume = sound.volume;
       sound.volume = 0;
       sound.gainNode.gain.setValueAtTime(0, this.context.currentTime);
@@ -1838,6 +1866,7 @@ export class SoundHub implements SoundHubInterface {
     try {
       const sound = this.getValidatedSound(id);
       const volumeToRestore = sound.previousVolume ?? this.config.defaultVolume ?? 1;
+      sound.isMuted = false;
       sound.volume = volumeToRestore;
       sound.gainNode.gain.setValueAtTime(volumeToRestore, this.context.currentTime);
 

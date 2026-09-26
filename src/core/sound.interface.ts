@@ -13,6 +13,7 @@ export interface Sound {
   id: string;
   isFadingIn?: boolean;
   isFadingOut?: boolean;
+  isMuted?: boolean;
   originalVolume?: number;
   pannerNode?: PannerNode | null; // for 3D panning
   pan?: number; // Normal panning value -1 to 1

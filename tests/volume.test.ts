@@ -286,3 +286,57 @@ describe('interrupting a fade', () => {
     expect(hub.isPlaying('music')).toBe(false);
   });
 });
+
+describe('muting twice', () => {
+  it('keeps the volume when one sound is muted twice', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    hub.play('music', { volume: 0.7 });
+
+    hub.mute('music');
+    hub.mute('music');
+    hub.unmute('music');
+
+    expect(hub.getGainNode('music')?.gain.value).toBeCloseTo(0.7, 5);
+  });
+
+  it('keeps the master volume when everything is muted twice', () => {
+    const hub = createHub();
+    hub.setGlobalVolume(0.8);
+
+    hub.muteAllSounds();
+    hub.muteAllSounds();
+    hub.unmuteAllSounds();
+
+    expect(hub.getGlobalVolume()).toBeCloseTo(0.8, 5);
+  });
+
+  it('leaves a mute alone when the tab is hidden and shown again', () => {
+    let hidden = false;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+    const hub = createHub();
+    hub.setGlobalVolume(0.8);
+
+    hub.muteAllSounds();
+    hidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(hub.getGlobalVolume()).toBe(0);
+
+    hub.toggleGlobalMute();
+    expect(hub.getGlobalVolume()).toBeCloseTo(0.8, 5);
+    hub.destroy();
+  });
+});
+
+describe('fading out a sound that is not playing', () => {
+  it('does not start it', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+
+    hub.fadeOut('music', 1);
+
+    expect(hub.isPlaying('music')).toBe(false);
+  });
+});

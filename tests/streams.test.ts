@@ -134,4 +134,17 @@ describe('streams', () => {
     expect(listener).toHaveBeenCalledOnce();
     expect(hub.isPlaying('podcast')).toBe(false);
   });
+
+  it('fades out like a buffered sound', async () => {
+    const hub = createHub();
+    await hub.loadStream('podcast', '/audio/episode.mp3');
+    const errors = vi.fn();
+    hub.addEventListener(SoundEventsEnum.ERROR, errors);
+    hub.play('podcast');
+
+    hub.fadeOut('podcast', 1);
+
+    expect(errors).not.toHaveBeenCalled();
+    expect(hub.getVolume('podcast')).toBe(0);
+  });
 });
