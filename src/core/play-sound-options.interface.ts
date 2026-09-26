@@ -1,29 +1,60 @@
 import { SoundPanType } from "./sound-pan-type.enum";
 
 export interface PlayOptions {
-  /** @deprecated Renamed to `overlap`. Still honoured, and removed in v7. */
-  createNewInstance?: boolean; // Old name for overlap. Both work; overlap wins when you set both.
-  duration?:number; // in seconds
-  fadeInDuration?: number; // in seconds
-  fadeInStartVolume?: number; // 0 to 1
-  fadeOutDuration?: number; // in seconds, when you play a sound it will immidiately start fading out
-  fadeOutEndVolume?: number; // 0 to 1
-  fadeOutBeforeEndDuration?: number; // in seconds, fade out before the sound ends
-  groupId?: string; // Group ID for the sounds that will be in this group.
-  isSeeking?: boolean; // used internally for the seek method
-  loop?: boolean; // default: false
-  maxLoops?: number; // 0 or -1 for infinite, number > 0 for specific number of loops
-  seamlessLoop?: boolean; // Loop inside the audio graph instead of restarting the source, so there is no gap between iterations. Requires loop: true. Trade-off: the loop never ends by itself, so maxLoops is ignored and no 'loop-completed' event is dispatched. Use it for beds and drones, where a restart is audible.
-  overlap?: boolean; // Let the sound overlap itself instead of restarting. Default: false. Every call gets its own instance with the id "<id>:<n>", which is what the play() return value and the event's instanceId carry. Use it for footsteps, lasers and clicks. Not available on streams.
-  pan?: number; // -1 (left) to 1 (right)
-  panSpatialOrientation?: { x: number; y: number; z: number }; // Direction the sound points in. Only does something when the panner has a cone set through coneInnerAngle and coneOuterAngle.
-  panSpatialPosition?: { x: number; y: number; z: number }; //  If you want to use 3D panning you must also set panType to SoundPanType.Spatial
-  panType?: SoundPanType; // 'stereo' or 'spatial' (default is 'stereo')
-  pauseAtDurationReached?: boolean; // This will only work if you set the duration and if that duration is reached it will pause. Note: Loop must be false.
-  playbackRate?: number; // 0.5 to 4 (normal speed is 1)
-  startTime?: number; // in seconds
-  trackProgress?: boolean; // Track progress of the sound playback. This will keep track of the process and will dispatch the 'progress' event. This is useful when you want to show the progress of the sound playback.
-  volume?: number; // 0 to 1
+  /** @deprecated Renamed to `overlap`. Still honoured, and removed in v7. `overlap` wins when both are set. */
+  createNewInstance?: boolean;
+  /** Seconds to play before the sound ends. Wall clock time, so at double speed it covers twice as much of the file. */
+  duration?: number;
+  /** Seconds to fade in when the sound starts. */
+  fadeInDuration?: number;
+  /** Volume the fade in starts from, 0 to 1. */
+  fadeInStartVolume?: number;
+  /** Seconds to fade out, starting as soon as the sound plays. For a fade at the end, use fadeOutBeforeEndDuration. */
+  fadeOutDuration?: number;
+  /** Volume the fade out ends at, 0 to 1. Default: 0. */
+  fadeOutEndVolume?: number;
+  /** Seconds before the end at which a fade out starts. */
+  fadeOutBeforeEndDuration?: number;
+  /** Group to play the sound into. The group's play options apply, and its maxInstances caps it. */
+  groupId?: string;
+  /** @deprecated Never read by the hub. Removed in v7. */
+  isSeeking?: boolean;
+  /** Start over when the end is reached. Default: false. */
+  loop?: boolean;
+  /** How often a looping sound plays. 0 or -1 loops forever. */
+  maxLoops?: number;
+  /**
+   * Loop inside the audio graph instead of restarting the source, so there is
+   * no gap between iterations. Needs loop: true. The loop never ends by itself,
+   * so maxLoops is ignored and no loop_completed event is dispatched. Use it for
+   * beds and drones, where a restart is audible.
+   */
+  seamlessLoop?: boolean;
+  /**
+   * Let the sound overlap itself instead of restarting. Every call gets its own
+   * instance with the id "<id>:<n>", which is what play() returns and what the
+   * event's instanceId carries. Use it for footsteps, lasers and clicks. Not
+   * available on streams. Default: false.
+   */
+  overlap?: boolean;
+  /** Stereo pan, from -1 (left) to 1 (right). */
+  pan?: number;
+  /** Direction the sound points in. Only audible when the panner has a cone set through coneInnerAngle and coneOuterAngle. */
+  panSpatialOrientation?: { x: number; y: number; z: number };
+  /** Position in 3D space. Set panType to SoundPanType.Spatial as well. */
+  panSpatialPosition?: { x: number; y: number; z: number };
+  /** 'stereo' or 'spatial'. Default: 'stereo'. */
+  panType?: SoundPanType;
+  /** Pause instead of stop when duration is reached. Needs duration, and loop set to false. */
+  pauseAtDurationReached?: boolean;
+  /** Playback speed. 1 is normal, 2 is double speed. */
+  playbackRate?: number;
+  /** Second in the file to start from. */
+  startTime?: number;
+  /** Dispatch `progress` events while the sound plays, for a seek bar or a timer. */
+  trackProgress?: boolean;
+  /** Volume from 0 to 1. */
+  volume?: number;
 }
 
 /**

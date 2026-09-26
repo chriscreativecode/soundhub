@@ -6,9 +6,9 @@ import { SoundState } from "./sound-state.interface";
  *
  * A stream is backed by an HTMLAudioElement instead of a decoded AudioBuffer,
  * so the browser pulls the file in as it plays rather than downloading and
- * decoding it up front. That is what makes a one-hour recording practical: a
- * buffered hour of stereo 44.1 kHz costs roughly 600 MB of memory and a long
- * decode before the first sound comes out.
+ * decoding it up front. That is what makes a one-hour recording practical: an
+ * hour of stereo 44.1 kHz decoded into a buffer takes about 1.3 GB of memory,
+ * and a long decode before the first sound comes out.
  */
 export interface StreamOptions {
   /** 0 to 1. Defaults to the hub's defaultVolume. */
@@ -17,7 +17,7 @@ export interface StreamOptions {
   pan?: number;
   /** Start over when the end is reached. */
   loop?: boolean;
-  /** 0.5 to 4. Podcast listeners want this one. */
+  /** 0.25 to 4. Podcast listeners want this one. */
   playbackRate?: number;
   /** Second to start from when play() is called with no explicit seek. */
   startTime?: number;
@@ -35,7 +35,7 @@ export interface StreamOptions {
  * A sound backed by a media element rather than a buffer.
  *
  * The element is routed through MediaElementAudioSourceNode into the same chain
- * a buffered sound uses: gain, then panning, then the master bus. Master volume,
+ * a buffered sound uses: panning, then gain, then the master bus. Master volume,
  * master pan and the limiter therefore apply to streams the same way they apply
  * to everything else.
  *

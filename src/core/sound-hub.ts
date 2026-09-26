@@ -35,7 +35,7 @@ export class SoundHub implements SoundHubInterface {
   private mutedForHiddenPage: boolean = false;
   private isRestarting: boolean = false;
   private previousGlobalPan: number = 0;
-  private PROGRESS_UPDATE_INTERVAL = 50; // 50ms default, could be configurable
+  private PROGRESS_UPDATE_INTERVAL = 50; // milliseconds, see setProgressUpdateInterval()
   private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
   private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
   private activeFadeCallbacks: Map<string, () => void> = new Map();
@@ -81,8 +81,7 @@ export class SoundHub implements SoundHubInterface {
   constructor(config: SoundHubConfig = {}) {
     this.ticker = new Ticker();
 
-    // Normalise a copy. Writing the sanitised values back into the caller's
-    // object mutated an argument they may reuse for another SoundHub.
+    // Normalise a copy, so the caller can reuse their config object for another hub.
     const userConfig: SoundHubConfig = { ...config };
 
     this.config = {
@@ -123,7 +122,6 @@ export class SoundHub implements SoundHubInterface {
       this.masterPannerNode = null;
       this.masterLimiterNode = this.config.masterLimiter ? this.createMasterLimiter() : null;
 
-      // Connect in chain: masterGainNode -> masterStereoPanner -> [limiter] -> destination
       this.rewireMasterChain();
 
       this.masterStereoPanner.pan.value = this.config.defaultPan ?? 0;
@@ -165,8 +163,8 @@ export class SoundHub implements SoundHubInterface {
     // keep this SoundHub (and its AudioContext) alive on `document` forever.
     this.removeVisibilityHandling();
 
-    // Only undo a mute this handler made. Unmuting on every return to the page
-    // also undid a mute the user had chosen before switching tabs.
+    // Only undo a mute this handler made, so a mute the user chose before
+    // switching tabs stays.
     this.visibilityHandler = () => {
       if (document.hidden) {
         if (this.isMuted) return;
@@ -227,7 +225,6 @@ export class SoundHub implements SoundHubInterface {
         source.buffer = buffer;
         source.connect(this.context.destination);
 
-        // Very short duration to minimize processing
         source.start(0, 0, 0.1);
 
         await this.context.resume();
@@ -376,7 +373,6 @@ export class SoundHub implements SoundHubInterface {
   private handleLoopIteration(sound: Sound): void {
     this.debugLog(`Restarting loop for sound ${sound.id}`);
 
-    // Guard: skip loop restart if looping was disabled or sound was stopped/paused in the meantime
     if (!sound.playOptions?.loop) {
       this.debugLog(`Loop was disabled for ${sound.id}, handling as ended`);
       this.handleSoundEnded(sound);
@@ -389,7 +385,7 @@ export class SoundHub implements SoundHubInterface {
       return;
     }
 
-    // Check if we've reached max loops (0 or -1 means infinite)
+    // maxLoops of 0 or -1 loops forever
     if (
       sound.playOptions?.maxLoops !== undefined &&
       sound.playOptions?.maxLoops > 0 &&
@@ -439,14 +435,12 @@ export class SoundHub implements SoundHubInterface {
     sound.currentTime = 0;
 
     if (wantsOverlap(sound.playOptions)) {
-      // I could not use the cleanupSound in here, because when the first instance is stopped, the second and any other next instance will be stopped too
-      // because of the disconnectNodes method in the cleanupSound method
+      // Not cleanupSound(): its disconnectNodes() call would also cut off the
+      // instances of this sound that are still playing.
       this.cleanupExistingSource(sound.id);
     } else {
-      // Listeners survive the cleanup here and are dropped below, after the
-      // event. Removing them first meant a listener filtered on this instance
-      // was gone by the time its own ended event was dispatched, which is the
-      // one event it was waiting for.
+      // Listeners survive the cleanup and are dropped after the event, so a
+      // listener filtered on this instance still hears its own ended event.
       this.cleanupSound(sound.id, true);
     }
 
@@ -490,11 +484,9 @@ export class SoundHub implements SoundHubInterface {
   private cancelFadeAnimation(id: string): void {
     this.ticker.removeCallback(`fade_${id}`);
 
-    // Cancelling a fade abandons it, leaving the volume where the fade got to.
-    // Running the completion callback here instead jumped the volume to the
-    // fade target, fired fade_in_completed or fade_out_completed, and with
-    // stopAfterFade stopped the sound. Turning the volume up halfway through a
-    // fade out therefore silenced it.
+    // Cancelling abandons the fade and leaves the volume where it got to. The
+    // completion callback does not run: it would jump to the target volume,
+    // fire the completed event and, with stopAfterFade, stop the sound.
     this.activeFadeCallbacks.delete(id);
 
     const sound = this.sounds.get(id);
@@ -509,10 +501,8 @@ export class SoundHub implements SoundHubInterface {
   }
 
   /**
-   * Returns a loaded sound or throws. It used to log and return undefined behind
-   * a non-null assertion, which turned every unknown id into a TypeError on the
-   * next property access. Callers either sit inside a try/catch that reports the
-   * failure, or guard with hasSound()/getSound().
+   * Returns a loaded sound or throws. Callers either sit inside a try/catch
+   * that reports the failure, or guard with hasSound() or getSound().
    */
   private getValidatedSound(id: string): Sound {
     const sound = this.sounds.get(id);
@@ -566,13 +556,12 @@ export class SoundHub implements SoundHubInterface {
 
   /**
    * Tears down every loaded sound and its audio nodes. The master chain is left
-   * intact on purpose so the manager stays usable afterwards (reset() relies on
+   * intact on purpose so the hub stays usable afterwards (reset() relies on
    * that); destroy() is what dismantles the master nodes.
    */
   private cleanup(): void {
-    // Tear the sounds down while the map is still populated. This used to run
-    // after sounds.clear(), which made the node disconnects dead code and leaked
-    // every gain/panner node still attached to the master chain.
+    // Tear the sounds down before the map is cleared, or their nodes stay
+    // attached to the master chain.
     this.sounds.forEach((sound, id) => {
       this.cleanupSound(id);
 
@@ -679,7 +668,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   private getInstanceCounter(id: string): number {
-    const baseId = id.split(':')[0]; // Use ':' as separator
+    const baseId = id.split(':')[0];
 
     let counter = this.instanceCounters.get(baseId) || 0;
 
@@ -898,12 +887,10 @@ export class SoundHub implements SoundHubInterface {
   /**
    * Drop instances that have finished.
    *
-   * An instance is a full entry in the sound map with its own gain node. They
-   * used to stay there for the lifetime of the page, so a game firing a footstep
-   * every half second grew the map by seven thousand entries an hour. Nothing
-   * audible was lost, but getSoundIds() and every sweep over the map paid for
-   * it. Playing or paused instances are left alone, and so is one that is
-   * currently on the lock screen.
+   * An instance is a full entry in the sound map with its own gain node.
+   * Without this, a game firing a footstep every half second adds seven
+   * thousand entries an hour. Playing or paused instances stay, and so does
+   * one that is on the lock screen.
    */
   private reapFinishedInstances(baseId: string): void {
     this.getInstanceIds(baseId).forEach((instanceId) => {
@@ -1006,10 +993,8 @@ export class SoundHub implements SoundHubInterface {
         }
 
         // Without overlap there is no instance to add further down, so the sound
-        // joins the group here. It used to join only on the overlap path, which
-        // left play(id, { groupId }) out of the group entirely: the group stayed
-        // empty, its play options never applied, and stopping every member of a
-        // group stopped nothing.
+        // itself joins the group here. That is what makes the group's play options
+        // apply to it and stopping the group reach it.
         if (!overlap && !group.sounds.has(id)) {
           this.addToSoundGroup(groupId, id);
           // addToSoundGroup merges the group options into the sound, so the
@@ -1030,7 +1015,7 @@ export class SoundHub implements SoundHubInterface {
         actualId = `${baseId}:${instanceNumber}`;
         this.debugLog(`Creating new instance with ID: ${actualId}`);
 
-        // Create a DEEP copy of the original sound's playOptions
+        // A deep copy, so an instance shares no nested objects with the original
         const newPlayOptions = JSON.parse(JSON.stringify({
           ...originalSound.playOptions,
           ...options,
@@ -1096,9 +1081,8 @@ export class SoundHub implements SoundHubInterface {
       } else if (sound.playOptions?.startTime !== undefined) {
         startOffset = sound.playOptions.startTime;
       }
-      // The start takes the paused position with it. Left in place, it survived
-      // a resume or a seek, and the next play() to restart the sound began
-      // there instead of at the top. pause() and seek() set it again.
+      // The start uses up the paused position. pause() and seek() set it again;
+      // without them the next play() starts from the top.
       sound.pausedAt = 0;
 
       sound.startTime = this.context.currentTime - (startOffset / playbackRate);
@@ -1106,8 +1090,7 @@ export class SoundHub implements SoundHubInterface {
       sound.state = SoundState.Playing;
 
       // A restart reuses the gain node, which already holds the volume, a mute
-      // or a fade in progress. Setting the volume or starting the fades again
-      // made every seek and every loop fade in from silence.
+      // or a fade in progress, so none of that is set again.
       const freshStart = !this.isRestarting;
 
       if (freshStart && sound.playOptions?.volume !== undefined) {
@@ -1358,7 +1341,7 @@ export class SoundHub implements SoundHubInterface {
 
       if (skipDispatchEvent) return;
 
-      // The position after the seek. This used to report the one before it.
+      // Report where the seek landed
       this.dispatchEvent({
         type: SoundEventsEnum.SEEKED,
         soundId: id,
@@ -1374,8 +1357,8 @@ export class SoundHub implements SoundHubInterface {
   public stopAllSounds(): void {
     this.streams.forEach((_, id) => this.streamStop(id));
     try {
-      // Iterate the sounds map, not activeSources: pause() removes the entry from
-      // activeSources, so paused sounds were silently skipped and stayed paused.
+      // Iterate the sounds map, not activeSources: pause() removes the entry
+      // from activeSources, so paused sounds would be skipped.
       const ids = new Set<string>([
         ...Array.from(this.sounds.keys()),
         ...Array.from(this.activeSources.keys())
@@ -1414,7 +1397,7 @@ export class SoundHub implements SoundHubInterface {
 
   // End Playback control-----------------------------------------------------------------------------------------------------------
 
-  // Fade managment ----------------------------------------------------------------------------------------------------------------
+  // Fade management ----------------------------------------------------------------------------------------------------------------
 
   public fadeIn(id: string, duration: number, startVolume?: number, endVolume?: number, skipDispatchEvent: boolean = false): void {
     if (this.streams.has(id)) {
@@ -1509,8 +1492,7 @@ export class SoundHub implements SoundHubInterface {
       return; // getValidatedSound already reported the failure
     }
 
-    // Fading out something that is silent already has nothing to do. This used
-    // to call play() first, so a sound that had ended started again.
+    // Fading out a sound that is not playing has nothing to do
     if (sound.state !== SoundState.Playing) return;
 
     this.cancelFadeAnimation(id);
@@ -1535,9 +1517,8 @@ export class SoundHub implements SoundHubInterface {
           sound,
         });
       }
-      // Check the resolved target, not the raw parameter: fadeOut(id, 2) fades to
-      // 0 via fadeOutEndVolume, but `endVolume` is undefined so stopAfterFade
-      // used to be ignored.
+      // Check the resolved target, not the raw parameter: fadeOut(id, 2) fades
+      // to 0 through fadeOutEndVolume while `endVolume` is undefined.
       if (targetEndVolume === 0 && stopAfterFade) {
         this.stop(id);
       }
@@ -1560,7 +1541,7 @@ export class SoundHub implements SoundHubInterface {
       sound.gainNode.gain.cancelScheduledValues(this.context.currentTime);
 
       // Shorten the fade slightly so it finishes before the sound does
-      const fadeDuration = Math.max(0, duration - 0.02); // Reduce by 20ms
+      const fadeDuration = Math.max(0, duration - 0.02);
 
       const startTime = this.context.currentTime;
       const endTime = startTime + fadeDuration;
@@ -1572,9 +1553,7 @@ export class SoundHub implements SoundHubInterface {
         sound.isFadingIn = false;
         sound.isFadingOut = false;
         sound.volume = this.roundValue(targetVolume);
-        // getSoundVolume() reads originalVolume, so a fade that only moved
-        // `volume` left it reporting the volume from before the fade while
-        // getSoundState() already reported the new one.
+        // getSoundVolume() reads originalVolume, so it follows the fade too
         sound.originalVolume = sound.volume;
         sound.gainNode.gain.setValueAtTime(targetVolume, this.context.currentTime);
         onComplete?.();
@@ -1819,8 +1798,7 @@ export class SoundHub implements SoundHubInterface {
 
   public muteAllSounds(): void {
     this.streams.forEach((_, id) => this.mute(id));
-    // Muting while already muted read the master gain of 0 and kept that as the
-    // volume to come back to.
+    // Muting twice must not keep the muted 0 as the volume to come back to
     if (!this.isMuted) {
       this.previousGlobalVolume = this.roundValue(this.masterGainNode.gain.value, 2);
     }
@@ -1863,8 +1841,7 @@ export class SoundHub implements SoundHubInterface {
     try {
       const sound = this.getValidatedSound(id);
 
-      // A second mute used to store the muted volume of 0 as the one to come
-      // back to, so unmute() restored silence.
+      // Muting twice must not keep the muted 0 as the volume to come back to
       if (sound.isMuted) return;
 
       sound.isMuted = true;
@@ -2002,10 +1979,9 @@ export class SoundHub implements SoundHubInterface {
     
     const proxy = this.config.corsProxy!;
     
-    // Handle different proxy formats
     if (proxy.includes('cors-anywhere')) {
-      // Special handling for cors-anywhere which needs raw URL
-      return `${proxy}${url}`; // Don't encode the target URL
+      // cors-anywhere takes the target url as it is, unencoded
+      return `${proxy}${url}`;
     }
     
     if (proxy.includes('?')) {
@@ -2038,9 +2014,8 @@ export class SoundHub implements SoundHubInterface {
 
     for (const strategy of strategies) {
       try {
-        // Only the proxy attempt rewrites the URL. A configured corsProxy used to
-        // hijack every strategy, which made direct-only and the direct fallback
-        // of proxy-first go through the proxy anyway.
+        // Only the proxy attempt rewrites the url, so direct-only and the direct
+        // fallback of proxy-first really go direct.
         const fetchUrl = strategy === 'proxy' ? this.getProxyUrl(url) : url;
 
         this.debugLog(`Trying ${strategy} strategy for ${id}`, {
@@ -2207,8 +2182,7 @@ export class SoundHub implements SoundHubInterface {
         reject(signal!.reason ?? new DOMException('Aborted', 'AbortError'));
       };
 
-      // Registered once. It used to be attached via both onerror and
-      // addEventListener, so cleanup ran twice on every failure.
+      // Registered once, through onerror only, so cleanup runs once
       const errorHandler = () => {
         cleanup();
         const message = audio.error ? audio.error.message : 'unknown';
@@ -2344,7 +2318,7 @@ export class SoundHub implements SoundHubInterface {
     gainNode.gain.value = this.config.defaultVolume ?? 1;
     gainNode.connect(this.masterGainNode);
 
-    // Create a buffer source (we'll create a new one each time we play)
+    // Every play() replaces this with a fresh source
     const source = this.context.createBufferSource();
     source.buffer = audioBuffer;
 
@@ -2449,9 +2423,8 @@ export class SoundHub implements SoundHubInterface {
     this.stop(id, false);
     this.cleanupSound(id);
 
-    // Actually release the sound. Keeping the entry meant the decoded AudioBuffer
-    // stayed alive, isSoundLoaded() kept reporting true, and loadSounds() skipped
-    // the id on any later reload.
+    // Release the entry itself, so the decoded buffer can be freed,
+    // isSoundLoaded() says false and a later loadSounds() fetches it again.
     this.sounds.delete(id);
     this.loadStates.delete(id);
     if (sound.groupId) {
@@ -2528,7 +2501,7 @@ export class SoundHub implements SoundHubInterface {
     groupName: string,
     options: {
       maxInstances?: number;
-      playOptions?: PlayOptions; // Add playOptions to the group
+      playOptions?: PlayOptions;
     } = {}
   ): void {
     if (this.soundGroups.has(groupName)) {
@@ -2555,8 +2528,8 @@ export class SoundHub implements SoundHubInterface {
 
     if (group.maxInstances && group.sounds.size >= group.maxInstances) {
       const oldestSoundId = Array.from(group.sounds)[0];
-      this.stop(oldestSoundId); // Stop the oldest instance
-      group.sounds.delete(oldestSoundId); // Remove it from the group
+      this.stop(oldestSoundId);
+      group.sounds.delete(oldestSoundId);
       this.debugLog(`Stopped oldest instance ${oldestSoundId} to make room for new instance in group ${groupName}.`);
     }
 
@@ -2565,12 +2538,10 @@ export class SoundHub implements SoundHubInterface {
       sound.groupId = groupName;
     }
     if (sound && group.playOptions) {
-      // Group options have to win here. createSoundNode already fills playOptions
-      // with config-derived defaults for startTime, loop, maxLoops, playbackRate,
-      // pan, volume and trackProgress, so spreading the sound last meant those
-      // defaults always beat the group and createSoundGroup({ playOptions })
-      // had no effect. Per-call options passed to play() still take precedence,
-      // since play() merges them on top of this.
+      // Group options win over the sound's own. createSoundNode fills playOptions
+      // with defaults from the config, and spreading the sound last would let
+      // those defaults beat the group every time. Options passed to play() still
+      // win, since play() merges them on top of this.
       sound.playOptions = { ...sound.playOptions, ...group.playOptions };
     }
 
@@ -2600,10 +2571,9 @@ export class SoundHub implements SoundHubInterface {
       return;
     }
 
-    // A group holds loaded sounds as well as overlapping instances. Deleting
-    // every member took the loaded sounds out of the hub with it, without
-    // disconnecting their nodes. Only the instances go; a loaded sound stays
-    // and just leaves the group.
+    // A group holds loaded sounds as well as overlapping instances. Only the
+    // instances are removed; a loaded sound stays in the hub and leaves the
+    // group.
     group.sounds.forEach((soundId) => {
       this.stop(soundId);
       const sound = this.sounds.get(soundId);
@@ -2622,7 +2592,7 @@ export class SoundHub implements SoundHubInterface {
     this.debugLog(`Cleaned up group ${groupName}.`);
   }
 
-  //End Sound group management ----------------------------------------------------------------------------------------------------------------------
+  // End Sound group management ----------------------------------------------------------------------------------------------------------------------
 
 
   // Sprite control----------------------------------------------------------------------------------------------------------------------------------
@@ -2647,8 +2617,7 @@ export class SoundHub implements SoundHubInterface {
         );
 
         // Convert seconds to samples, clamped to the source buffer. Reading past
-        // the end yielded undefined, which lands in a Float32Array as NaN and
-        // turns the sprite into silence or noise.
+        // the end gives undefined, which a Float32Array stores as NaN.
         const sampleRate = originalSound.buffer.sampleRate;
         const totalSamples = originalSound.buffer.length;
         const startSample = Math.max(0, Math.min(Math.floor(start * sampleRate), totalSamples));
@@ -2734,10 +2703,8 @@ export class SoundHub implements SoundHubInterface {
    * Removes a sprite sound and all of its instances.
    *
    * Accepts either a sprite key registered via setSoundSprite ("jump") or the
-   * full sprite sound id ("game-sounds_jump"). The previous substring match
-   * (`key.includes('_' + spriteKey)`) both over-matched, removing
-   * "player_double_jump" for the key "jump", and failed outright when callers
-   * passed the full sprite id.
+   * full sprite sound id ("game-sounds_jump"). A key matches exactly, so
+   * "jump" leaves "player_double_jump" alone.
    */
   public removeSpriteSound(spriteKey: string): void {
     try {
@@ -2765,9 +2732,9 @@ export class SoundHub implements SoundHubInterface {
       }
 
       spriteInstances.forEach(instanceId => {
-        this.stop(instanceId); // Stop the instance
-        this.cleanupSound(instanceId); // Clean up resources
-        this.sounds.delete(instanceId); // Remove from the sounds map
+        this.stop(instanceId);
+        this.cleanupSound(instanceId);
+        this.sounds.delete(instanceId);
         this.debugLog(`Removed sprite instance: ${instanceId}`);
       });
       this.debugLog(`All instances of sprite ${spriteKey} removed`);
@@ -3113,8 +3080,7 @@ export class SoundHub implements SoundHubInterface {
       if (sound.playOptions?.duration !== undefined && sound.playOptions.duration > 0) {
         // adjustedElapsedTime is the position in the file. duration is wall
         // clock time, the same way source.start() is given it, so at double
-        // speed it covers twice as much of the file. Dividing by the rate
-        // instead ended the sound after a quarter of its duration.
+        // speed it covers twice as much of the file.
         const endOfRange = (sound.playOptions.startTime ?? 0) + sound.playOptions.duration * (playbackRate || 1);
         if (adjustedElapsedTime >= endOfRange) {
           if (sound.playOptions.pauseAtDurationReached && !sound.playOptions.loop) {
@@ -3277,9 +3243,8 @@ export class SoundHub implements SoundHubInterface {
         }
       });
 
-      // Per-sound stereo panners are deliberately left alone. Writing the master
-      // value into each of them applied the pan twice (once per sound, once on
-      // the master node) and destroyed the individual pan settings.
+      // Per-sound stereo panners are left alone. The master node pans the mix,
+      // and writing the value into every sound as well would pan twice.
 
       const pannedValue = Math.max(-1, Math.min(1, value));
       this.masterStereoPanner.pan.setValueAtTime(pannedValue, this.context.currentTime);
@@ -3348,11 +3313,9 @@ export class SoundHub implements SoundHubInterface {
         return (this._spatialAudioSupported = false);
       }
 
-      // Probe our own listener, falling back to AudioListener.prototype. This
-      // used to construct a throwaway AudioContext on every first call, and
-      // close() is async so it lingered. Browsers cap the number of live
-      // contexts (Chrome allows about six), so several SoundHub instances
-      // could exhaust the budget.
+      // Probe our own listener, falling back to AudioListener.prototype. A
+      // throwaway AudioContext would linger, since close() is async, and browsers
+      // cap the number of live contexts (Chrome allows about six).
       const listener: object | undefined = this.context
         ? this.context.listener
         : (window as any).AudioListener?.prototype;
@@ -3422,11 +3385,11 @@ export class SoundHub implements SoundHubInterface {
 
     try {
       if (!sound.pannerNode) {
-        // mergedConfig is only needed here (one-time setup), not on every position update
+        // Defaults, then the hub config, then the config passed to this call
         const mergedConfig: SoundPannerConfig = {
-          ...DEFAULT_PANNER_CONFIG, // Start with default config
-          ...(this.config.pannerNodeConfig || {}), // Override with sound manager config if exists
-          ...(soundPannerConfig || {}), // Override with specific config if provided
+          ...DEFAULT_PANNER_CONFIG,
+          ...(this.config.pannerNodeConfig || {}),
+          ...(soundPannerConfig || {}),
         };
 
         sound.pannerNode = this.context.createPanner();
@@ -3439,19 +3402,16 @@ export class SoundHub implements SoundHubInterface {
         sound.pannerNode.coneOuterAngle = mergedConfig.coneOuterAngle!;
         sound.pannerNode.coneOuterGain = mergedConfig.coneOuterGain!;
 
-        // Wire the audio graph only when the panner is first created.
-        // Repeated disconnect/connect on every call triggers the onended event
-        // (see AudioNodeConnector), breaking animation loops and accumulating
-        // duplicate pannerNode→gainNode connections.
+        // Wire the audio graph only when the panner is first created. A moving
+        // source updates its position every frame, and reconnecting each time
+        // would pile up duplicate pannerNode to gainNode connections.
         source?.disconnect();
         source?.connect(sound.pannerNode);
         sound.pannerNode.connect(sound.gainNode);
       } else {
-        // Panner node already exists. Only re-route when removePan() above
-        // actually disconnected the source. Doing it on every call re-triggers
-        // onended and accumulates duplicate connections, which is exactly the
-        // problem the comment in the branch above warns about, and it is the path
-        // taken by every position update of a moving source.
+        // Panner node already exists. Re-route only when removePan() above
+        // disconnected the source; every position update of a moving source
+        // takes this path.
         if (sourceWasRerouted) {
           source?.disconnect();
           source?.connect(sound.pannerNode);
@@ -3866,7 +3826,7 @@ export class SoundHub implements SoundHubInterface {
 
         // Take the panner back out of the chain, keeping the stereo panner intact
         this.masterPannerNode.disconnect();
-        this.masterPannerNode = null; // Clear the masterPannerNode reference
+        this.masterPannerNode = null;
         this.rewireMasterChain();
       }
 
@@ -3884,7 +3844,7 @@ export class SoundHub implements SoundHubInterface {
 
   // End Spatial audio (3D audio)-----------------------------------------------------------------------------------------------------------
 
-  // Playback control-----------------------------------------------------------------------------------------------------------------------
+  // Playback rate-----------------------------------------------------------------------------------------------------------------------
   public setPlaybackRate(id: string, rate: number, skipDispatchEvent: boolean = false): void {
     if (this.streams.has(id)) {
       const stream = this.streams.get(id)!;
@@ -3908,10 +3868,9 @@ export class SoundHub implements SoundHubInterface {
       const sound = this.getValidatedSound(id);
       const source = sound.source;
 
-      // Capture the position under the OLD rate before overwriting it. startTime
-      // is an origin expressed in the previous rate, so reading the position back
-      // afterwards mixed the new rate with an old baseline and made the sound
-      // jump on every rate change.
+      // Capture the position under the old rate before overwriting it.
+      // startTime is an origin in the old rate, and reading the position
+      // back with the new rate makes the sound jump.
       const previousRate = sound.playOptions?.playbackRate ?? 1;
       const rawPosition = sound.state === SoundState.Playing && sound.startTime !== undefined
         ? (this.context.currentTime - sound.startTime) * previousRate
@@ -3960,11 +3919,11 @@ export class SoundHub implements SoundHubInterface {
     }
   }
 
-  // End playback control-------------------------------------------------------------------------------------------------------------------
+  // End Playback rate-------------------------------------------------------------------------------------------------------------------
 
   // Reset operations ------------------------------------------------------------------------------------------------------------
   public reset(options: SoundResetOptions = {}): void {
-    this.debugLog("Resetting sound manager with options:", options);
+    this.debugLog("Resetting hub with options:", options);
 
     this.stopAllSounds();
 
@@ -3988,7 +3947,7 @@ export class SoundHub implements SoundHubInterface {
         this.resetSound(id, options);
       });
       // cleanup() clears the map and leaves the master chain intact, so the
-      // manager stays usable and new sounds can be loaded afterwards.
+      // hub stays usable and new sounds can be loaded afterwards.
       this.cleanup();
     } else {
       this.sounds.forEach((_, id) => {
@@ -4002,7 +3961,7 @@ export class SoundHub implements SoundHubInterface {
       resetOptions: options,
     });
 
-    this.debugLog("Sound manager reset completed");
+    this.debugLog("Hub reset completed");
   }
 
   public resetSound(id: string, options: SoundResetOptions = {}): void {
@@ -4147,12 +4106,10 @@ export class SoundHub implements SoundHubInterface {
     });
   }
 
-  // Check if a sound is ready to play (buffer loaded and context running)
   public isReady(): boolean {
     return this.context.state === 'running' && this.sounds.size > 0;
   }
 
-  // Get the total number of sounds in the manager
   public getSoundCount(): number {
     if (this.streams.size) return this.sounds.size + this.streams.size;
     return this.sounds.size;
@@ -4214,7 +4171,7 @@ export class SoundHub implements SoundHubInterface {
       this.context.close();
       this.debugLog("SoundHub destroyed");
     } catch (error) {
-      this.handleError("destroying sound manager", error);
+      this.handleError("destroying hub", error);
     }
   }
 
@@ -4272,17 +4229,16 @@ export class SoundHub implements SoundHubInterface {
   }
 
   /**
-   * Compares two listener filters. JSON.stringify cannot be used here: a RegExp
-   * serialises to "{}", so filters with different instancePattern values looked
-   * identical and removing one listener removed the others too.
+   * Compares two listener filters. JSON.stringify would not do: a RegExp
+   * serialises to "{}", so filters with different instancePattern values
+   * would look identical.
    */
   private filtersMatch(a?: SoundEventFilter, b?: SoundEventFilter): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
 
-    // soundId belongs here as much as the other three. Leaving it out made
-    // removeEventListener treat { soundId: 'music' } and { soundId: 'rain' } as
-    // the same listener, so removing one removed both.
+    // soundId counts as much as the other three, or removing a listener on
+    // { soundId: 'music' } would also remove the one on { soundId: 'rain' }.
     if (a.soundId !== b.soundId) return false;
     if (a.originalId !== b.originalId) return false;
     if (a.instanceId !== b.instanceId) return false;

@@ -15,22 +15,30 @@ export interface Sound {
   isFadingOut?: boolean;
   isMuted?: boolean;
   originalVolume?: number;
-  pannerNode?: PannerNode | null; // for 3D panning
-  pan?: number; // Normal panning value -1 to 1
-  panSpatialOrientation?: { x: number; y: number; z: number }; // Direction the sound points in, for cone settings
+  /** The 3D panner, when the sound uses spatial panning. */
+  pannerNode?: PannerNode | null;
+  /** Stereo pan, from -1 (left) to 1 (right). */
+  pan?: number;
+  /** Direction the sound points in, for the cone settings. */
+  panSpatialOrientation?: { x: number; y: number; z: number };
   panSpatialPosition? : { x: number; y: number; z: number };
   panType?: SoundPanType; 
   pausedAt?: number;
   playOptions?: PlayOptions;
   previousVolume?: number;
-  sprite?: { [key: string]: [number, number] }; // Sprite support
-  startTime?: number; // in seconds
+  /** The ranges given to setSoundSprite, as [start, end] in seconds. */
+  sprite?: { [key: string]: [number, number] };
+  /** AudioContext time at which the file would have been at 0. The position while playing is worked out from it. */
+  startTime?: number;
   state?: SoundState;
-  stereoPanner?: StereoPannerNode | null; // just plain left to right panning
-  volume?: number; // values from 0 to 1
-  duration?: number; // in seconds
-  currentTime?:number; // in seconds
+  /** Left to right panning. */
+  stereoPanner?: StereoPannerNode | null;
+  /** From 0 to 1. */
+  volume?: number;
+  duration?: number;
+  /** Position in the file in seconds, kept while paused. */
+  currentTime?: number;
   instanceId?:string;
   instanceCount?:number;
-  baseId?: string; // Base sound ID (e.g., "game-sound_jump")
+  baseId?: string;
 }
