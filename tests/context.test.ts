@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG, SoundEventsEnum } from '../src/index';
 import { contextOf, createHub, flush, loadSound } from './support/helpers';
-import { MockAudioContext } from './support/web-audio-mock';
+import { MockAudioContext, MockAudioNode } from './support/web-audio-mock';
 
 describe('the audio context', () => {
   it('suspends and resumes on request', async () => {
@@ -70,6 +70,22 @@ describe('the master limiter', () => {
     hub.setMasterLimiter(false);
     expect(hub.isMasterLimiterEnabled()).toBe(false);
     expect(hub.getMasterLimiterNode()).toBeNull();
+  });
+
+  it('keeps what the app connected to the master output when it is switched', () => {
+    const hub = createHub();
+    const output = hub.getMasterOutput() as unknown as MockAudioNode;
+    const meter = hub.getContext().createAnalyser() as unknown as MockAudioNode;
+    output.connect(meter);
+
+    hub.setMasterLimiter(true);
+    hub.setMasterLimiter(false);
+    hub.setMasterSpatialPosition(1, 0, 0);
+    hub.cleanupGlobalPan();
+
+    expect(output.outputs).toContain(meter);
+    const destination = hub.getContext().destination as unknown as MockAudioNode;
+    expect((hub.getMasterInput() as unknown as MockAudioNode).reaches(destination)).toBe(true);
   });
 });
 

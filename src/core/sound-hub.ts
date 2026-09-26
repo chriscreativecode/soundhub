@@ -30,6 +30,8 @@ export class SoundHub implements SoundHubInterface {
   private masterStereoPanner!: StereoPannerNode;
   private masterPannerNode!: PannerNode | null;
   private masterLimiterNode: DynamicsCompressorNode | null = null;
+  /** The connections rewireMasterChain() made, so it can undo exactly those */
+  private masterChainLinks: [AudioNode, AudioNode][] = [];
   private previousGlobalVolume: number = 1;
   private isMuted: boolean = false;
   private mutedForHiddenPage: boolean = false;
@@ -718,23 +720,35 @@ export class SoundHub implements SoundHubInterface {
    * masterGainNode -> [masterPannerNode] -> masterStereoPanner -> [limiter] -> destination
    */
   private rewireMasterChain(): void {
-    this.masterGainNode.disconnect();
-    this.masterStereoPanner.disconnect();
-    this.masterLimiterNode?.disconnect();
+    // Undo only the links this method made. A blanket disconnect() would also
+    // cut whatever an app has connected to getMasterOutput(), such as an
+    // AnalyserNode for a meter, and it would stay cut after every toggle.
+    for (const [from, to] of this.masterChainLinks) {
+      try {
+        from.disconnect(to);
+      } catch {
+        // Already gone, for example a limiter that was disconnected on removal
+      }
+    }
+    this.masterChainLinks = [];
+
+    const link = (from: AudioNode, to: AudioNode): void => {
+      from.connect(to);
+      this.masterChainLinks.push([from, to]);
+    };
 
     if (this.masterPannerNode) {
-      this.masterPannerNode.disconnect();
-      this.masterGainNode.connect(this.masterPannerNode);
-      this.masterPannerNode.connect(this.masterStereoPanner);
+      link(this.masterGainNode, this.masterPannerNode);
+      link(this.masterPannerNode, this.masterStereoPanner);
     } else {
-      this.masterGainNode.connect(this.masterStereoPanner);
+      link(this.masterGainNode, this.masterStereoPanner);
     }
 
     if (this.masterLimiterNode) {
-      this.masterStereoPanner.connect(this.masterLimiterNode);
-      this.masterLimiterNode.connect(this.context.destination);
+      link(this.masterStereoPanner, this.masterLimiterNode);
+      link(this.masterLimiterNode, this.context.destination);
     } else {
-      this.masterStereoPanner.connect(this.context.destination);
+      link(this.masterStereoPanner, this.context.destination);
     }
   }
 

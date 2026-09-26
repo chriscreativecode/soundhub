@@ -62,11 +62,20 @@ export class MockAudioNode {
     return destination;
   }
 
-  disconnect(): void {
+  /** Like the real API: with a target only that link goes, and it must exist */
+  disconnect(target?: MockAudioNode): void {
     this.disconnectCount += 1;
-    this.outputs.forEach((target) => {
-      const index = target.inputs.indexOf(this);
-      if (index !== -1) target.inputs.splice(index, 1);
+    if (target) {
+      const index = this.outputs.indexOf(target);
+      if (index === -1) throw new DOMException('Not connected to that node', 'InvalidAccessError');
+      this.outputs.splice(index, 1);
+      const back = target.inputs.indexOf(this);
+      if (back !== -1) target.inputs.splice(back, 1);
+      return;
+    }
+    this.outputs.forEach((node) => {
+      const index = node.inputs.indexOf(this);
+      if (index !== -1) node.inputs.splice(index, 1);
     });
     this.outputs.length = 0;
   }
