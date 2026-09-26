@@ -5,6 +5,52 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [6.3.0] - 2026-09-26
+
+### Added
+
+**Types for every TypeScript setup.** The declarations are one file now. They
+used to be split over files that imported each other without an extension,
+which `moduleResolution` `node16` and `nodenext` refuse, so in those projects
+every soundhub type was `any` and the editor showed nothing.
+
+**A CommonJS build.** `require('soundhub')` gets `dist/soundhub.cjs` with its own
+`.d.cts` types. It used to get the UMD build, which Node reads as an ES module
+in this package and found no exports in. The UMD build still ships for script
+tags, and unpkg and jsDelivr serve it by default.
+
+**Hover text in the editor.** The options in `SoundHubConfig` and `PlayOptions`
+and the methods of `SoundHubInterface` are documented with JSDoc, so hovering
+`hub.play` or an option shows what it does and what its default is.
+
+### Changed
+
+- `resume()` only acts on a paused sound, the same as it does for a stream. On a
+  sound that was playing it restarted it.
+- `SoundManager`, `SoundManagerConfig` and `SoundManagerInterface` are marked
+  `@deprecated`, so an editor strikes them through. They still work and are
+  removed in v7. `defaultDuration` in the config and `isSeeking` in the play
+  options were never read and are marked the same way.
+
+### Fixed
+
+- Playing a sound again after a pause and resume, or after a seek, started it
+  where it had been instead of at the top.
+- Muting a sound twice lost its volume, so `unmute()` brought back silence.
+  Muting everything twice did the same to the master volume.
+- Switching tabs undid a mute you had set yourself. Coming back to the page now
+  only unmutes when the hub muted it for the hidden tab.
+- `fadeOut()` on a stream reported an unknown sound.
+- `fadeOut()` on a sound that was not playing started it first.
+- `removeSoundGroup()` deleted the loaded sounds in the group from the hub,
+  without disconnecting their nodes. Only the overlapping instances go now.
+- Every seek and every loop iteration faded in again from silence when the sound
+  had `fadeInDuration`, and dispatched `started` again. `resume()` dispatched
+  `started` as well as `resumed`.
+- The `seeked` event reported the position from before the seek.
+- With `duration`, a `playbackRate` other than 1 and progress tracking on, the
+  sound ended after a quarter of its duration at double speed.
+
 ## [6.2.2] - 2026-08-31
 
 Documentation only. The code is the same as 6.2.1.
@@ -229,7 +275,7 @@ typing.
 ## [6.0.0] - 2026-08-29
 
 Renamed from `sound-manager-ts`. Nothing about the behaviour changed. See the
-[migration notes](./README.md#migrating-from-sound-manager-ts).
+[migration notes](./README.md#from-sound-manager-ts).
 
 ### Changed
 
@@ -367,7 +413,9 @@ fixes and small additions between the milestones.
 | 6.0.0 | 29 Aug 2026 | soundhub |
 | 6.1.0 | 30 Aug 2026 | soundhub |
 | 6.2.0 to 6.2.2 | 31 Aug 2026 | soundhub |
+| 6.3.0 | 26 Sep 2026 | soundhub |
 
+[6.3.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.0
 [6.2.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.2
 [6.2.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.1
 [6.2.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.0
