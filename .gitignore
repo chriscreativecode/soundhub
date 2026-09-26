@@ -18,7 +18,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# agent tooling, not part of the library
+# Personal AI assistant settings, not part of the library
+AGENTS.md
+CLAUDE.md
 .agents/
 .claude/
 skills-lock.json
