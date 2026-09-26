@@ -10,6 +10,8 @@ import { Sound } from "./sound.interface";
 import { SoundLoadState } from "./sound-load-state";
 import { StreamOptions } from "./stream-sound";
 import { MediaSessionInfo, SoundEventFilter } from "./sound-event-filter";
+import { DuckOptions } from "./duck-options.interface";
+import { VariationOptions } from "./variation-options.interface";
 
 export interface SoundHubInterface {
   // Playback control: Manage the playback of sounds, including play, pause, resume, stop, and seek operations.
@@ -131,6 +133,27 @@ export interface SoundHubInterface {
   isStream(id: string): boolean;
   /** The underlying media element, for buffered ranges or Media Session metadata. */
   getStreamElement(id: string): HTMLAudioElement | undefined;
+
+  /** Add an AudioBuffer you already have (synthesised, recorded or decoded yourself) as a sound. An id in use is replaced. */
+  addBuffer(id: string, buffer: AudioBuffer): void;
+
+  // Ducking: turn one sound down while another plays.
+  /** Turn the target (a sound, group or stream) down while one of the `when` sounds plays. Returns a function that removes the duck. */
+  duck(target: string | string[], options: DuckOptions): () => void;
+  /** Stop ducking a target. */
+  unduck(target: string): void;
+  /** Whether a target is turned down right now. */
+  isDucked(target: string): boolean;
+  /** The level a target is ducked to right now, from 0 to 1. */
+  getDuckLevel(target: string): number;
+
+  // Variations: several takes of a sound under one name.
+  /** Give several takes one name, so play(id) picks one of them with an optional pitch and volume spread. */
+  createVariations(id: string, members: string[], options?: VariationOptions): void;
+  /** Forget a variation name. The takes stay loaded. */
+  removeVariations(id: string): void;
+  /** The takes behind a variation name. */
+  getVariations(id: string): string[] | undefined;
 
   // Media Session: hand a sound to the operating system's media controls.
   /** Put this sound on the lock screen and wire up the hardware media keys. */

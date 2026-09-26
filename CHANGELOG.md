@@ -5,6 +5,45 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [Unreleased]
+
+Four additions, none of which changes what existing code does.
+
+### Added
+
+**Ducking.** `hub.duck('music', { when: 'voice', amount: 0.3 })` turns the
+music down while the voice plays and brings it back when it ends. Both names
+can be a sound, a group or a stream, `when` takes a list, overlapping instances
+count, and a paused or muted trigger does not duck. `attack` and `release` set
+the ramps in seconds. The duck has a gain node of its own between the target
+and the master bus, so the target's volume, mute and fades are left alone.
+`unduck`, `isDucked` and `getDuckLevel` go with it, and two new events,
+`duck_started` and `duck_ended`, bring the bus to 40 types.
+
+**Variations.** `hub.createVariations('footstep', ['step1', 'step2', 'step3'],
+{ pitch: [0.95, 1.05], volume: [0.8, 1] })` makes `play('footstep')` pick one
+of the takes, never the same one twice in a row, with a random pitch and level
+inside the ranges. `order` can be `'random'`, `'shuffle'` or `'cycle'`. The
+takes overlap by default, `stop()` on the name stops all of them, and the name
+works in `duck()`.
+
+**`addBuffer(id, buffer)`** adds an `AudioBuffer` you already have as a sound.
+
+**`soundhub/ui`**, a new entry point with twelve interface sounds rendered in
+the browser, so there are no files to fetch: `addUiSounds(hub)` and then
+`hub.play(uiSounds.click)`. 1.5 KB gzipped, and only in your bundle when you
+import it.
+
+**`soundhub/howler`**, a new entry point with the Howler.js API (`Howl` and
+`Howler`) on top of one shared SoundHub, so Howler code runs after changing the
+import. `Howler.hub` and `howl.soundhubId` reach the hub underneath, and
+`Howler.configure()` sets its config. 3.6 KB gzipped, on top of the main
+package.
+
+### Changed
+
+The main bundle is 23 KB gzipped, up from 21 KB, for ducking and variations.
+
 ## [6.4.0] - 2026-09-26
 
 Fixes found while rewriting the documentation against the source. Three of

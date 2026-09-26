@@ -5,6 +5,8 @@ import { SoundEvent } from "./sound-event.interface";
 import { SoundEventsEnum } from "./sound-events.enum";
 import { SoundGroup } from "./sound-group";
 import { DEFAULT_CONFIG, SoundHubConfig } from "./sound-hub-config";
+import { DuckOptions, DuckRule } from "./duck-options.interface";
+import { VariationOptions, VariationSet } from "./variation-options.interface";
 import { SoundHubInterface } from "./sound-hub.interface";
 import { SoundLoadState } from "./sound-load-state";
 import { SoundPanType } from "./sound-pan-type.enum";
@@ -52,6 +54,8 @@ export class SoundHub implements SoundHubInterface {
   private readonly DEFAULT_PRECISION: number = 2;
   private soundGroups: Map<string, SoundGroup> = new Map();
   private streams: Map<string, StreamSound> = new Map();
+  private ducks: Map<string, DuckRule> = new Map();
+  private variations: Map<string, VariationSet> = new Map();
   private mediaSessionId: string | null = null;
   private instanceCounters: Map<string, number> = new Map();
   private loadStates: Map<string, SoundLoadState> = new Map();
@@ -78,6 +82,17 @@ export class SoundHub implements SoundHubInterface {
     SoundEventsEnum.PAUSED,
     SoundEventsEnum.RESUMED,
     SoundEventsEnum.ENDED,
+  ]);
+  /** The events after which a duck may have to go down or come back up */
+  private static readonly DUCK_EVENTS: ReadonlySet<SoundEventsEnum> = new Set([
+    SoundEventsEnum.STARTED,
+    SoundEventsEnum.STOPPED,
+    SoundEventsEnum.PAUSED,
+    SoundEventsEnum.RESUMED,
+    SoundEventsEnum.ENDED,
+    SoundEventsEnum.MUTED,
+    SoundEventsEnum.UNMUTED,
+    SoundEventsEnum.UNLOADED,
   ]);
 
   private VERSION = "6.4.0";
@@ -360,7 +375,7 @@ export class SoundHub implements SoundHubInterface {
       this.setSpatialPosition(pos.x, pos.y, pos.z, sound.id, undefined, true);
     }
 
-    this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+    this.audioNodeConnector.connectNodes(sound, this.outputFor(sound.id, sound.groupId));
     this.activeSources.set(sound.id, source);
 
     source.onended = () => {
@@ -590,7 +605,7 @@ export class SoundHub implements SoundHubInterface {
         sound.stereoPanner.disconnect();
         sound.stereoPanner = null;
       }
-      sound.gainNode.disconnect();
+      this.audioNodeConnector.unrouteGain(sound.gainNode);
     });
 
     // Stop and disconnect any source that outlived its sound entry
@@ -957,11 +972,14 @@ export class SoundHub implements SoundHubInterface {
   private reconnectAudioNodes(id: string): void {
     const sound = this.sounds.get(id);
     if (!sound || !sound.source) return;
-    this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+    this.audioNodeConnector.connectNodes(sound, this.outputFor(sound.id, sound.groupId));
   }
 
   // Playback control-----------------------------------------------------------------------------------------------------------
   public play(id: string, options: PlayOptions = {}, skipDispatchEvent: boolean = false): Sound | undefined {
+    const variationSet = this.variations.get(id);
+    if (variationSet) return this.playVariation(variationSet, options, skipDispatchEvent);
+
     if (this.streams.has(id)) {
       this.streamPlay(id, {
         volume: options.volume,
@@ -1181,6 +1199,8 @@ export class SoundHub implements SoundHubInterface {
         this.startProgressTracking(sound.id);
       }
 
+      // A silent change dispatches nothing, so the ducks are checked here instead
+      if (skipDispatchEvent) this.syncDucks();
       if (!skipDispatchEvent) {
         const originalId = sound.id.includes(':') ? sound.id.split(':')[0] : sound.id;
         this.dispatchEvent({
@@ -1254,6 +1274,8 @@ export class SoundHub implements SoundHubInterface {
 
       this.cleanupExistingSource(id);
 
+      // A silent change dispatches nothing, so the ducks are checked here instead
+      if (skipDispatchEvent) this.syncDucks();
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.PAUSED,
@@ -1278,6 +1300,8 @@ export class SoundHub implements SoundHubInterface {
       // started as well.
       this.restartSource(id, sound);
 
+      // A silent change dispatches nothing, so the ducks are checked here instead
+      if (skipDispatchEvent) this.syncDucks();
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.RESUMED,
@@ -1294,6 +1318,8 @@ export class SoundHub implements SoundHubInterface {
 
   public stop(id: string, skipDispatchEvent: boolean = false): void {
     if (this.streams.has(id)) return this.streamStop(id, skipDispatchEvent);
+    const variationSet = this.variations.get(id);
+    if (variationSet) return this.stopVariation(variationSet, skipDispatchEvent);
     try {
       const sound = this.sounds.get(id);
       if (!sound) {
@@ -1314,6 +1340,8 @@ export class SoundHub implements SoundHubInterface {
 
       this.removeEventListenersForInstance(id);
 
+      // A silent change dispatches nothing, so the ducks are checked here instead
+      if (skipDispatchEvent) this.syncDucks();
       if (!skipDispatchEvent) {
         this.dispatchEvent({
           type: SoundEventsEnum.STOPPED,
@@ -2354,7 +2382,7 @@ export class SoundHub implements SoundHubInterface {
   private createSoundNode(id: string, audioBuffer: AudioBuffer, fileSize?: number): void {
     const gainNode = this.context.createGain();
     gainNode.gain.value = this.config.defaultVolume ?? 1;
-    gainNode.connect(this.masterGainNode);
+    this.audioNodeConnector.routeGain(gainNode, this.outputFor(id));
 
     // Every play() replaces this with a fresh source
     const source = this.context.createBufferSource();
@@ -2402,6 +2430,19 @@ export class SoundHub implements SoundHubInterface {
       sampleRate: audioBuffer.sampleRate,
       channels: audioBuffer.numberOfChannels
     });
+  }
+
+  /**
+   * Add audio you already have in memory as a sound: a buffer you synthesised,
+   * recorded or decoded yourself. From then on it plays, fades, pans and
+   * reports like a loaded file. An id that is already in use is replaced.
+   */
+  public addBuffer(id: string, buffer: AudioBuffer): void {
+    if (this.variations.has(id)) {
+      throw new Error(`"${id}" is a variation name. Give the buffer an id of its own.`);
+    }
+    if (this.streams.has(id) || this.sounds.has(id)) this.unloadSound(id);
+    this.createSoundNode(id, buffer);
   }
 
   public async loadSound(id: string, url?: string | string[], signal?: AbortSignal): Promise<void> {
@@ -2534,6 +2575,259 @@ export class SoundHub implements SoundHubInterface {
     return [...(this.registeredUrls.get(id) ?? [])];
   }
 
+  // Variations ----------------------------------------------------------------------------------------------------------------------------
+
+  /**
+   * Give several takes of a sound one name.
+   *
+   * `hub.createVariations('footstep', ['step1', 'step2', 'step3'], { pitch: [0.95, 1.05] })`
+   * and from then on `hub.play('footstep')` plays one of the three, never the
+   * same one twice in a row, at a slightly different pitch each time. A take
+   * can be any loaded sound, including a sprite ("ui_click" for the sprite
+   * click of "ui").
+   *
+   * The takes overlap by default. stop() on the name stops every take it
+   * started, and the name works as a trigger or a target for duck().
+   */
+  public createVariations(id: string, members: string[], options: VariationOptions = {}): void {
+    if (this.sounds.has(id) || this.streams.has(id)) {
+      throw new Error(`"${id}" is already a sound. Give the variations a name of their own.`);
+    }
+    const takes = members.filter(Boolean);
+    if (takes.length === 0) {
+      throw new Error(`createVariations("${id}") needs at least one sound.`);
+    }
+    this.variations.set(id, { id, members: [...takes], options: { ...options }, last: -1, bag: [] });
+  }
+
+  public removeVariations(id: string): void {
+    this.variations.delete(id);
+  }
+
+  /** The takes behind a variation name, or undefined when there is no such name. */
+  public getVariations(id: string): string[] | undefined {
+    const set = this.variations.get(id);
+    return set ? [...set.members] : undefined;
+  }
+
+  private pickVariation(set: VariationSet): string {
+    const count = set.members.length;
+    let index = 0;
+    if (count > 1) {
+      switch (set.options.order ?? 'random') {
+        case 'cycle':
+          index = (set.last + 1) % count;
+          break;
+        case 'shuffle': {
+          if (set.bag.length === 0) set.bag = set.members.map((_, i) => i);
+          // A new round never opens with the take that closed the last one
+          const candidates = set.bag.length > 1 ? set.bag.filter((i) => i !== set.last) : set.bag;
+          index = candidates[Math.floor(Math.random() * candidates.length)];
+          set.bag.splice(set.bag.indexOf(index), 1);
+          break;
+        }
+        default:
+          if (set.last < 0) {
+            index = Math.floor(Math.random() * count);
+          } else {
+            // Any take but the last one: pick from one fewer and skip over it
+            index = Math.floor(Math.random() * (count - 1));
+            if (index >= set.last) index += 1;
+          }
+          break;
+      }
+    }
+    set.last = index;
+    return set.members[index];
+  }
+
+  private playVariation(set: VariationSet, options: PlayOptions, skipDispatchEvent: boolean): Sound | undefined {
+    const take = this.pickVariation(set);
+    const between = ([min, max]: [number, number]) => min + Math.random() * (max - min);
+    const takeOptions: PlayOptions = { ...options };
+
+    if (takeOptions.overlap === undefined && takeOptions.createNewInstance === undefined) {
+      takeOptions.overlap = set.options.overlap ?? true;
+    }
+    if (set.options.pitch) {
+      takeOptions.playbackRate = (options.playbackRate ?? 1) * between(set.options.pitch);
+    }
+    if (set.options.volume) {
+      // The spread is around the volume of this play, or the take's own volume without one
+      const base = options.volume ?? this.sounds.get(take)?.volume ?? 1;
+      takeOptions.volume = this.setValidatedVolume(base * between(set.options.volume));
+    }
+    return this.play(take, takeOptions, skipDispatchEvent);
+  }
+
+  private stopVariation(set: VariationSet, skipDispatchEvent: boolean): void {
+    set.members.forEach((take) => {
+      [take, ...this.getInstanceIds(take)].forEach((id) => {
+        const sound = this.sounds.get(id);
+        if (sound && sound.state !== SoundState.Stopped) this.stop(id, skipDispatchEvent);
+      });
+    });
+  }
+
+  // End Variations ------------------------------------------------------------------------------------------------------------------------
+
+  // Ducking -------------------------------------------------------------------------------------------------------------------------------
+
+  /**
+   * Turn a sound down while another one plays, and bring it back afterwards.
+   *
+   * The classic case is music that makes room for a voice-over:
+   * `hub.duck('music', { when: 'voice', amount: 0.3 })`. Both names can be a
+   * sound id, a group or a stream, so `{ when: 'dialogue' }` with a group
+   * called dialogue ducks for every line in it.
+   *
+   * The duck has a gain node of its own between the target and the master bus,
+   * so it never touches the target's volume, a mute or a fade in progress.
+   * Calling duck() again for the same target replaces its options.
+   *
+   * Returns a function that removes the duck again, the same as unduck().
+   */
+  public duck(target: string | string[], options: DuckOptions): () => void {
+    const targets = (Array.isArray(target) ? target : [target]).filter(Boolean);
+    const triggers = (Array.isArray(options.when) ? options.when : [options.when]).filter(Boolean);
+    if (targets.length === 0 || triggers.length === 0) {
+      throw new Error('duck() needs a target and at least one sound in `when`.');
+    }
+
+    targets.forEach((name) => {
+      const existing = this.ducks.get(name);
+      const node = existing?.node ?? this.context.createGain();
+      if (!existing) {
+        node.gain.value = 1;
+        node.connect(this.masterGainNode);
+      }
+      this.ducks.set(name, {
+        target: name,
+        triggers,
+        amount: this.setValidatedVolume(options.amount ?? 0.3),
+        attack: Math.max(0, options.attack ?? 0.05),
+        release: Math.max(0, options.release ?? 0.5),
+        node,
+        active: existing?.active ?? false,
+      });
+      // A duck that is down glides from where it is to its new amount, so a
+      // slider on the amount does not make the target jump back up first
+      if (existing?.active) this.rampDuck(this.ducks.get(name)!, true, true);
+    });
+
+    this.rerouteAll();
+    this.updateDucks();
+    return () => targets.forEach((name) => this.unduck(name));
+  }
+
+  /** Stop ducking a target. It goes straight back to its own level. */
+  public unduck(target: string): void {
+    const rule = this.ducks.get(target);
+    if (!rule) return;
+    this.ducks.delete(target);
+    this.rerouteAll();
+    rule.node.disconnect();
+    if (rule.active) {
+      this.dispatchEvent({ type: SoundEventsEnum.DUCK_ENDED, soundId: target, volume: 1, timestamp: this.context.currentTime });
+    }
+  }
+
+  /** Whether a target is turned down right now because one of its triggers plays. */
+  public isDucked(target: string): boolean {
+    return this.ducks.get(target)?.active ?? false;
+  }
+
+  /** The level of a target's duck at this moment, from 0 to 1, including partway through an attack or a release. 1 when it has no duck. */
+  public getDuckLevel(target: string): number {
+    return this.ducks.get(target)?.node.gain.value ?? 1;
+  }
+
+  /** Whether `name` refers to this sound: its id, the sound it came from, a sprite's sound, or its group. */
+  private refersTo(name: string, id: string, groupId?: string, parentId?: string): boolean {
+    if (id === name || groupId === name) return true;
+    const baseId = id.split(':')[0];
+    if (baseId === name) return true;
+    const parent = parentId ?? this.sounds.get(id)?.baseId ?? this.sounds.get(baseId)?.baseId;
+    if (parent === name) return true;
+    const variationSet = this.variations.get(name);
+    return !!variationSet && variationSet.members.some((take) => take === baseId || take === parent);
+  }
+
+  /** The node a sound plays into: the duck node of the first duck it is a target of, else the master bus. */
+  private outputFor(id: string, groupId?: string, parentId?: string): AudioNode {
+    for (const rule of this.ducks.values()) {
+      if (this.refersTo(rule.target, id, groupId, parentId)) return rule.node;
+    }
+    return this.masterGainNode;
+  }
+
+  private rerouteSound(sound: Sound): void {
+    // An instance that finished is off the graph until it plays again, and
+    // play() routes it then.
+    if (!this.audioNodeConnector.outputOf(sound.gainNode)) return;
+    this.audioNodeConnector.routeGain(sound.gainNode, this.outputFor(sound.id, sound.groupId));
+  }
+
+  private rerouteAll(): void {
+    this.sounds.forEach((sound) => this.rerouteSound(sound));
+    this.streams.forEach((stream) => {
+      if (!this.audioNodeConnector.outputOf(stream.gainNode)) return;
+      this.audioNodeConnector.routeGain(stream.gainNode, this.outputFor(stream.id));
+    });
+  }
+
+  /** Whether something that can be heard is playing under one of the rule's trigger names. */
+  private isTriggerPlaying(rule: DuckRule): boolean {
+    // A sound never ducks itself, even when it matches both names
+    const matches = (id: string, groupId?: string) =>
+      rule.triggers.some((name) => this.refersTo(name, id, groupId)) && !this.refersTo(rule.target, id, groupId);
+
+    for (const sound of this.sounds.values()) {
+      if (sound.state === SoundState.Playing && !sound.isMuted && matches(sound.id, sound.groupId)) return true;
+    }
+    for (const stream of this.streams.values()) {
+      if (stream.state === SoundState.Playing && !stream.isMuted && matches(stream.id)) return true;
+    }
+    return false;
+  }
+
+  private syncDucks(): void {
+    if (this.ducks.size > 0) this.updateDucks();
+  }
+
+  private updateDucks(): void {
+    this.ducks.forEach((rule) => {
+      const active = this.isTriggerPlaying(rule);
+      if (active === rule.active) return;
+      rule.active = active;
+      this.rampDuck(rule, active, true);
+
+      this.dispatchEvent({
+        type: active ? SoundEventsEnum.DUCK_STARTED : SoundEventsEnum.DUCK_ENDED,
+        soundId: rule.target,
+        volume: active ? rule.amount : 1,
+        timestamp: this.context.currentTime,
+      });
+    });
+  }
+
+  /** Move a duck node down to its amount or back up to 1, over the attack or the release. */
+  private rampDuck(rule: DuckRule, down: boolean, smooth: boolean): void {
+    const now = this.context.currentTime;
+    const gain = rule.node.gain;
+    const level = down ? rule.amount : 1;
+    gain.cancelScheduledValues(now);
+    const seconds = down ? rule.attack : rule.release;
+    if (!smooth || seconds === 0) {
+      gain.setValueAtTime(level, now);
+      return;
+    }
+    gain.setValueAtTime(gain.value, now);
+    gain.linearRampToValueAtTime(level, now + seconds);
+  }
+
+  // End Ducking ---------------------------------------------------------------------------------------------------------------------------
+
   // Sound group management ----------------------------------------------------------------------------------------------------------------------
   public createSoundGroup(
     groupName: string,
@@ -2574,6 +2868,7 @@ export class SoundHub implements SoundHubInterface {
     const sound = this.sounds.get(soundId);
     if (sound) {
       sound.groupId = groupName;
+      if (this.ducks.size > 0) this.rerouteSound(sound);
     }
     if (sound && group.playOptions) {
       // Group options win over the sound's own. createSoundNode fills playOptions
@@ -2597,7 +2892,10 @@ export class SoundHub implements SoundHubInterface {
     group.sounds.delete(soundId);
     // Without this the next play() reads the old groupId and adds it back
     const sound = this.sounds.get(soundId);
-    if (sound?.groupId === groupName) sound.groupId = undefined;
+    if (sound?.groupId === groupName) {
+      sound.groupId = undefined;
+      if (this.ducks.size > 0) this.rerouteSound(sound);
+    }
     this.debugLog(`Removed sound ${soundId} from group ${groupName}.`);
   }
 
@@ -2693,7 +2991,7 @@ export class SoundHub implements SoundHubInterface {
         const gainNode = this.context.createGain();
         const volume = originalSound.volume ?? this.config.defaultVolume ?? 1;
         gainNode.gain.value = volume;
-        gainNode.connect(this.masterGainNode);
+        this.audioNodeConnector.routeGain(gainNode, this.outputFor(spriteId, undefined, id));
 
 
         const spriteSound: Sound = {
@@ -2708,6 +3006,7 @@ export class SoundHub implements SoundHubInterface {
           currentLoopCount: 0,
           panSpatialPosition: this.config.defaultPanSpatialPosition || { x: 0, y: 0, z: 0 },
           pan: originalSound.pan ?? this.config.defaultPan ?? 0,
+          baseId: id,
         };
 
         if (originalSound.stereoPanner) {
@@ -2809,7 +3108,7 @@ export class SoundHub implements SoundHubInterface {
         this.stop(instanceId);
       }
       this.cleanupSound(instanceId);
-      sound.gainNode.disconnect();
+      this.audioNodeConnector.unrouteGain(sound.gainNode);
       if (sound.groupId) {
         this.soundGroups.get(sound.groupId)?.sounds.delete(instanceId);
       }
@@ -3252,7 +3551,7 @@ export class SoundHub implements SoundHubInterface {
         sound.stereoPanner.pan.setValueAtTime(sound.pan, this.context.currentTime);
       }
 
-      this.audioNodeConnector.connectNodes(sound, this.masterGainNode);
+      this.audioNodeConnector.connectNodes(sound, this.outputFor(sound.id, sound.groupId));
 
       if (!skipDispatchEvent) {
         this.dispatchEvent({
@@ -3820,8 +4119,8 @@ export class SoundHub implements SoundHubInterface {
         sound.playOptions.panType = SoundPanType.Stereo;
       }
 
-      sound.gainNode.disconnect();
-      sound.gainNode.connect(this.masterGainNode);
+      this.audioNodeConnector.unrouteGain(sound.gainNode);
+      this.audioNodeConnector.routeGain(sound.gainNode, this.outputFor(sound.id, sound.groupId));
 
     } catch (error) {
       this.handleError("removing spatial effect", error, id);
@@ -4251,6 +4550,9 @@ export class SoundHub implements SoundHubInterface {
       this.eventListeners.forEach((listeners) => listeners.clear());
       this.soundGroups.clear();
       this.activeFadeCallbacks.clear();
+      this.ducks.forEach((rule) => rule.node.disconnect());
+      this.ducks.clear();
+      this.variations.clear();
 
       // Unlike cleanup(), destroy() does dismantle the master chain
       this.masterLimiterNode?.disconnect();
@@ -4381,6 +4683,9 @@ export class SoundHub implements SoundHubInterface {
     if (this.config.autoSuspend && SoundHub.PLAYBACK_STATE_EVENTS.has(event.type)) {
       this.updateAutoSuspend();
     }
+    if (this.ducks.size > 0 && SoundHub.DUCK_EVENTS.has(event.type)) {
+      this.updateDucks();
+    }
 
     const listeners = this.eventListeners.get(event.type);
     if (!listeners) return;
@@ -4476,7 +4781,7 @@ export class SoundHub implements SoundHubInterface {
 
     source.connect(stereoPanner);
     stereoPanner.connect(gainNode);
-    gainNode.connect(this.masterGainNode);
+    this.audioNodeConnector.routeGain(gainNode, this.outputFor(id));
 
     const stream: StreamSound = {
       id,
@@ -4606,6 +4911,8 @@ export class SoundHub implements SoundHubInterface {
     stream.state = SoundState.Paused;
     this.stopProgressTracking(id);
 
+    // A silent change dispatches nothing, so the ducks are checked here instead
+    if (skipDispatchEvent) this.syncDucks();
     if (!skipDispatchEvent) {
       this.dispatchEvent({
         type: SoundEventsEnum.PAUSED,
@@ -4627,6 +4934,8 @@ export class SoundHub implements SoundHubInterface {
     });
     stream.state = SoundState.Playing;
 
+    // A silent change dispatches nothing, so the ducks are checked here instead
+    if (skipDispatchEvent) this.syncDucks();
     if (!skipDispatchEvent) {
       this.dispatchEvent({
         type: SoundEventsEnum.RESUMED,
@@ -4650,6 +4959,8 @@ export class SoundHub implements SoundHubInterface {
     stream.state = SoundState.Stopped;
     this.stopProgressTracking(id);
 
+    // A silent change dispatches nothing, so the ducks are checked here instead
+    if (skipDispatchEvent) this.syncDucks();
     if (!skipDispatchEvent) {
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,

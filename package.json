@@ -2,7 +2,7 @@
   "name": "soundhub",
   "version": "6.4.0",
   "license": "MIT",
-  "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus, and stream long files. Web Audio API, 21 KB gzipped, zero dependencies.",
+  "description": "One audio hub for your app: play, group, fade, sprite and position sounds through a single typed event bus, and stream long files. Duck music under a voice, vary repeated sounds, add interface sounds without files, or run Howler.js code unchanged. Web Audio API, 23 KB gzipped, zero dependencies.",
   "author": {
     "name": "Chris Schardijn",
     "email": "chriscreativecode@gmail.com",
@@ -33,6 +33,11 @@
     "audio-player",
     "howler",
     "howler-alternative",
+    "howler-compatible",
+    "ducking",
+    "sidechain",
+    "sound-variations",
+    "ui-sounds",
     "html5-audio",
     "browser-audio",
     "game-audio",
@@ -63,19 +68,53 @@
         "default": "./dist/soundhub.cjs"
       }
     },
+    "./ui": {
+      "import": {
+        "types": "./dist/types/ui/index.d.ts",
+        "default": "./dist/soundhub-ui.es.js"
+      },
+      "require": {
+        "types": "./dist/types/ui/index.d.cts",
+        "default": "./dist/soundhub-ui.cjs"
+      }
+    },
+    "./howler": {
+      "import": {
+        "types": "./dist/types/howler/index.d.ts",
+        "default": "./dist/soundhub-howler.es.js"
+      },
+      "require": {
+        "types": "./dist/types/howler/index.d.cts",
+        "default": "./dist/soundhub-howler.cjs"
+      }
+    },
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "ui": [
+        "./dist/types/ui/index.d.ts"
+      ],
+      "howler": [
+        "./dist/types/howler/index.d.ts"
+      ]
+    }
   },
   "files": [
     "dist/soundhub.es.js",
     "dist/soundhub.cjs",
     "dist/soundhub.umd.js",
+    "dist/soundhub-ui.es.js",
+    "dist/soundhub-ui.cjs",
+    "dist/soundhub-howler.es.js",
+    "dist/soundhub-howler.cjs",
     "dist/types",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "dev": "vite --mode examples",
-    "build": "npm run typecheck && vite build --mode lib",
+    "build": "npm run typecheck && vite build --mode lib && vite build --mode extras",
     "build:examples": "vite build --mode examples",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm test && npm run build",

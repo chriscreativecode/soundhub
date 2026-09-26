@@ -2,6 +2,8 @@ export enum SoundEventsEnum {
     CONTEXT_RESUMED = 'context_resumed',
     CONTEXT_SUSPENDED = 'context_suspended',
     ENDED = 'ended',
+    DUCK_ENDED = 'duck_ended',
+    DUCK_STARTED = 'duck_started',
     ERROR = 'error',
     FADE_IN_COMPLETED = 'fade_in_completed',
     FADE_MASTER_IN_COMPLETED = 'fade_master_in_completed',

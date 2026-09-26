@@ -30,6 +30,9 @@
         <a href="#overlap">Overlap</a>
         <a href="#player">Player</a>
         <a href="#groups">Groups</a>
+        <a href="#ducking">Ducking</a>
+        <a href="#variations">Variations</a>
+        <a href="#ui">UI sounds</a>
         <a href="#spatial">Spatial</a>
         <a href="#stream">Stream</a>
         <a href="#deferred">Deferred</a>
@@ -159,6 +162,41 @@
           <button class="btn btn--danger" id="ambienceStop">Stop group</button>
         </div>
         <p class="hint">In the group: <strong id="groupMembers">empty</strong></p>
+      </section>
+
+      <!-- Ducking --------------------------------------------------------->
+      <section class="card" id="ducking" data-card="ducking">
+        <header class="card__head">
+          <h2>Ducking</h2>
+          <p><code>duck('music', { when: 'announcer' })</code> turns the music down while the announcer speaks and brings it back after.</p>
+        </header>
+        <div class="row">
+          <button class="btn" id="duckMusic" aria-pressed="false"><i class="led"></i>Music</button>
+          <button class="btn btn--primary" id="duckVoice">Announcer</button>
+        </div>
+        <p class="hint">Music at <strong id="duckLevel">100%</strong> of its own volume.</p>
+      </section>
+
+      <!-- Variations ------------------------------------------------------->
+      <section class="card" id="variations" data-card="variations">
+        <header class="card__head">
+          <h2>Variations</h2>
+          <p>One name, three takes. <code>play('hit')</code> never repeats the last take and spreads the pitch by ±8%.</p>
+        </header>
+        <div class="row">
+          <button class="btn btn--primary" id="hit">Hit</button>
+          <button class="btn" id="hitBurst">Hit 8 times</button>
+        </div>
+        <p class="hint">Last take: <strong id="hitTake">none yet</strong></p>
+      </section>
+
+      <!-- Interface sounds ------------------------------------------------->
+      <section class="card" id="ui" data-card="ui">
+        <header class="card__head">
+          <h2>Interface sounds</h2>
+          <p>Twelve sounds from <code>soundhub/ui</code>, rendered in the browser. None of them is a file.</p>
+        </header>
+        <div class="pads" id="uiPads"></div>
       </section>
 
       <!-- Spatial --------------------------------------------------------->

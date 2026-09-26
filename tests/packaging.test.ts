@@ -98,8 +98,8 @@ describe('the progress event', () => {
 
 describe('the event bus', () => {
   it('has the number of event types the README claims', () => {
-    // The README says 38. If that number moves, the sentence moves with it.
-    expect(Object.keys(SoundEventsEnum)).toHaveLength(38);
+    // The README says 40. If that number moves, the sentence moves with it.
+    expect(Object.keys(SoundEventsEnum)).toHaveLength(40);
   });
 
   it('exposes the same methods the interface declares', () => {

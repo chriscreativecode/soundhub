@@ -10,6 +10,7 @@
 import './demo.css';
 import { SoundHub, SoundEventsEnum } from '../src/index';
 import type { SoundEvent } from '../src/index';
+import { addUiSounds, uiSounds, UI_SOUND_NAMES } from '../src/ui';
 
 import spriteSheetUrl from './sounds/sprites.mp3';
 import laserUrl from './sounds/laser.wav';
@@ -45,7 +46,7 @@ const LOGGED = new Set([
   'fadeIn', 'fadeOut', 'setSoundVolume', 'setGlobalVolume', 'setGlobalPan',
   'mute', 'unmute', 'toggleMute', 'toggleGlobalMute', 'setPlaybackRate',
   'setSpatialPosition', 'setListenerOrientation', 'resetListener',
-  'setMasterLimiter', 'loadSound', 'setMediaSession',
+  'setMasterLimiter', 'loadSound', 'setMediaSession', 'duck', 'createVariations',
 ]);
 
 const formatValue = (value: unknown): string => {
@@ -454,6 +455,50 @@ $('ambienceStop').addEventListener('click', () => {
   refreshGroup();
 });
 
+// ------------------------------------------------------------- ducking ----
+
+const duckMusic = $<HTMLButtonElement>('duckMusic');
+duckMusic.addEventListener('click', () => {
+  if (playing.has('music')) hub.stop('music');
+  else hub.play('music', { loop: true, volume: 0.7 });
+});
+onState(() => {
+  const on = playing.has('music');
+  duckMusic.classList.toggle('is-playing', on);
+  duckMusic.setAttribute('aria-pressed', String(on));
+});
+$('duckVoice').addEventListener('click', () => hub.playSprite('sprites', 'victory'));
+
+const showDuck = (event: SoundEvent): void => {
+  $('duckLevel').textContent = `${Math.round((event.volume ?? 1) * 100)}%`;
+};
+hub.addEventListener(SoundEventsEnum.DUCK_STARTED, showDuck, { soundId: 'music' });
+hub.addEventListener(SoundEventsEnum.DUCK_ENDED, showDuck, { soundId: 'music' });
+
+// ---------------------------------------------------------- variations ----
+
+const playHit = (): void => {
+  const take = hub.play('hit', { volume: 0.8 });
+  if (take) $('hitTake').textContent = take.id.split(':')[0].replace('sprites_', '');
+};
+$('hit').addEventListener('click', playHit);
+$('hitBurst').addEventListener('click', () => {
+  for (let i = 0; i < 8; i += 1) window.setTimeout(playHit, i * 180);
+});
+
+// ---------------------------------------------------------- ui sounds ----
+
+const buildUiPads = (): void => {
+  const pads = $('uiPads');
+  UI_SOUND_NAMES.forEach((name) => {
+    const pad = document.createElement('button');
+    pad.className = 'pad';
+    pad.innerHTML = `<b>${name}</b><small>${uiSounds[name]}</small>`;
+    pad.addEventListener('click', () => hub.play(uiSounds[name]));
+    pads.append(pad);
+  });
+};
+
 // ------------------------------------------------------------- spatial ----
 
 const RANGE = 10;
@@ -694,9 +739,14 @@ const boot = async (): Promise<void> => {
   hub.setSoundSprite('sprites', SPRITES);
   hub.createSoundGroup('ambience', { playOptions: { loop: true, volume: 0.4 } });
   hub.createSoundGroup('lasers', { maxInstances: 16 });
+  // The announcer is the victory sprite: the music drops to 20% while it plays
+  hub.duck('music', { when: 'sprites_victory', amount: 0.2, attack: 0.08, release: 0.6 });
+  hub.createVariations('hit', ['sprites_attack', 'sprites_jump', 'sprites_catch'], { pitch: [0.92, 1.08] });
+  addUiSounds(hub);
 
   addFooters();
   buildSprites();
+  buildUiPads();
   buildDeferred();
   drawHeli();
   refreshGroup();

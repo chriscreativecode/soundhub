@@ -35,11 +35,13 @@ pausing, resuming, a volume change and the mute all arrive on the same typed bus
 [Try it with the sound on](https://soundhub.chriscreativecode.com/).*
 
 soundhub plays, loops, fades and pans sounds, places them in 3D, cuts sprites and
-streams long files. It also keeps track of every sound for you, which is the part
+streams long files. It ducks music under a voice, varies repeated sounds, and
+ships interface sounds that need no files. Coming from Howler.js, one changed
+import runs your code on it. It also keeps track of every sound for you, which is the part
 most projects end up writing by hand. [What soundhub is built for](#what-soundhub-is-built-for)
 shows how, next to a comparison with Howler.js.
 
-Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, typed for
+Built directly on the Web Audio API. 23 KB gzipped, zero dependencies, typed for
 every TypeScript setup and usable from plain JavaScript.
 
 ```bash
@@ -83,7 +85,7 @@ hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
 You address every sound by id and one hub holds the graph behind it, so the state
 of your audio sits in one place instead of spread over your components.
 
-- One typed event bus with 38 event types. A filter per listener narrows it down
+- One typed event bus with 40 event types. A filter per listener narrows it down
   to a single sound, one overlapping instance, or every instance that matches a
   naming pattern.
 - The progress event carries the whole state. `event.state` is the same
@@ -110,12 +112,16 @@ hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
 
 | | soundhub | Howler.js 2.2.4 |
 | --- | --- | --- |
-| Events | one typed bus, 38 types, filter per listener | callbacks per `Howl` |
+| Events | one typed bus, 40 types, filter per listener | callbacks per `Howl` |
 | Progress | the full state on the event, plus `getSoundState` | poll `seek()` yourself |
 | Long files | `loadStream`, still in the Web Audio graph | `html5: true`, outside it |
 | Spatial on long files | yes | no, HTML5 mode skips the panner |
 | Groups | `createSoundGroup` with `maxInstances` | no cap on concurrent instances (`pool` recycles finished ones) |
 | Limiter | `masterLimiter: true` | build it yourself on `Howler.ctx` |
+| Ducking | `duck('music', { when: 'voice' })` | fade by hand in `onplay` and `onend` |
+| Variations | `createVariations` with a pitch and volume spread | pick a random sprite yourself |
+| Sounds without files | `soundhub/ui`, and `addBuffer` for your own | needs a url |
+| Migrating | `soundhub/howler` runs Howler code | |
 
 soundhub is for apps that run a lot of audio at once. A game, a player, anything
 where the music and the one-shots have to stay under control from one place.
@@ -197,6 +203,97 @@ lets a fast typist trigger the same click twenty times without it stuttering.
 
 Sprites need the samples in memory, so they work on sounds loaded with
 `loadSound` and not on streams.
+
+## Ducking
+
+Music that drops when someone speaks, and comes back when they stop. Every game
+with dialogue and every video app with a voice-over needs it, and it is usually
+a pile of fades wired to callbacks. Here it is one line:
+
+```ts
+hub.duck('music', { when: 'voice', amount: 0.3 });
+
+hub.play('music', { loop: true });
+hub.play('voice');   // the music drops to 30% in 50 ms
+                     // and comes back over half a second when the voice ends
+```
+
+`when` takes one name or a list, and a name can be a sound, a group or a
+stream. With `{ when: 'dialogue' }` and a group called `dialogue`, every line
+in the group ducks the music, and it stays down until the last one has
+finished. Overlapping instances count too, so three barks from a dog keep the
+music down until the third one ends. A paused or muted trigger does not duck.
+
+```ts
+hub.createSoundGroup('dialogue');
+hub.duck(['music', 'ambience'], {
+  when: 'dialogue',
+  amount: 0.25,     // the level it drops to
+  attack: 0.1,      // seconds to go down
+  release: 0.8,     // seconds to come back up
+});
+
+hub.play('line-12', { groupId: 'dialogue' });
+```
+
+The duck has its own gain node between the target and the master bus. It
+never touches the target's volume, so a `setSoundVolume` or a fade during a
+duck is still there after it. `duck_started` and `duck_ended` arrive on the
+event bus for a subtitle or a meter, `isDucked('music')` tells you where it
+stands, and `duck()` hands back a function that removes the duck again.
+
+## Variations
+
+The same footstep a hundred times in a row sounds like a machine. Record three
+or four takes, give them one name, and `play` picks one:
+
+```ts
+await hub.loadSounds([
+  { id: 'step1', url: '/audio/step1.mp3' },
+  { id: 'step2', url: '/audio/step2.mp3' },
+  { id: 'step3', url: '/audio/step3.mp3' },
+]);
+
+hub.createVariations('footstep', ['step1', 'step2', 'step3'], {
+  pitch: [0.95, 1.05],   // a slightly different playback rate each time
+  volume: [0.8, 1],      // and a slightly different level
+});
+
+hub.play('footstep');    // never the same take twice in a row
+```
+
+`order: 'shuffle'` plays every take once before any repeats, and `'cycle'` plays
+them in the order given. The takes overlap each other by default, `stop('footstep')`
+stops every take it started, and the name works in `duck()` as well. A take can
+be a sprite, `'ui_click'` for the sprite `click` of `ui`, so one file can hold
+all of them.
+
+## Interface sounds without files
+
+`soundhub/ui` renders twelve interface sounds in the browser: click, tap, toggle
+on and off, success, error, warning, notify, pop, swipe, delete and a key press.
+Nothing is fetched, there are no files to host and no licence to check, and the
+whole set is 1.5 KB gzipped.
+
+```ts
+import { SoundHub } from 'soundhub';
+import { addUiSounds, uiSounds } from 'soundhub/ui';
+
+const hub = new SoundHub();
+addUiSounds(hub, { volume: 0.5 });
+
+saveButton.onclick = () => hub.play(uiSounds.success);
+input.onkeydown = () => hub.play(uiSounds.type);
+```
+
+After `addUiSounds` they are ordinary sounds in the hub, with the ids
+`ui.click`, `ui.success` and so on. `groupId: 'interface'` puts them in a group,
+so `hub.getGroup('interface').sounds` reaches all of them at once. `only` takes
+a subset and `prefix` changes the ids. They overlap by
+default, so a fast typist does not cut the previous key off.
+
+The same route is open to your own audio: `hub.addBuffer(id, buffer)` turns any
+`AudioBuffer` you synthesised, recorded or decoded yourself into a sound.
 
 ## Loading
 
@@ -364,7 +461,8 @@ value, the clock only moves when a test moves it, and a buffer source refuses a
 second `start()` the way the real one does. That is enough to run the library
 itself rather than a rehearsal of it, so the tests cover loading, playback,
 overlap, sprites, groups, fades, panning, spatial audio, the listener, streams,
-the media session and the event bus.
+the media session, ducking, variations, the interface sounds, the Howler layer
+and the event bus.
 
 ## API
 
@@ -374,11 +472,13 @@ The shape of it:
 
 | Area | Methods |
 | --- | --- |
-| Loading | `loadSound` `loadSounds` `registerSound` `registerSounds` `loadStream` `updateSoundUrl` `unloadSound` `removeSound` `isSoundLoaded` `getLoadState` `getSoundUrls` `canPlay` `getSupportedFormats` |
+| Loading | `loadSound` `loadSounds` `addBuffer` `registerSound` `registerSounds` `loadStream` `updateSoundUrl` `unloadSound` `removeSound` `isSoundLoaded` `getLoadState` `getSoundUrls` `canPlay` `getSupportedFormats` |
 | Playback | `play` `playSprite` `pause` `resume` `stop` `seek` `stopAllSounds` `pauseAllSounds` `resumeAllSounds` |
 | Volume & mute | `setSoundVolume` `setGlobalVolume` `mute` `unmute` `toggleGlobalMute` `fadeIn` `fadeOut` `fadeGlobalIn` `fadeGlobalOut` |
 | State | `getSoundState` `isPlaying` `isPaused` `getProgress` `getDuration` `startProgressTracking` |
 | Groups | `createSoundGroup` `addToSoundGroup` `removeFromSoundGroup` `getGroup` `removeSoundGroup` |
+| Ducking | `duck` `unduck` `isDucked` `getDuckLevel` |
+| Variations | `createVariations` `removeVariations` `getVariations` |
 | Sprites | `setSoundSprite` `getSpriteConfig` `removeSpriteConfig` |
 | Panning | `setPan` `setGlobalPan` `resetPan` `isStereoPanActive` |
 | Spatial | `setSpatialPosition` `setSpatialOrientation` `setMasterSpatialPosition` `setMasterSpatialOrientation` `updatePannerConfigById` `removeSpatialEffect` |
@@ -387,6 +487,8 @@ The shape of it:
 | Graph | `getContext` `getMasterInput` `getMasterOutput` `setMasterLimiter` `getMasterLimiterNode` `suspendContext` `resumeContext` |
 | Events | `addEventListener` `once` `removeEventListener` `dispatchEvent` `hasEventListener` |
 | Media Session | `setMediaSession` `clearMediaSession` |
+| `soundhub/ui` | `addUiSounds` `uiSounds` `renderUiSound` |
+| `soundhub/howler` | `Howl` `Howler` |
 
 ## Browser support
 
@@ -407,6 +509,51 @@ the hub config accept either, and `overlap` wins if you pass both.
 
 Nothing breaks if you change nothing. Your editor will mark the old name as
 deprecated, which is the reminder.
+
+### From Howler.js
+
+`soundhub/howler` has the Howler API on top of soundhub. Change the import and
+the code you have keeps running:
+
+```diff
+-import { Howl, Howler } from 'howler';
++import { Howl, Howler } from 'soundhub/howler';
+
+ const sfx = new Howl({
+   src: ['/audio/sfx.webm', '/audio/sfx.mp3'],
+   sprite: { laser: [0, 400], coin: [500, 300] },
+   onend: (id) => console.log('done', id),
+ });
+ const id = sfx.play('laser');
+ sfx.volume(0.5, id);
+```
+
+It covers the Howl options projects use (`src`, `volume`, `loop`, `rate`,
+`mute`, `sprite`, `autoplay`, `preload`, `html5` and the `on*` callbacks), the
+methods `play`, `pause`, `stop`, `mute`, `volume`, `fade`, `rate`, `seek`,
+`loop`, `playing`, `duration`, `state`, `stereo`, `pos`, `load`, `unload`, `on`,
+`once` and `off`, and `Howler.volume`, `mute`, `stop`, `unload`, `codecs` and
+`ctx`. Units are Howler's: milliseconds for sprites and fades, seconds for
+`seek` and `duration`.
+
+Not covered: the Howl options `format`, `pool` and `xhr`, `orientation` and the
+per-Howl panner settings, and on `Howler` the properties `autoSuspend`,
+`autoUnlock`, `html5PoolSize`, `usingWebAudio` and `noAudio`. A volume, rate or
+mute set on one voice before its file has loaded is not queued the way Howler
+queues it. Use the hub for the rest.
+
+Every Howl plays through one shared SoundHub, and `Howler.hub` hands it to you,
+so you can move over one feature at a time. `howl.soundhubId` is the id of that
+Howl in the hub:
+
+```ts
+Howler.configure({ masterLimiter: true });   // before anything else on Howler
+
+const music = new Howl({ src: '/audio/music.mp3', loop: true });
+const voice = new Howl({ src: '/audio/voice.mp3' });
+
+Howler.hub.duck(music.soundhubId, { when: voice.soundhubId });
+```
 
 ### From sound-manager-ts
 

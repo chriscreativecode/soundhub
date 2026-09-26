@@ -45,3 +45,5 @@ export type { SoundResetOptions } from './core/sound-reset-options.interface';
 export type { SoundStateInfo } from './core/sound-state-info.interface';
 export type { StreamOptions } from './core/stream-sound';
 export type { SoundEventFilter, MediaSessionInfo } from './core/sound-event-filter';
+export type { DuckOptions } from './core/duck-options.interface';
+export type { VariationOptions } from './core/variation-options.interface';
