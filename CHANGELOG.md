@@ -5,7 +5,11 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
-## [Unreleased]
+## [6.5.1] - 2026-09-26
+
+Two fixes for readings that were wrong in a real browser. What you hear does
+not change. The README now points Howler users at `soundhub/howler` right
+below the comparison table.
 
 ### Fixed
 
@@ -587,6 +591,7 @@ fixes and small additions between the milestones.
 | 6.3.0 to 6.3.2 | 26 Sep 2026 | soundhub |
 | 6.4.0 | 26 Sep 2026 | soundhub |
 
+[6.5.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.1
 [6.5.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.0
 [6.4.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.4.0
 [6.3.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.2
