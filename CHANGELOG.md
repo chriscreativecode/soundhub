@@ -5,6 +5,19 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [6.3.1] - 2026-09-26
+
+Documentation only. The code is the same as 6.3.0.
+
+### Changed
+
+**The README opens with the logo and the badges.** They used to sit below the
+screenshot. Now they come right after the title, with monthly and total
+downloads, the downloads under the old name, the size, zero dependencies and the
+bundled types. The demo, the docs, the changelog and StackBlitz share one line
+under them. A short paragraph after the screenshot says what soundhub does and
+points at the comparison with Howler.js.
+
 ## [6.3.0] - 2026-09-26
 
 ### Added
@@ -413,8 +426,9 @@ fixes and small additions between the milestones.
 | 6.0.0 | 29 Aug 2026 | soundhub |
 | 6.1.0 | 30 Aug 2026 | soundhub |
 | 6.2.0 to 6.2.2 | 31 Aug 2026 | soundhub |
-| 6.3.0 | 26 Sep 2026 | soundhub |
+| 6.3.0, 6.3.1 | 26 Sep 2026 | soundhub |
 
+[6.3.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.1
 [6.3.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.0
 [6.2.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.2
 [6.2.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.1
