@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="The soundhub logo, a small mixing desk with a level meter" width="150">
+  <img src="docs/logo.png" alt="The soundhub logo, a small dark mixing desk with a green level meter, three faders and a dial" width="160">
 </p>
 
 <h1 align="center">soundhub.js</h1>
@@ -28,10 +28,11 @@
   <a href="https://stackblitz.com/github/chriscreativecode/soundhub"><strong>Open in StackBlitz</strong></a>
 </p>
 
-[![Twelve sounds registered in one hub, three of them playing at once, with every state change arriving on one event bus](docs/hero.png)](https://soundhub.chriscreativecode.com/general/)
+[![Four sounds playing at once in one hub, each at its own volume, with master controls above and the event bus below](docs/hero.png)](https://soundhub.chriscreativecode.com/general/)
 
-*Twelve sounds registered, three playing at once, each with its own volume, and every
-state change arriving on one typed bus. [Try it with the sound on](https://soundhub.chriscreativecode.com/).*
+*Four sounds playing at once, each at its own volume, one of them muted. Starting,
+pausing, resuming, a volume change and the mute all arrive on the same typed bus.
+[Try it with the sound on](https://soundhub.chriscreativecode.com/).*
 
 soundhub plays, loops, fades and pans sounds, places them in 3D, cuts sprites and
 streams long files. It also keeps track of every sound for you, which is the part
