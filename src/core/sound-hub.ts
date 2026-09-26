@@ -1096,6 +1096,10 @@ export class SoundHub implements SoundHubInterface {
       } else if (sound.playOptions?.startTime !== undefined) {
         startOffset = sound.playOptions.startTime;
       }
+      // The start takes the paused position with it. Left in place, it survived
+      // a resume or a seek, and the next play() to restart the sound began
+      // there instead of at the top. pause() and seek() set it again.
+      sound.pausedAt = 0;
 
       sound.startTime = this.context.currentTime - (startOffset / playbackRate);
 

@@ -286,6 +286,42 @@ describe('state for the UI', () => {
   });
 });
 
+describe('playing again after a pause or a seek', () => {
+  it('starts from the top after the sound was paused and resumed', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+
+    hub.play('music');
+    contextOf(hub).advance(4);
+    hub.pause('music');
+    hub.resume('music');
+    hub.play('music');
+
+    expect(sourceOf(hub, 'music').startCalls.at(-1)?.offset).toBe(0);
+  });
+
+  it('starts from the top after a seek', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+
+    hub.play('music');
+    hub.seek('music', 6);
+    hub.play('music');
+
+    expect(sourceOf(hub, 'music').startCalls.at(-1)?.offset).toBe(0);
+  });
+
+  it('still starts where a seek put a stopped sound', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 10);
+
+    hub.seek('music', 6);
+    hub.play('music');
+
+    expect(sourceOf(hub, 'music').startCalls.at(-1)?.offset).toBeCloseTo(6, 5);
+  });
+});
+
 describe('restarting the source', () => {
   it('does not fade in again or dispatch started on a seek', async () => {
     const hub = createHub();
