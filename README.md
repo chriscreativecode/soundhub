@@ -121,7 +121,10 @@ hub.addEventListener(SoundEventsEnum.PROGRESS, (event) => {
 | Ducking | `duck('music', { when: 'voice' })` | fade by hand in `onplay` and `onend` |
 | Variations | `createVariations` with a pitch and volume spread | pick a random sprite yourself |
 | Sounds without files | `soundhub/ui`, and `addBuffer` for your own | needs a url |
-| Migrating | `soundhub/howler` runs Howler code | |
+
+Already on Howler? Change the import to `soundhub/howler` and your Howl code
+runs on soundhub. `Howler.hub` then gives you everything in the table above.
+See [From Howler.js](#from-howlerjs).
 
 soundhub is for apps that run a lot of audio at once. A game, a player, anything
 where the music and the one-shots have to stay under control from one place.
