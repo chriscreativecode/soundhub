@@ -1,21 +1,49 @@
-# soundhub.js
+<p align="center">
+  <img src="docs/logo.png" alt="The soundhub logo, a small mixing desk with a level meter" width="150">
+</p>
 
-**One hub for all the audio in your app.** Load sounds once, address them by id, and
-listen to a single typed event bus instead of wiring callbacks per sound.
+<h1 align="center">soundhub.js</h1>
+
+<p align="center">
+  <strong>One hub for all the audio in your app.</strong><br>
+  Load a sound once and address it by id. Every sound reports to the same typed event bus.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/soundhub"><img src="https://img.shields.io/npm/v/soundhub.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/soundhub"><img src="https://img.shields.io/npm/dm/soundhub.svg" alt="Downloads per month"></a>
+  <a href="https://www.npmjs.com/package/soundhub"><img src="https://img.shields.io/npm/dt/soundhub.svg" alt="Total downloads"></a>
+  <a href="https://www.npmjs.com/package/sound-manager-ts"><img src="https://img.shields.io/npm/dt/sound-manager-ts.svg?label=downloads%20as%20sound-manager-ts" alt="Downloads as sound-manager-ts"></a>
+  <br>
+  <a href="https://bundlephobia.com/package/soundhub"><img src="https://img.shields.io/bundlephobia/minzip/soundhub.svg" alt="Minzipped size"></a>
+  <a href="https://www.npmjs.com/package/soundhub?activeTab=dependencies"><img src="https://img.shields.io/badge/dependencies-0-brightgreen.svg" alt="Zero dependencies"></a>
+  <a href="https://www.npmjs.com/package/soundhub"><img src="https://img.shields.io/npm/types/soundhub.svg" alt="TypeScript types included"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/soundhub.svg" alt="MIT licence"></a>
+</p>
+
+<p align="center">
+  <a href="https://soundhub.chriscreativecode.com/"><strong>Live demo</strong></a> ·
+  <a href="https://soundhub-docs.chriscreativecode.com/"><strong>Documentation</strong></a> ·
+  <a href="./CHANGELOG.md"><strong>Changelog</strong></a> ·
+  <a href="https://stackblitz.com/github/chriscreativecode/soundhub"><strong>Open in StackBlitz</strong></a>
+</p>
 
 [![Twelve sounds registered in one hub, three of them playing at once, with every state change arriving on one event bus](docs/hero.png)](https://soundhub.chriscreativecode.com/general/)
 
 *Twelve sounds registered, three playing at once, each with its own volume, and every
 state change arriving on one typed bus. [Try it with the sound on](https://soundhub.chriscreativecode.com/).*
 
-[![npm version](https://img.shields.io/npm/v/soundhub.svg)](https://www.npmjs.com/package/soundhub)
-[![License: MIT](https://img.shields.io/npm/l/soundhub.svg)](https://opensource.org/licenses/MIT)
-[![Minzipped size](https://img.shields.io/bundlephobia/minzip/soundhub.svg)](https://bundlephobia.com/package/soundhub)
-[![Total downloads](https://img.shields.io/npm/dt/soundhub.svg)](https://www.npmjs.com/package/soundhub)
-[![Downloads as sound-manager-ts](https://img.shields.io/npm/dt/sound-manager-ts.svg?label=downloads%20as%20sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B-yellow.svg)](https://www.npmjs.com/package/soundhub)
-[![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6.svg)](https://www.npmjs.com/package/soundhub)
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/chriscreativecode/soundhub)
+soundhub plays, loops, fades and pans sounds, places them in 3D, cuts sprites and
+streams long files. It also keeps track of every sound for you, which is the part
+most projects end up writing by hand. [What soundhub is built for](#what-soundhub-is-built-for)
+shows how, next to a comparison with Howler.js.
+
+Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, typed for
+every TypeScript setup and usable from plain JavaScript.
+
+```bash
+npm install soundhub
+```
 
 My first sound engine was in ActionScript 3.0, back when Flash was still the way to
 build games and interactive sites for the browser. This one went on npm on 19
@@ -25,17 +53,6 @@ fifty releases and over 8,000 downloads. In August 2026 it became soundhub. Vers
 for `sound-manager-ts` still compiles (see [migrating](#from-sound-manager-ts)). The
 old package is deprecated on npm and points here. Every commit since the first
 release is in this repository, and the [changelog](./CHANGELOG.md) goes back to 1.0.0.
-
-Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, written in
-TypeScript and usable from plain JavaScript.
-
-- **[Live demo](https://soundhub.chriscreativecode.com/)**
-- **[Changelog](./CHANGELOG.md)**
-- **[Documentation](https://soundhub-docs.chriscreativecode.com/)**
-
-```bash
-npm install soundhub
-```
 
 ## Quick start
 
