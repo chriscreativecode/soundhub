@@ -12,16 +12,22 @@ state change arriving on one typed bus. [Try it with the sound on](https://sound
 [![License: MIT](https://img.shields.io/npm/l/soundhub.svg)](https://opensource.org/licenses/MIT)
 [![Minzipped size](https://img.shields.io/bundlephobia/minzip/soundhub.svg)](https://bundlephobia.com/package/soundhub)
 [![Total downloads](https://img.shields.io/npm/dt/soundhub.svg)](https://www.npmjs.com/package/soundhub)
+[![Downloads as sound-manager-ts](https://img.shields.io/npm/dt/sound-manager-ts.svg?label=downloads%20as%20sound-manager-ts)](https://www.npmjs.com/package/sound-manager-ts)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6%2B-yellow.svg)](https://www.npmjs.com/package/soundhub)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6.svg)](https://www.npmjs.com/package/soundhub)
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/chriscreativecode/soundhub)
 
+My first sound engine was in ActionScript 3.0, back when Flash was still the way to
+build games and interactive sites for the browser. This one went on npm on 19
+December 2024 as `sound-manager-ts`. Over the next twenty months it had more than
+fifty releases and over 8,000 downloads. In August 2026 it became soundhub. Version
+6.0.0 is the same code under the new name, plus a few small fixes, and code written
+for `sound-manager-ts` still compiles (see [migrating](#from-sound-manager-ts)). The
+old package is deprecated on npm and points here. Every commit since the first
+release is in this repository, and the [changelog](./CHANGELOG.md) goes back to 1.0.0.
+
 Built directly on the Web Audio API. 21 KB gzipped, zero dependencies, written in
 TypeScript and usable from plain JavaScript.
-
-It started in December 2024 as `sound-manager-ts`, which ran to 55 releases before
-the 6.0.0 rewrite and the rename. That package is deprecated on npm and points here.
-The [changelog](./CHANGELOG.md) goes back to the first release.
 
 - **[Live demo](https://soundhub.chriscreativecode.com/)**
 - **[Changelog](./CHANGELOG.md)**
