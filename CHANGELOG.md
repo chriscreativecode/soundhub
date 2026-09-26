@@ -5,9 +5,19 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
-## [Unreleased]
+## [6.3.2] - 2026-09-26
+
+Three fixes found while building the new showcase demos, and a README and
+package page that are easier to find.
 
 ### Fixed
+
+**A meter on `getMasterOutput()` keeps its signal.** `setMasterLimiter()`,
+`setMasterSpatialPosition()` and removing the global pan rebuild the master
+chain, and did so by disconnecting the master panner from everything. That also
+cut whatever an app had connected to `getMasterOutput()`, such as an
+`AnalyserNode` for a level meter, and it stayed cut. The chain now remembers the
+links it made and undoes only those.
 
 **`setSoundSprite()` adds to the sprite config.** A second call used to replace
 the config the first one recorded, so `getSpriteConfig()` forgot the sprites
@@ -20,6 +30,13 @@ kept its gain node on the master, and a copy that was playing went on playing
 with no way to stop it. The old sound and its instances are now stopped and
 taken off the master before the new range is cut. `removeSpriteSound()` takes
 the gain node off the master too, which it used to leave behind.
+
+### Changed
+
+- The README shows the current showcase: a new screenshot and the logo.
+- The npm page is easier to find. The keywords cover what people search for,
+  such as `webaudio`, `howler-alternative`, `sound-sprites` and `3d-audio`, and
+  the package has a funding link.
 
 ## [6.3.1] - 2026-09-26
 
@@ -444,6 +461,7 @@ fixes and small additions between the milestones.
 | 6.2.0 to 6.2.2 | 31 Aug 2026 | soundhub |
 | 6.3.0, 6.3.1 | 26 Sep 2026 | soundhub |
 
+[6.3.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.2
 [6.3.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.1
 [6.3.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.3.0
 [6.2.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.2.2
