@@ -5,6 +5,22 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [Unreleased]
+
+### Fixed
+
+**`setSoundSprite()` adds to the sprite config.** A second call used to replace
+the config the first one recorded, so `getSpriteConfig()` forgot the sprites
+registered earlier and `removeSpriteSound()` could no longer find them by key.
+Sprites can now be registered a few at a time. `removeSpriteSound()` takes the
+key out of the config as well.
+
+**Setting a sprite key again replaces its sound cleanly.** The old sprite sound
+kept its gain node on the master, and a copy that was playing went on playing
+with no way to stop it. The old sound and its instances are now stopped and
+taken off the master before the new range is cut. `removeSpriteSound()` takes
+the gain node off the master too, which it used to leave behind.
+
 ## [6.3.1] - 2026-09-26
 
 Documentation only. The code is the same as 6.3.0.

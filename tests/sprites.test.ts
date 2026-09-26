@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SoundEventsEnum } from '../src/index';
 import { createHub, loadSound } from './support/helpers';
+import type { MockAudioNode } from './support/web-audio-mock';
 
 const SPRITES = {
   jump: [1, 2] as [number, number],
@@ -132,5 +133,69 @@ describe('sprites', () => {
     hub.removeSpriteConfig('sheet');
 
     expect(hub.getSpriteConfig('sheet')).toBeUndefined();
+  });
+
+  it('adds to the config when it is called a second time', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'sheet', '/audio/sheet.mp3', 10);
+
+    hub.setSoundSprite('sheet', { jump: [1, 2] });
+    hub.setSoundSprite('sheet', { fail: [3, 5.5] });
+
+    expect(hub.getSpriteConfig('sheet')).toEqual(SPRITES);
+    hub.removeSpriteSound('jump');
+    expect(hub.hasSound('sheet_jump')).toBe(false);
+  });
+
+  it('takes a removed key out of the config', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'sheet', '/audio/sheet.mp3', 10);
+    hub.setSoundSprite('sheet', SPRITES);
+
+    hub.removeSpriteSound('jump');
+
+    expect(hub.getSpriteConfig('sheet')).toEqual({ fail: SPRITES.fail });
+  });
+
+  it('replaces a key that is set again, and takes the old sound off the master', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'sheet', '/audio/sheet.mp3', 10);
+    hub.setSoundSprite('sheet', SPRITES);
+    const sounds = (hub as unknown as { sounds: Map<string, { gainNode: MockAudioNode }> }).sounds;
+    const oldGain = sounds.get('sheet_jump')!.gainNode;
+
+    hub.setSoundSprite('sheet', { jump: [6, 6.5] });
+
+    expect(oldGain.outputs).toHaveLength(0);
+    expect(hub.getDuration('sheet_jump')).toBeCloseTo(0.5, 5);
+    expect(hub.getSpriteConfig('sheet')).toEqual({ ...SPRITES, jump: [6, 6.5] });
+  });
+
+  it('stops a playing copy of a key before it is replaced', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'sheet', '/audio/sheet.mp3', 10);
+    hub.setSoundSprite('sheet', SPRITES);
+    hub.playSprite('sheet', 'jump');
+    hub.playSprite('sheet', 'jump', { overlap: true });
+    const stopped = vi.fn();
+    hub.addEventListener(SoundEventsEnum.STOPPED, stopped);
+
+    hub.setSoundSprite('sheet', { jump: [6, 6.5] });
+
+    expect(stopped).toHaveBeenCalledTimes(2);
+    expect(hub.hasSound('sheet_jump:1')).toBe(false);
+    expect(hub.isPlaying('sheet_jump')).toBe(false);
+  });
+
+  it('takes a removed sprite off the master too', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'sheet', '/audio/sheet.mp3', 10);
+    hub.setSoundSprite('sheet', SPRITES);
+    const sounds = (hub as unknown as { sounds: Map<string, { gainNode: MockAudioNode }> }).sounds;
+    const gain = sounds.get('sheet_jump')!.gainNode;
+
+    hub.removeSpriteSound('jump');
+
+    expect(gain.outputs).toHaveLength(0);
   });
 });

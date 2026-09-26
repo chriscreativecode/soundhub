@@ -2621,11 +2621,18 @@ export class SoundHub implements SoundHubInterface {
       }
 
       // Record the config on the owner sound so getSpriteConfig() can return it
-      // and removeSpriteSound() can resolve a key to its sprite sounds.
-      originalSound.sprite = { ...sprite };
+      // and removeSpriteSound() can resolve a key to its sprite sounds. A second
+      // call adds to the config instead of replacing it, so sprites can be
+      // registered a few at a time.
+      originalSound.sprite = { ...(originalSound.sprite ?? {}), ...sprite };
 
       Object.entries(sprite).forEach(([key, [start, end]]) => {
         const spriteId = `${id}_${key}`;
+
+        // A key that is set again replaces its sound. The old one is stopped and
+        // taken off the master first; left in place, its gain node stayed on the
+        // master and a copy that was playing could no longer be stopped.
+        this.retireSpriteSound(spriteId);
         this.debugLog(
           `Creating sprite ${spriteId} for sound ${id}: Start=${start}s, End=${end}s, Duration=${end - start}s`
         );
@@ -2745,16 +2752,43 @@ export class SoundHub implements SoundHubInterface {
         return;
       }
 
-      spriteInstances.forEach(instanceId => {
-        this.stop(instanceId);
-        this.cleanupSound(instanceId);
-        this.sounds.delete(instanceId);
-        this.debugLog(`Removed sprite instance: ${instanceId}`);
+      spriteIds.forEach(spriteId => this.retireSpriteSound(spriteId));
+
+      // The key leaves the config as well, so getSpriteConfig() no longer lists it
+      this.sounds.forEach((sound, id) => {
+        if (!sound.sprite) return;
+        for (const key of Object.keys(sound.sprite)) {
+          if (spriteIds.has(`${id}_${key}`)) delete sound.sprite[key];
+        }
       });
       this.debugLog(`All instances of sprite ${spriteKey} removed`);
     } catch (error) {
       this.handleError("removing sprite sound", error, spriteKey);
     }
+  }
+
+  /**
+   * Stops a sprite sound and every instance of it, takes their nodes off the
+   * master and forgets them.
+   */
+  private retireSpriteSound(spriteId: string): void {
+    const ids = Array.from(this.sounds.keys()).filter(
+      key => key === spriteId || key.startsWith(`${spriteId}:`)
+    );
+    ids.forEach(instanceId => {
+      const sound = this.sounds.get(instanceId);
+      if (!sound) return;
+      if (sound.state === SoundState.Playing || sound.state === SoundState.Paused) {
+        this.stop(instanceId);
+      }
+      this.cleanupSound(instanceId);
+      sound.gainNode.disconnect();
+      if (sound.groupId) {
+        this.soundGroups.get(sound.groupId)?.sounds.delete(instanceId);
+      }
+      this.sounds.delete(instanceId);
+      this.debugLog(`Removed sprite sound: ${instanceId}`);
+    });
   }
 
   public removeSpriteConfig(id: string): void {
