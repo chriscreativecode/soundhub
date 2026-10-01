@@ -447,6 +447,14 @@ npm install
 npm run dev
 ```
 
+Two small apps show how the hub fits into a framework. Each one has its own
+`package.json` and opens in StackBlitz without installing anything.
+
+| Framework | Folder | Shows |
+| --- | --- | --- |
+| React | [`examples/react`](./examples/react) ([StackBlitz](https://stackblitz.com/github/chriscreativecode/soundhub/tree/main/examples/react)) | one hub per app, a `useSoundState` hook, cleanup on unmount |
+| Angular | [`examples/angular`](./examples/angular) ([StackBlitz](https://stackblitz.com/github/chriscreativecode/soundhub/tree/main/examples/angular)) | a root `SoundService`, `injectSoundState` as a signal, zoneless |
+
 Every sound in `examples/sounds/` is synthesised by
 `scripts/generate-example-sounds.py`. Nothing there is sampled or downloaded, so
 the example audio carries the same MIT licence as the rest of the project.
