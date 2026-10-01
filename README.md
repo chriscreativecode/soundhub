@@ -586,8 +586,10 @@ so existing code compiles unchanged. They will be removed in v7.
 
 ## Contributing
 
-Issues and pull requests are welcome. If you hit an edge case, a reproduction in
-the examples page is the fastest way to get it fixed.
+Issues and pull requests are welcome. A full guide to setting up, testing and
+sending a pull request lives in [CONTRIBUTING.md](CONTRIBUTING.md).
+If you hit an edge case, a reproduction in the examples page is the fastest way
+to get it fixed.
 
 Questions, ideas and things you built with soundhub go in
 [Discussions](https://github.com/chriscreativecode/soundhub/discussions).
