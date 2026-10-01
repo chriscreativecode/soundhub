@@ -25,6 +25,7 @@
   <a href="https://soundhub.chriscreativecode.com/"><strong>Live demo</strong></a> ·
   <a href="https://soundhub-docs.chriscreativecode.com/"><strong>Documentation</strong></a> ·
   <a href="./CHANGELOG.md"><strong>Changelog</strong></a> ·
+  <a href="https://github.com/chriscreativecode/soundhub/discussions"><strong>Discussions</strong></a> ·
   <a href="https://stackblitz.com/github/chriscreativecode/soundhub"><strong>Open in StackBlitz</strong></a>
 </p>
 
@@ -577,6 +578,13 @@ so existing code compiles unchanged. They will be removed in v7.
 
 Issues and pull requests are welcome. If you hit an edge case, a reproduction in
 the examples page is the fastest way to get it fixed.
+
+Questions, ideas and things you built with soundhub go in
+[Discussions](https://github.com/chriscreativecode/soundhub/discussions).
+
+If soundhub saves you some work, a
+[star on GitHub](https://github.com/chriscreativecode/soundhub) helps other people
+find it.
 
 ## Licence
 
