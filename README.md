@@ -455,6 +455,7 @@ Small apps show how the hub fits into a framework. Each one has its own
 | React | [`examples/react`](./examples/react) ([StackBlitz](https://stackblitz.com/github/chriscreativecode/soundhub/tree/main/examples/react)) | one hub per app, a `useSoundState` hook, cleanup on unmount |
 | Angular | [`examples/angular`](./examples/angular) ([StackBlitz](https://stackblitz.com/github/chriscreativecode/soundhub/tree/main/examples/angular)) | a root `SoundService`, `injectSoundState` as a signal, zoneless |
 | Vue | [`examples/vue`](./examples/vue) ([StackBlitz](https://stackblitz.com/github/chriscreativecode/soundhub/tree/main/examples/vue)) | a `useSoundState` composable, cleanup on unmount, safe with Nuxt |
+| Svelte | [`examples/svelte`](./examples/svelte) ([StackBlitz](https://stackblitz.com/github/chriscreativecode/soundhub/tree/main/examples/svelte)) | a `soundState` function with runes, cleanup through `$effect`, safe with SvelteKit |
 
 Every sound in `examples/sounds/` is synthesised by
 `scripts/generate-example-sounds.py`. Nothing there is sampled or downloaded, so
