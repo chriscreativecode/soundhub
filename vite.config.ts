@@ -100,6 +100,9 @@ const examplesConfig: UserConfig = {
   root: path.resolve(__dirname, 'examples'),
   base: './',
   server: { port: 5174, open: '/index.html' },
+  // The framework examples in examples/<name>/ are projects of their own, with
+  // their own dependencies. Without this, the dependency scan would crawl them.
+  optimizeDeps: { entries: ['index.html'] },
   build: {
     outDir: path.resolve(__dirname, 'dist/examples'),
     emptyOutDir: true,
