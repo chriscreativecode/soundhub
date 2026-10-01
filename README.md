@@ -29,11 +29,12 @@
   <a href="https://stackblitz.com/github/chriscreativecode/soundhub"><strong>Open in StackBlitz</strong></a>
 </p>
 
-[![Four sounds playing at once in one hub, each at its own volume, with master controls above and the event bus below](docs/hero.png)](https://soundhub.chriscreativecode.com/general/)
+<p align="center">
+  <a href="https://soundhub.chriscreativecode.com/"><img src="docs/hero.png" alt="A mixing desk with four channel strips playing rain, birds, a brook and crickets at their own levels, a VU meter and master controls, and the event bus below listing a volume_changed event for each strip" width="460"></a>
+</p>
 
-*Four sounds playing at once, each at its own volume, one of them muted. Starting,
-pausing, resuming, a volume change and the mute all arrive on the same typed bus.
-[Try it with the sound on](https://soundhub.chriscreativecode.com/).*
+<p align="center"><em>Four sounds playing at once, each at its own volume. Every move of a fader
+arrives on the same typed bus.<br><a href="https://soundhub.chriscreativecode.com/">Try it with the sound on</a>.</em></p>
 
 soundhub plays, loops, fades and pans sounds, places them in 3D, cuts sprites and
 streams long files. It ducks music under a voice, varies repeated sounds, and
@@ -44,6 +45,13 @@ shows how, next to a comparison with Howler.js.
 
 Built directly on the Web Audio API. 23 KB gzipped, zero dependencies, typed for
 every TypeScript setup and usable from plain JavaScript.
+
+It needs no adapter for your framework. There are guides and runnable examples
+for [React](https://soundhub-docs.chriscreativecode.com/docs/react),
+[Angular](https://soundhub-docs.chriscreativecode.com/docs/angular),
+[Vue](https://soundhub-docs.chriscreativecode.com/docs/vue) and
+[Svelte](https://soundhub-docs.chriscreativecode.com/docs/svelte), and the same
+code runs under Next.js, Nuxt and SvelteKit. See [Examples](#examples).
 
 ```bash
 npm install soundhub
@@ -184,6 +192,8 @@ running instances have their own.
 
 ## Sprites
 
+[![The waveform of one audio file with eight sprite regions marked, the seventh one playing, and the playSprite call below it](docs/sprites.png)](https://soundhub.chriscreativecode.com/sprite/)
+
 One file, many sounds. Load the sprite sheet, name the ranges in seconds, then
 play them by name:
 
@@ -221,6 +231,8 @@ hub.play('music', { loop: true });
 hub.play('voice');   // the music drops to 30% in 50 ms
                      // and comes back over half a second when the voice ends
 ```
+
+[![The ducking demo: the music level drops from 100% to 25% the moment the announcer starts, with isDucked() true and the duck call shown below](docs/ducking.png)](https://soundhub.chriscreativecode.com/mixing/)
 
 `when` takes one name or a list, and a name can be a sound, a group or a
 stream. With `{ when: 'dialogue' }` and a group called `dialogue`, every line
@@ -364,10 +376,12 @@ off();  // addEventListener hands back its own unsubscribe
 instead of repeating them per call. The master limiter is off by default:
 turning it on is a deliberate change to how your project sounds.
 
-[![A sound orbiting the listener in the 3D spatial demo](docs/demo.gif)](https://soundhub.chriscreativecode.com/spatial/)
+<p align="center">
+  <a href="https://soundhub.chriscreativecode.com/spatial/"><img src="docs/spatial.gif" alt="A sound orbiting the listener in the 3D spatial demo, with its distance and direction updating below the room" width="600"></a>
+</p>
 
-*One sound orbiting the listener, with the panner settings live. This is one feature
-of several, not what the library is for.*
+<p align="center"><em>One sound orbiting the listener. Switch to fly-by and turn on Doppler in
+the <a href="https://soundhub.chriscreativecode.com/spatial/">live demo</a> to hear the pitch bend as it passes.</em></p>
 
 **A listener you can move.** `setSpatialPosition` moves a sound around the ear,
 which is what a map or a menu needs. A first-person camera works the other way
@@ -448,7 +462,9 @@ npm run dev
 ```
 
 Small apps show how the hub fits into a framework. Each one has its own
-`package.json` and opens in StackBlitz without installing anything.
+`package.json` and opens in StackBlitz without installing anything. The
+[framework guides](https://soundhub-docs.chriscreativecode.com/docs/react) in the
+documentation walk through the same code, including Next.js, Nuxt and SvelteKit.
 
 | Framework | Folder | Shows |
 | --- | --- | --- |
