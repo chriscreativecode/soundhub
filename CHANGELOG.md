@@ -5,6 +5,19 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [6.5.2] - 2026-10-01
+
+No changes to the library. Nothing to update in your code.
+
+### Changed
+
+**Documentation and examples.** The README has new images taken from the live
+demos, including the sprite timeline and the ducking curve, and links to the
+new framework guides. The repository now has small example apps for React,
+Angular, Vue and Svelte, each one opening in StackBlitz, and a contributing
+guide. Thanks to [@wufangyong973](https://github.com/wufangyong973) for the first
+version of `CONTRIBUTING.md`.
+
 ## [6.5.1] - 2026-09-26
 
 Two fixes for readings that were wrong in a real browser. What you hear does
@@ -591,6 +604,7 @@ fixes and small additions between the milestones.
 | 6.3.0 to 6.3.2 | 26 Sep 2026 | soundhub |
 | 6.4.0 | 26 Sep 2026 | soundhub |
 
+[6.5.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.2
 [6.5.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.1
 [6.5.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.0
 [6.4.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.4.0
