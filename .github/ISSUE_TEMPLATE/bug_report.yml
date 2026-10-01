@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in soundhub does not work the way the docs say it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. A small reproduction is the fastest way to a fix.
+        Questions and ideas are better placed in [Discussions](https://github.com/chriscreativecode/soundhub/discussions).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug. What did you expect, and what did you get instead?
+      placeholder: After a fadeOut() the sound keeps playing at volume 0 instead of stopping.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest list of steps that shows the problem.
+      placeholder: |
+        1. Load a sound with loadSounds()
+        2. Call play('music')
+        3. Call fadeOut('music', 1000)
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code
+      description: The smallest piece of code that triggers the bug. No need for backticks, this is shown as code.
+      render: ts
+
+  - type: input
+    id: version
+    attributes:
+      label: soundhub version
+      description: Run `npm ls soundhub`, or check package.json.
+      placeholder: "6.5.2"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: Chrome 141 on Windows 11, Safari on iOS 19
+    validations:
+      required: true
+
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Where do you use soundhub?
+      options:
+        - Plain TypeScript or JavaScript
+        - React
+        - Angular
+        - Vue
+        - Svelte
+        - Through the Howler compatibility layer (soundhub/howler)
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Errors or warnings from the browser console, if there are any.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it
+      options:
+        - label: I searched the open and closed issues and did not find this one.
+          required: true

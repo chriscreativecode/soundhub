@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/chriscreativecode/soundhub/discussions
+    about: Ask how something works, share an idea or show what you built with soundhub.
+  - name: Report a bug without a GitHub account
+    url: https://soundhub-docs.chriscreativecode.com/report-bug/
+    about: A short form on the docs site. The report goes straight to the maintainer and is not public.
+  - name: Documentation
+    url: https://soundhub-docs.chriscreativecode.com/
+    about: Every method, with examples. The answer might already be there.
+  - name: Report a security issue
+    url: https://github.com/chriscreativecode/soundhub/security/advisories/new
+    about: Please do not open a public issue for a vulnerability. Report it privately here.

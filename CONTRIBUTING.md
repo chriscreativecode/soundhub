@@ -47,3 +47,7 @@ Questions, ideas and things you built with soundhub go in
 [Discussions](https://github.com/chriscreativecode/soundhub/discussions). If you hit
 an edge case, a small reproduction in the examples page is the fastest way to get it
 fixed.
+
+Bugs go in [Issues](https://github.com/chriscreativecode/soundhub/issues/new/choose),
+where a short form asks for the version, the browser and the steps. A security
+problem never goes in a public issue: see [SECURITY.md](SECURITY.md).
