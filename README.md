@@ -23,6 +23,7 @@
 
 <p align="center">
   <a href="https://soundhub.chriscreativecode.com/"><strong>Live demo</strong></a> ·
+  <a href="https://soundhub-js.vercel.app/"><strong>API playground</strong></a> ·
   <a href="https://soundhub-docs.chriscreativecode.com/"><strong>Documentation</strong></a> ·
   <a href="./CHANGELOG.md"><strong>Changelog</strong></a> ·
   <a href="https://github.com/chriscreativecode/soundhub/discussions"><strong>Discussions</strong></a> ·
@@ -497,6 +498,10 @@ and the event bus.
 ## API
 
 Full reference: **[soundhub-docs.chriscreativecode.com](https://soundhub-docs.chriscreativecode.com/)**
+
+Every call below, live on one page: **[API playground](https://soundhub-js.vercel.app/)**.
+Each card shows the exact calls behind your click. It builds from `main`, so it
+can be ahead of the version on npm.
 
 The shape of it:
 
