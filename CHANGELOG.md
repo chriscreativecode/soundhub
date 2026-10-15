@@ -5,7 +5,12 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
-## [Unreleased]
+## [6.6.0] - 2026-10-15
+
+One change to how event filters match, and four fixes found by testing the
+library in a real browser. Most code needs no change; see the first entry if you
+filter events with `soundId` and play the same sound both with and without
+`overlap`.
 
 ### Changed
 
@@ -641,7 +646,10 @@ fixes and small additions between the milestones.
 | 6.2.0 to 6.2.2 | 31 Aug 2026 | soundhub |
 | 6.3.0 to 6.3.2 | 26 Sep 2026 | soundhub |
 | 6.4.0 | 26 Sep 2026 | soundhub |
+| 6.5.0 to 6.5.2 | 26 Sep to 1 Oct 2026 | soundhub |
+| 6.6.0 | 15 Oct 2026 | soundhub |
 
+[6.6.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.6.0
 [6.5.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.2
 [6.5.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.1
 [6.5.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.0
