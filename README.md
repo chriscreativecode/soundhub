@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/logo.png" alt="The soundhub logo, a small dark mixing desk with a green level meter, three faders and a dial" width="160">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-clear.svg">
+    <img src="docs/logo.svg" alt="The soundhub logo, a cassette labelled soundhub whose tape runs out at the bottom as a green waveform" width="200">
+  </picture>
 </p>
 
 <h1 align="center">soundhub.js</h1>
