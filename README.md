@@ -174,13 +174,14 @@ The ninth laser stops the oldest one instead of piling up. Without a group,
 `new SoundHub({ maxInstancesPerSound: 8 })` does the same for every sound at
 once, which is a cheap guard against a stuck key.
 
-On the event bus, the filter tells the two apart. `{ soundId: 'laser' }` matches
-that one id, `{ originalId: 'laser' }` matches every instance of it:
+On the event bus, `{ soundId: 'laser' }` hears the sound and every instance of
+it. Each event says which instance it was, and `{ instanceId: 'laser:3' }`
+narrows to one:
 
 ```ts
 hub.addEventListener(SoundEventsEnum.ENDED, (event) => {
   console.log('finished:', event.soundId);   // laser:3
-}, { originalId: 'laser' });
+}, { soundId: 'laser' });
 ```
 
 You can switch the default over for the whole hub with `new SoundHub({ overlap:

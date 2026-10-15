@@ -4595,8 +4595,9 @@ export class SoundHub implements SoundHubInterface {
    *
    * Without a filter you hear every sound, which means writing
    * `if (event.soundId !== 'x') return` at the top of the callback. The filter
-   * does that for you. Use `{ soundId: 'music' }` for one sound, or
-   * `{ originalId: 'laser' }` to catch every overlapping instance of it.
+   * does that for you. Use `{ soundId: 'music' }` for one sound, which
+   * includes any overlapping instances of it, or `{ instanceId: 'laser:3' }`
+   * for a single instance.
    *
    * Returns a function that removes this listener again, which is easier to
    * hold on to than reconstructing the same callback and filter for
@@ -4690,6 +4691,13 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public dispatchEvent(event: SoundEvent): void {
+    // An overlapping instance is "laser:3". Not every place that reports on one
+    // says which sound it came from, so it is filled in here once, for the
+    // filters below and for the listeners that read it.
+    if (event.originalId === undefined && event.soundId?.includes(':')) {
+      event.originalId = event.soundId.split(':')[0];
+    }
+
     // Keep the operating system's controls in step before the listeners run,
     // so a UI that reacts to the same event sees a lock screen that agrees.
     if (this.mediaSessionId && event.soundId === this.mediaSessionId) {
@@ -4710,7 +4718,9 @@ export class SoundHub implements SoundHubInterface {
 
     listeners.forEach(({ callback, filter }) => {
       if (filter) {
-        if (filter.soundId && event.soundId !== filter.soundId) return;
+        // A sound's id covers its overlapping instances too. With overlap on,
+        // every play is an instance, so matching the id alone heard nothing.
+        if (filter.soundId && event.soundId !== filter.soundId && event.originalId !== filter.soundId) return;
         if (filter.originalId && event.originalId !== filter.originalId) return;
         if (filter.instanceId && event.instanceId !== filter.instanceId) return;
         if (filter.instancePattern && event.instanceId && !filter.instancePattern.test(event.instanceId)) return;

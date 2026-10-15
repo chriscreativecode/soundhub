@@ -5,6 +5,27 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [Unreleased]
+
+### Changed
+
+**A `soundId` filter now hears the overlapping instances of that sound.** With
+`overlap` on, every play is an instance such as `power-up:1`, and
+`addEventListener(ENDED, fn, { soundId: 'power-up' })` matched none of them, so
+the listener never ran and nothing said why. It now matches the sound and all
+of its instances. Use `{ instanceId: 'power-up:1' }` for a single one.
+`{ originalId }` keeps working and reaches the same events.
+
+If you mix plain and overlapping plays of one sound and relied on a `soundId`
+filter to skip the instances, add an `instanceId` or `instancePattern` filter
+instead.
+
+### Fixed
+
+**`originalId` on every instance event.** Some events about an instance, such
+as `volume_changed` after `setSoundVolume('laser:1', 0.5)`, left `originalId`
+out. Every event about an instance now names the sound it came from.
+
 ## [6.5.2] - 2026-10-01
 
 No changes to the library. Nothing to update in your code.

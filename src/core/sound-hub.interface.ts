@@ -314,7 +314,7 @@ export interface SoundHubInterface {
   destroy(): void;
 
   // Listeners / Event handling: Manage event listeners for sound-related events.
-  /** Add an event listener for a specific SoundEventsEnum type. The optional filter narrows which sounds you hear: { soundId } for one sound, { originalId } for every instance of it. Returns a function that removes the listener again. */
+  /** Add an event listener for a specific SoundEventsEnum type. The optional filter narrows which sounds you hear: { soundId } for one sound and its overlapping instances, { instanceId } for one instance. Returns a function that removes the listener again. */
   addEventListener(type: SoundEventsEnum, callback: (event: SoundEvent) => void, filter?: SoundEventFilter): () => void;
   /** Listen for the next matching event and then stop listening. Returns a function that cancels the listener before it has fired. */
   once(type: SoundEventsEnum, callback: (event: SoundEvent) => void, filter?: SoundEventFilter): () => void;

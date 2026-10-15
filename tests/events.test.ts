@@ -108,6 +108,37 @@ describe('filters', () => {
     expect(listener.mock.calls[0][0].soundId).toBe('music');
   });
 
+  it('includes the overlapping instances of the sound in a soundId filter', async () => {
+    const hub = createHub({ overlap: true });
+    await loadSound(hub, 'power-up');
+    await loadSound(hub, 'music');
+    const listener = vi.fn();
+
+    hub.addEventListener(SoundEventsEnum.ENDED, listener, { soundId: 'power-up' });
+    hub.play('power-up');
+    hub.play('power-up');
+    hub.play('music');
+    endSound(hub, 'power-up:1');
+    endSound(hub, 'power-up:2');
+    endSound(hub, 'music:1');
+
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener.mock.calls.map(([event]) => event.soundId)).toEqual(['power-up:1', 'power-up:2']);
+  });
+
+  it('names the original sound on every event of an instance', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'laser');
+    const listener = vi.fn();
+
+    hub.addEventListener(SoundEventsEnum.VOLUME_CHANGED, listener);
+    hub.play('laser', { overlap: true });
+    hub.setSoundVolume('laser:1', 0.5);
+
+    expect(listener).toHaveBeenCalled();
+    expect(listener.mock.calls.at(-1)![0].originalId).toBe('laser');
+  });
+
   it('narrows to every instance of one sound', async () => {
     const hub = createHub();
     await loadSound(hub, 'laser');

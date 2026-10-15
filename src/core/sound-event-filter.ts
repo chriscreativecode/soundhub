@@ -5,9 +5,9 @@
  * and the listener hears every sound.
  */
 export interface SoundEventFilter {
-  /** Exactly this sound. The common case. */
+  /** This sound, and every overlapping instance of it. The common case. */
   soundId?: string;
-  /** Every overlapping instance of one sound, played with `overlap`. */
+  /** One sound and its overlapping instances, the same reach as `soundId`. Kept for code written before `soundId` covered instances. */
   originalId?: string;
   /** One specific instance. */
   instanceId?: string;
