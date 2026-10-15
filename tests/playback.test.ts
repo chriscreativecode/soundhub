@@ -141,6 +141,35 @@ describe('pause, resume and stop', () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
+  it('says nothing when stopping a sound that was not playing', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    await loadSound(hub, 'rain');
+    const listener = vi.fn();
+    hub.addEventListener(SoundEventsEnum.STOPPED, listener);
+
+    hub.stop('music');
+    hub.play('rain');
+    hub.stopAllSounds();
+    hub.stop('rain');
+
+    expect(listener).toHaveBeenCalledOnce();
+    expect(listener.mock.calls[0][0].soundId).toBe('rain');
+  });
+
+  it('dispatches stopped for a paused sound', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music');
+    const listener = vi.fn();
+    hub.addEventListener(SoundEventsEnum.STOPPED, listener);
+
+    hub.play('music');
+    hub.pause('music');
+    hub.stop('music');
+
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
   it('stops, pauses and resumes everything at once', async () => {
     const hub = createHub();
     await loadSound(hub, 'music');
@@ -241,6 +270,22 @@ describe('reaching the end', () => {
 
     expect(looped).toHaveBeenCalledOnce();
     expect(hub.isPlaying('music')).toBe(false);
+  });
+
+  it('ends, rather than stops, once maxLoops is reached', async () => {
+    const hub = createHub();
+    await loadSound(hub, 'music', '/audio/music.mp3', 2);
+    const ended = vi.fn();
+    const stopped = vi.fn();
+    hub.addEventListener(SoundEventsEnum.ENDED, ended);
+    hub.addEventListener(SoundEventsEnum.STOPPED, stopped);
+
+    hub.play('music', { loop: true, maxLoops: 2 });
+    endSound(hub, 'music');
+    endSound(hub, 'music');
+
+    expect(ended).toHaveBeenCalledOnce();
+    expect(stopped).not.toHaveBeenCalled();
   });
 });
 

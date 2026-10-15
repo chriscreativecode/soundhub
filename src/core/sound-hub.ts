@@ -41,6 +41,11 @@ export class SoundHub implements SoundHubInterface {
   /** Set by destroy(), which only does its work once */
   private isDestroyed: boolean = false;
   private previousGlobalPan: number = 0;
+  /**
+   * The master pan as last set. The param itself still reads its old value
+   * until the audio thread has run, so it cannot answer right after a change.
+   */
+  private globalPan = 0;
   private PROGRESS_UPDATE_INTERVAL = 50; // milliseconds, see setProgressUpdateInterval()
   private eventListeners: Map<SoundEventsEnum, Set<EventListener>> = new Map();
   private readonly activeSources: Map<string, AudioBufferSourceNode | null> = new Map();
@@ -413,9 +418,11 @@ export class SoundHub implements SoundHubInterface {
       sound.playOptions?.maxLoops > 0 &&
       (sound.currentLoopCount ?? 0) >= sound.playOptions?.maxLoops - 1  // Subtract 1 to account for initial play
     ) {
-      this.debugLog(`Max loops reached for ${sound.id}, stopping`);
+      this.debugLog(`Max loops reached for ${sound.id}, ending`);
       sound.currentLoopCount = 0;
-      this.stop(sound.id);
+      // The last run played out by itself, so this is an end and not a stop:
+      // code that waits for ended to start the next track has to hear it
+      this.handleSoundEnded(sound);
       return;
     }
 
@@ -1327,6 +1334,10 @@ export class SoundHub implements SoundHubInterface {
         return;
       }
 
+      // Only a sound that was playing or paused has anything to report. The
+      // reset below still runs, so a half-finished fade cannot linger.
+      const wasActive = sound.state === SoundState.Playing || sound.state === SoundState.Paused;
+
       this.cancelScheduledFadeOut(id);
       this.cancelFadeAnimation(id);
       this.stopProgressTracking(id);
@@ -1342,7 +1353,7 @@ export class SoundHub implements SoundHubInterface {
 
       // A silent change dispatches nothing, so the ducks are checked here instead
       if (skipDispatchEvent) this.syncDucks();
-      if (!skipDispatchEvent) {
+      if (!skipDispatchEvent && wasActive) {
         this.dispatchEvent({
           type: SoundEventsEnum.STOPPED,
           soundId: id,
@@ -3627,7 +3638,7 @@ export class SoundHub implements SoundHubInterface {
 
   public setGlobalPan(value: number): void {
     try {
-      this.previousGlobalPan = this.masterStereoPanner.pan.value;
+      this.previousGlobalPan = this.globalPan;
 
       this.sounds.forEach((_sound, id) => {
         if (this.isSpatialAudioActive(id)) {
@@ -3640,6 +3651,7 @@ export class SoundHub implements SoundHubInterface {
 
       const pannedValue = Math.max(-1, Math.min(1, value));
       this.masterStereoPanner.pan.setValueAtTime(pannedValue, this.context.currentTime);
+      this.globalPan = pannedValue;
 
       this.dispatchEvent({
         type: SoundEventsEnum.MASTER_PAN_CHANGED,
@@ -3656,7 +3668,7 @@ export class SoundHub implements SoundHubInterface {
   }
 
   public getGlobalPan(): number {
-    return this.masterStereoPanner.pan.value;
+    return this.globalPan;
   }
 
   public resetGlobalPan(): void {
@@ -4981,6 +4993,8 @@ export class SoundHub implements SoundHubInterface {
   private streamStop(id: string, skipDispatchEvent = false): void {
     const stream = this.streams.get(id);
     if (!stream) return;
+    // Same rule as a buffered sound: only a stream that was playing or paused reports a stop
+    const wasActive = stream.state === SoundState.Playing || stream.state === SoundState.Paused;
 
     stream.element.pause();
     stream.element.currentTime = stream.startOffset;
@@ -4989,7 +5003,7 @@ export class SoundHub implements SoundHubInterface {
 
     // A silent change dispatches nothing, so the ducks are checked here instead
     if (skipDispatchEvent) this.syncDucks();
-    if (!skipDispatchEvent) {
+    if (!skipDispatchEvent && wasActive) {
       this.dispatchEvent({
         type: SoundEventsEnum.STOPPED,
         soundId: id,
@@ -5239,7 +5253,12 @@ export class SoundHub implements SoundHubInterface {
     return this.VERSION;
   }
 
+  /** Shared by every hub on the page, so a page with three hubs does not print three banners. */
+  private static consoleInfoShown = false;
+
   private showConsoleInfo(): void {
+    if (SoundHub.consoleInfoShown) return;
+    SoundHub.consoleInfoShown = true;
     console.info(
       `%csoundhub.js %cv${this.VERSION}\n` +
       `%c© Chris Schardijn\n` +

@@ -293,6 +293,16 @@ describe('configuration', () => {
     expect(hub.getGlobalVolume()).toBe(1);
     expect(hub.getGlobalPan()).toBe(0);
   });
+
+  it('reports the master pan before the browser has applied it', () => {
+    const hub = createHub();
+
+    hub.setGlobalPan(0.3);
+    // A real param still reads its old value until the audio thread has run
+    (hub as unknown as { masterStereoPanner: StereoPannerNode }).masterStereoPanner.pan.value = 0;
+
+    expect(hub.getGlobalPan()).toBe(0.3);
+  });
 });
 
 describe('unlocking on mobile', () => {
@@ -311,5 +321,17 @@ describe('unlocking on mobile', () => {
     expect(hub.getContext().state).toBe('running');
 
     Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 0 });
+  });
+});
+
+describe('the console banner', () => {
+  it('appears once per page, however many hubs there are', () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    createHub();
+    createHub();
+    const banners = info.mock.calls.filter(([text]) => String(text).includes('soundhub.js'));
+    info.mockRestore();
+
+    expect(banners.length).toBeLessThanOrEqual(1);
   });
 });

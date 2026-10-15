@@ -14,6 +14,19 @@ describe('streams', () => {
     expect(hub.getStreamElement('podcast')?.src).toContain('/audio/episode.mp3');
   });
 
+  it('says nothing when stopping a stream that was not playing', async () => {
+    const hub = createHub();
+    await hub.loadStream('podcast', '/audio/episode.mp3');
+    const stopped = vi.fn();
+    hub.addEventListener(SoundEventsEnum.STOPPED, stopped);
+
+    hub.stop('podcast');
+    hub.play('podcast');
+    hub.stop('podcast');
+
+    expect(stopped).toHaveBeenCalledOnce();
+  });
+
   it('does not count as a buffered sound', async () => {
     const hub = createHub();
 

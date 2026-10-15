@@ -22,6 +22,23 @@ instead.
 
 ### Fixed
 
+**`ended` after the last of `maxLoops`.** A sound played with
+`{ loop: true, maxLoops: 3 }` stopped itself after the third run and sent
+`stopped`, as if your code had called `stop()`. Code that waited for `ended` to
+start the next track never heard it. It now sends `ended`.
+
+**No `stopped` for a sound that was not playing.** `stop()` on a sound or
+stream that was idle still sent `stopped`, and so did `stopAllSounds()` and a
+group's voice limit for every idle member. Only a sound that was playing or
+paused reports a stop now.
+
+**`getGlobalPan()` right after `setGlobalPan()`.** It read the value off the
+audio param, which a browser only moves once the audio thread has run, so it
+returned the old pan. It now returns the pan you set.
+
+**The console banner shows once per page.** Every `new SoundHub()` printed it,
+so a page with several hubs printed it several times.
+
 **`originalId` on every instance event.** Some events about an instance, such
 as `volume_changed` after `setSoundVolume('laser:1', 0.5)`, left `originalId`
 out. Every event about an instance now names the sound it came from.
