@@ -100,7 +100,7 @@ export class SoundHub implements SoundHubInterface {
     SoundEventsEnum.UNLOADED,
   ]);
 
-  private VERSION = "6.6.0";
+  private VERSION = "6.6.1";
 
   constructor(config: SoundHubConfig = {}) {
     this.ticker = new Ticker();

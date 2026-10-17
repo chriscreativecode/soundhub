@@ -1,6 +1,6 @@
 {
   "name": "soundhub",
-  "version": "6.6.0",
+  "version": "6.6.1",
   "license": "MIT",
   "description": "A JavaScript audio library for web apps and games. Built on the Web Audio API with groups, sprites, streaming and 3D positioning. TypeScript types, 23 KB gzipped, zero dependencies.",
   "author": {

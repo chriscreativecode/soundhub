@@ -5,6 +5,11 @@ All notable changes to soundhub are recorded here. The format follows
 [semantic versioning](https://semver.org/): a patch fixes something, a minor
 adds something backwards-compatible, a major asks you to change your code.
 
+## [6.6.1] - 2026-10-17
+
+No code changes. The package description on npm and the README intro now say
+what soundhub is first: a JavaScript audio library for web apps and games.
+
 ## [6.6.0] - 2026-10-15
 
 One change to how event filters match, and four fixes found by testing the
@@ -647,8 +652,9 @@ fixes and small additions between the milestones.
 | 6.3.0 to 6.3.2 | 26 Sep 2026 | soundhub |
 | 6.4.0 | 26 Sep 2026 | soundhub |
 | 6.5.0 to 6.5.2 | 26 Sep to 1 Oct 2026 | soundhub |
-| 6.6.0 | 15 Oct 2026 | soundhub |
+| 6.6.0 to 6.6.1 | 15 to 17 Oct 2026 | soundhub |
 
+[6.6.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.6.1
 [6.6.0]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.6.0
 [6.5.2]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.2
 [6.5.1]: https://github.com/chriscreativecode/soundhub/releases/tag/v6.5.1
