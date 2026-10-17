@@ -8,8 +8,8 @@
 <h1 align="center">soundhub.js</h1>
 
 <p align="center">
-  <strong>One hub for all the audio in your app.</strong><br>
-  Load a sound once and address it by id. Every sound reports to the same typed event bus.
+  <strong>A JavaScript audio library for web apps and games.</strong><br>
+  One hub for all the audio in your app. Load a sound once and address it by id. Every sound reports to the same typed event bus.
 </p>
 
 <p align="center">
